@@ -198,6 +198,8 @@ final class AppModel: ObservableObject {
 
     /// Read a device slot back into a CardSave (Mifare Classic full dump
     /// with anti-collision data, or EM410X uid) — port of helpers/slot_dump.dart.
+    /// The slot is temporarily activated first (block/uid reads target the
+    /// active slot) and the previous slot is restored afterwards.
     func readSlotAsCard(slot: Int) async throws -> CardSave? {
         guard let communicator else { throw ChameleonError.notConnected }
         var tag = slotTypes[slot].hf
@@ -210,6 +212,13 @@ final class AppModel: ObservableObject {
         let nick = isHF ? slotNames[slot].hf : slotNames[slot].lf
         let name = nick.isEmpty ? "Slot \(slot)" : nick
 
+        let previousSlot = activeSlot
+        if activeSlot != slot {
+            try await communicator.activateSlot(slot)
+            activeSlot = slot
+        }
+
+        var card: CardSave? = nil
         if tag.isMifareClassic {
             let raw = try await communicator.mf1GetBlockData(startBlock: 0, blockCount: tag.blockCount)
             var blocks: [[UInt8]] = []
@@ -219,17 +228,19 @@ final class AppModel: ObservableObject {
                 offset += 16
             }
             let anti = try await communicator.mf1GetAntiCollData()
-            return CardSave(uid: anti.uid.hex, name: name, tag: tag,
+            card = CardSave(uid: anti.uid.hex, name: name, tag: tag,
                             sak: Int(anti.sak), atqa: Array(anti.atqa), ats: Array(anti.ats),
                             data: blocks)
-        }
-
-        if tag.isEM410X {
+        } else if tag.isEM410X {
             let uid = try await communicator.getEM410XEmulatorID()
-            return CardSave(uid: uid.hex, name: name, tag: tag)
+            card = CardSave(uid: uid.hex, name: name, tag: tag)
         }
 
-        return nil   // other LF tag types not supported for slot export yet
+        if previousSlot != slot {
+            try await communicator.activateSlot(previousSlot)
+            activeSlot = previousSlot
+        }
+        return card   // other LF tag types not supported for slot export yet
     }
 
     private func handleDisconnect() {

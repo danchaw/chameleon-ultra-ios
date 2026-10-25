@@ -52,7 +52,6 @@ struct SavedCardsView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.down.on.square")
                 }
-                .buttonStyle(PressableButtonStyle())
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -241,16 +240,18 @@ struct CardDetailView: View {
                 }
                 .buttonStyle(PressableButtonStyle())
 
-                if !card.data.isEmpty {
-                    NavigationLink {
-                        DumpEditorView(title: card.name, blocks: card.data, blockSize: blockSize) { newBlocks in
-                            card.data = newBlocks
-                            store.update(card)
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        }
-                    } label: {
-                        Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
+                NavigationLink {
+                    DumpEditorView(title: card.name,
+                                   blocks: card.data.isEmpty
+                                       ? Array(repeating: [UInt8](repeating: 0, count: blockSize), count: card.tagType.blockCount)
+                                       : card.data,
+                                   blockSize: blockSize) { newBlocks in
+                        card.data = newBlocks
+                        store.update(card)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
+                } label: {
+                    Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
                 }
 
                 Button {

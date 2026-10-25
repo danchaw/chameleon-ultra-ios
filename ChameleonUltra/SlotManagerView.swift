@@ -136,15 +136,37 @@ struct SlotManagerView: View {
             }
 
             if !store.cards.filter({ $0.tagType.frequency == frequency }).isEmpty {
-                Menu {
-                    ForEach(store.cards.filter { $0.tagType.frequency == frequency }) { card in
-                        Button("\(card.name) (\(card.tagType.displayName))") {
-                            applyCard(card, to: slot)
+                HStack(spacing: 10) {
+                    Menu {
+                        ForEach(store.cards.filter { $0.tagType.frequency == frequency }) { card in
+                            Button("\(card.name) (\(card.tagType.displayName))") {
+                                applyCard(card, to: slot)
+                            }
                         }
+                    } label: {
+                        Text(L10n.t("Load saved card…"))
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color.accentColor.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
                     }
-                } label: {
-                    Label(L10n.t("Load saved card…"), systemImage: "creditcard")
-                        .font(.subheadline)
+
+                    Button {
+                        hapticFeedback()
+                        openSlotDumpEditor(slot)
+                    } label: {
+                        Text(L10n.t("Dump editor"))
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color(.systemBackground).opacity(0.6), in: Capsule())
+                            .foregroundStyle(Color.primary)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .disabled(type == .unknown)
+
+                    Spacer(minLength: 0)
                 }
             }
 
@@ -179,44 +201,33 @@ struct SlotManagerView: View {
                 Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }
             }
-
+        }
+        .padding(.vertical, 2)
+        .contextMenu {
             if type != .unknown {
-                Menu {
-                    Button {
-                        exportSlot(slot, mode: .file)
-                    } label: {
-                        Label(L10n.t("Save to file"), systemImage: "doc")
-                    }
-                    Button {
-                        exportSlot(slot, mode: .newCard)
-                    } label: {
-                        Label(L10n.t("Export to new card"), systemImage: "creditcard")
-                    }
-                    if !store.cards.isEmpty {
-                        Menu {
-                            ForEach(store.cards) { card in
-                                Button(card.name) {
-                                    exportSlot(slot, mode: .updateCard(card))
-                                }
-                            }
-                        } label: {
-                            Label(L10n.t("Update saved card…"), systemImage: "arrow.triangle.2.circlepath")
-                        }
-                    }
-                    if type.isMifareClassic {
-                        Button {
-                            openSlotDumpEditor(slot)
-                        } label: {
-                            Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
-                        }
-                    }
+                Button {
+                    exportSlot(slot, mode: .file)
                 } label: {
-                    Label(L10n.t("Export slot data"), systemImage: "square.and.arrow.up")
-                        .font(.subheadline)
+                    Label(L10n.t("Save to file"), systemImage: "doc")
+                }
+                Button {
+                    exportSlot(slot, mode: .newCard)
+                } label: {
+                    Label(L10n.t("Export to new card"), systemImage: "creditcard")
+                }
+                if !store.cards.isEmpty {
+                    Menu {
+                        ForEach(store.cards) { card in
+                            Button(card.name) {
+                                exportSlot(slot, mode: .updateCard(card))
+                            }
+                        }
+                    } label: {
+                        Label(L10n.t("Update saved card…"), systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
             }
         }
-        .padding(.vertical, 2)
     }
 
     enum SlotExportMode {

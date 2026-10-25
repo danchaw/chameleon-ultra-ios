@@ -150,7 +150,7 @@ struct EmulatorSettingsSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if let settings {
+                if settings != nil {
                     Section("Mifare Classic emulator") {
                         Toggle("Key detection (mfkey32)", isOn: detectionBinding)
                         Toggle("Gen1a mode", isOn: gen1aBinding)

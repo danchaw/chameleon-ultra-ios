@@ -102,7 +102,7 @@ struct DeviceSettingsView: View {
                 }
             }
             if let currentWakeTime = wakeTime {
-                Stepper(wakeTime == 0 ? "Sleep timeout: never" : "Sleep timeout: \(wakeTime) min",
+                Stepper(currentWakeTime == 0 ? "Sleep timeout: never" : "Sleep timeout: \(currentWakeTime) min",
                         value: Binding(
                             get: { wakeTime ?? currentWakeTime },
                             set: { newValue in

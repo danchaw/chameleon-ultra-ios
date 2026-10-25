@@ -31,6 +31,7 @@
 			buildConfigurationList = CU0000000000000000000008A /* Build configuration list for PBXNativeTarget "ChameleonUltra" */;
 			buildPhases = (
 				CU0000000000000000000006A /* Sources */,
+				CU00000000000000000000E0A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -47,6 +48,16 @@
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CU00000000000000000000E0A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXProject section */
 		CU0000000000000000000007A /* Project object */ = {

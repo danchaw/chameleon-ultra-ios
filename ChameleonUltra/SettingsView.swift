@@ -8,6 +8,13 @@ struct SettingsView: View {
     @AppStorage("colorScheme") private var colorScheme: String = "system"
     @AppStorage("appLanguage") private var appLanguage: String = "system"
 
+    /// Shown in About; reads the real bundle version so it never drifts.
+    private var appVersionString: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+        return "Chameleon Ultra GUI for iOS \(version) (\(build))"
+    }
+
     var body: some View {
         List {
             Section(L10n.t("Appearance")) {
@@ -52,16 +59,11 @@ struct SettingsView: View {
                     } label: {
                         Label(L10n.t("Device settings"), systemImage: "gearshape.2")
                     }
-                    NavigationLink {
-                        FlashingView(embedded: true)
-                    } label: {
-                        Label(L10n.t("Firmware update (DFU)"), systemImage: "arrow.down.doc")
-                    }
                 }
             }
 
             Section(L10n.t("About")) {
-                LabeledContent("App", value: "Chameleon Ultra GUI for iOS 1.2")
+                LabeledContent("App", value: appVersionString)
                 LabeledContent(L10n.t("License"), value: "GPL-3.0")
                 NavigationLink {
                     LogsView()

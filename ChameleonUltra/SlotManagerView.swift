@@ -126,6 +126,7 @@ struct SlotManagerView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
+                .fixedSize()
 
                 if app.activeSlot != slot {
                     Button {
@@ -135,7 +136,9 @@ struct SlotManagerView: View {
                             .font(.subheadline)
                     }
                     .buttonStyle(.borderedProminent)
+                    .fixedSize()
                 }
+                Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }
             }
         }

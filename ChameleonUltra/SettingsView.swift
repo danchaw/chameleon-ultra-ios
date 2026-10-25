@@ -6,18 +6,23 @@ struct SettingsView: View {
     @EnvironmentObject var app: AppModel
     @AppStorage("themeColor") private var themeColor: String = "orange"
     @AppStorage("colorScheme") private var colorScheme: String = "system"
-    @AppStorage("hapticsEnabled") private var hapticsEnabled: Bool = true
+    @AppStorage("appLanguage") private var appLanguage: String = "system"
 
     var body: some View {
         List {
-            Section("Appearance") {
-                Picker("Theme", selection: $colorScheme) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+            Section(L10n.t("Appearance")) {
+                Picker(L10n.t("Theme"), selection: $colorScheme) {
+                    Text(L10n.t("System")).tag("system")
+                    Text(L10n.t("Light")).tag("light")
+                    Text(L10n.t("Dark")).tag("dark")
+                }
+                Picker(L10n.t("Language"), selection: $appLanguage) {
+                    Text(L10n.t("System")).tag("system")
+                    Text("中文").tag("zh")
+                    Text("English").tag("en")
                 }
                 HStack {
-                    Text("Accent color")
+                    Text(L10n.t("Accent color"))
                     Spacer()
                     ForEach(themeColors, id: \.hex) { color in
                         Button {
@@ -41,40 +46,40 @@ struct SettingsView: View {
             }
 
             if app.isConnected {
-                Section("Device") {
+                Section(L10n.t("Device")) {
                     NavigationLink {
                         DeviceSettingsView()
                     } label: {
-                        Label("Device settings", systemImage: "gearshape.2")
+                        Label(L10n.t("Device settings"), systemImage: "gearshape.2")
                     }
                     NavigationLink {
                         FlashingView(embedded: true)
                     } label: {
-                        Label("Firmware update (DFU)", systemImage: "arrow.down.doc")
+                        Label(L10n.t("Firmware update (DFU)"), systemImage: "arrow.down.doc")
                     }
                 }
             }
 
-            Section("About") {
-                LabeledContent("App", value: "Chameleon Ultra GUI for iOS 1.0")
-                LabeledContent("License", value: "GPL-3.0")
+            Section(L10n.t("About")) {
+                LabeledContent("App", value: "Chameleon Ultra GUI for iOS 1.2")
+                LabeledContent(L10n.t("License"), value: "GPL-3.0")
                 NavigationLink {
                     LogsView()
                 } label: {
-                    Label("Protocol log", systemImage: "doc.text.magnifyingglass")
+                    Label(L10n.t("Protocol log"), systemImage: "doc.text.magnifyingglass")
                 }
                 Link(destination: URL(string: "https://github.com/GameTec-live/ChameleonUltraGUI")!) {
-                    Label("Original project (Flutter)", systemImage: "safari")
+                    Label(L10n.t("Original project (Flutter)"), systemImage: "safari")
                 }
             }
 
             Section {
-                Text("For authorized security research and testing of RFID/NFC systems you own or have permission to test.")
+                Text(L10n.t("For authorized security research and testing of RFID/NFC systems you own or have permission to test."))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(L10n.t("Settings"))
     }
 }
 
@@ -90,19 +95,19 @@ struct DeviceSettingsView: View {
     var body: some View {
         Form {
             if let currentAnimation = animation {
-                Picker("LED animation", selection: Binding(
+                Picker(L10n.t("LED animation"), selection: Binding(
                     get: { animation ?? currentAnimation },
                     set: { newValue in
                         animation = newValue
                         Task { try? await app.communicator?.setAnimationMode(newValue) }
                     })) {
                     ForEach(AnimationSetting.allCases) { mode in
-                        Text(mode.displayName).tag(mode)
+                        Text(L10n.t(mode.displayName)).tag(mode)
                     }
                 }
             }
             if let currentWakeTime = wakeTime {
-                Stepper(currentWakeTime == 0 ? "Sleep timeout: never" : "Sleep timeout: \(currentWakeTime) min",
+                Stepper(sleepTimeoutTitle(currentWakeTime),
                         value: Binding(
                             get: { wakeTime ?? currentWakeTime },
                             set: { newValue in
@@ -111,7 +116,7 @@ struct DeviceSettingsView: View {
                             }), in: 0...120, step: 5)
             }
             if let currentPairing = pairing {
-                Toggle("BLE pairing", isOn: Binding(
+                Toggle(L10n.t("BLE pairing"), isOn: Binding(
                     get: { pairing ?? currentPairing },
                     set: { newValue in
                         pairing = newValue
@@ -124,10 +129,10 @@ struct DeviceSettingsView: View {
                         try? await app.communicator?.resetSettings()
                     }
                 } label: {
-                    Label("Reset device settings", systemImage: "arrow.counterclockwise")
+                    Label(L10n.t("Reset device settings"), systemImage: "arrow.counterclockwise")
                 }
             } footer: {
-                Text("Applies device defaults. Does not erase slots.")
+                Text(L10n.t("Applies device defaults. Does not erase slots."))
             }
             Section {
                 Button(role: .destructive) {
@@ -135,14 +140,14 @@ struct DeviceSettingsView: View {
                         try? await app.communicator?.factoryReset()
                     }
                 } label: {
-                    Label("Factory reset (erases everything)", systemImage: "exclamationmark.triangle")
+                    Label(L10n.t("Factory reset (erases everything)"), systemImage: "exclamationmark.triangle")
                 }
             }
             if let error {
                 Section { Text(error).foregroundStyle(.red) }
             }
         }
-        .navigationTitle("Device settings")
+        .navigationTitle(L10n.t("Device settings"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             guard let communicator = app.communicator else { return }
@@ -150,6 +155,13 @@ struct DeviceSettingsView: View {
             wakeTime = try? await communicator.getSleepTimeout()
             pairing = try? await communicator.isBLEPairEnabled()
         }
+    }
+
+    private func sleepTimeoutTitle(_ minutes: Int) -> String {
+        let wakeWord = L10n.t("Sleep timeout")
+        return minutes == 0
+            ? "\(wakeWord): \(L10n.t("never"))"
+            : "\(wakeWord): \(minutes) \(L10n.t("min"))"
     }
 }
 
@@ -170,7 +182,7 @@ struct LogsView: View {
             }
             .padding()
         }
-        .navigationTitle("Protocol log")
+        .navigationTitle(L10n.t("Protocol log"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

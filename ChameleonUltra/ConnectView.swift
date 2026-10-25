@@ -19,7 +19,7 @@ struct ConnectView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Chameleon Ultra")
                                 .font(.title3.bold())
-                            Text("NFC & RFID research tool")
+                            Text(L10n.t("NFC & RFID research tool"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -28,13 +28,13 @@ struct ConnectView: View {
                 }
 
                 HStack {
-                    Text("Bluetooth devices")
+                    Text(L10n.t("Bluetooth devices"))
                         .font(.headline)
                     Spacer()
                     Button {
                         toggleScan()
                     } label: {
-                        Label(isScanning ? "Stop" : "Scan", systemImage: isScanning ? "stop.circle.fill" : "magnifyingglass")
+                        Label(isScanning ? L10n.t("Stop") : L10n.t("Scan"), systemImage: isScanning ? "stop.circle.fill" : "magnifyingglass")
                     }
                     .buttonStyle(.bordered)
                     .disabled(!ble.bluetoothReady)
@@ -42,7 +42,7 @@ struct ConnectView: View {
 
                 if !ble.bluetoothReady {
                     GlassCard {
-                        Label("Bluetooth is off or unavailable", systemImage: "bluetooth.slash")
+                        Label(L10n.t("Bluetooth is off or unavailable"), systemImage: "bluetooth.slash")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -51,7 +51,7 @@ struct ConnectView: View {
                     GlassCard {
                         HStack {
                             ProgressView()
-                            Text("Searching for Chameleon devices…")
+                            Text(L10n.t("Searching for Chameleon devices…"))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -94,9 +94,9 @@ struct ConnectView: View {
                 if ble.devices.isEmpty && !isScanning {
                     GlassCard {
                         VStack(spacing: 8) {
-                            Label("No devices yet", systemImage: "tray")
+                            Label(L10n.t("No devices yet"), systemImage: "tray")
                                 .foregroundStyle(.secondary)
-                            Text("Power on your Chameleon and tap Scan. The device advertises as “ChameleonUltra…” (or CU-… in DFU mode).")
+                            Text(L10n.t("Power on your Chameleon and tap Scan. The device advertises as “ChameleonUltra…” (or CU-… in DFU mode)."))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -107,7 +107,7 @@ struct ConnectView: View {
             }
             .padding()
         }
-        .navigationTitle("Connect")
+        .navigationTitle(L10n.t("Connect"))
         .onAppear {
             toggleScan()
             // Bluetooth may not be powered on yet – retry once shortly after.

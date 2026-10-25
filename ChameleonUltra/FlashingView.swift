@@ -3,9 +3,8 @@ import UIKit
 import Combine
 import UniformTypeIdentifiers
 
-/// Firmware update: online check against official GitHub releases with a
-/// guided flash flow (download → verify → reboot to DFU → auto-reconnect →
-/// flash), plus a local-file path with the same verification report.
+/// Firmware update: online check against official GitHub releases, package
+/// verification, and an explicit user-confirmed flash (regular or forced).
 struct FlashingView: View {
     @EnvironmentObject var app: AppModel
     @StateObject private var firmware = FirmwareService()
@@ -23,12 +22,15 @@ struct FlashingView: View {
     @State private var downloadProgress: Double = 0
     @State private var busyPhase: BusyPhase = .idle
     @State private var pendingFirmware: Data?
-    @State private var operationTask: Task<Void, Never>?
 
-    // local firmware pick + validation
-    @State private var localFirmware: Data?
-    @State private var localFirmwareName = ""
+    // staged firmware: verified (or not) and waiting for the user's decision
+    @State private var stagedFirmware: Data?
+    @State private var stagedName = ""
     @State private var validation: FirmwareValidationReport?
+
+    // confirmation before any flash
+    @State private var showFlashConfirm = false
+    @State private var forceArmed = false
 
     var body: some View {
         ScrollView {
@@ -41,7 +43,7 @@ struct FlashingView: View {
                     updateCard
                 } else {
                     GlassCard {
-                        Label("Connect a Chameleon device first (Home tab).", systemImage: "antenna.radiowaves.left.and.right.slash")
+                        Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -60,7 +62,7 @@ struct FlashingView: View {
                 if busyPhase == .downloading {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Downloading firmware…").font(.headline)
+                            Text(L10n.t("Downloading firmware…")).font(.headline)
                             ProgressView(value: downloadProgress)
                             Text("\(Int(downloadProgress * 100))%")
                                 .font(.caption.monospacedDigit())
@@ -73,7 +75,7 @@ struct FlashingView: View {
                     GlassCard {
                         HStack {
                             ProgressView()
-                            Text("Verifying firmware package…").foregroundStyle(.secondary)
+                            Text(L10n.t("Verifying firmware package…")).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -84,14 +86,14 @@ struct FlashingView: View {
                             HStack {
                                 ProgressView()
                                 Text(busyPhase == .rebooting
-                                     ? "Rebooting device into DFU mode…"
-                                     : "Searching for DFU device (CU-…)…")
+                                     ? L10n.t("Rebooting device into DFU mode…")
+                                     : L10n.t("Searching for DFU device (CU-…)…"))
                                     .foregroundStyle(.secondary)
                             }
                             Button(role: .destructive) {
                                 cancelOperation()
                             } label: {
-                                Label("Cancel", systemImage: "xmark.circle.fill")
+                                Label(L10n.t("Cancel"), systemImage: "xmark.circle.fill")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
@@ -102,7 +104,7 @@ struct FlashingView: View {
                 if !dfuLog.isEmpty {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("DFU log").font(.headline)
+                            Text(L10n.t("DFU log")).font(.headline)
                             ForEach(Array(dfuLog.enumerated()), id: \.offset) { _, line in
                                 Text(line)
                                     .font(.system(size: 11, design: .monospaced))
@@ -114,7 +116,7 @@ struct FlashingView: View {
             }
             .padding()
         }
-        .navigationTitle("Firmware update")
+        .navigationTitle(L10n.t("Firmware update"))
         .navigationBarTitleDisplayMode(embedded ? .automatic : .inline)
         .task {
             if app.isConnected {
@@ -125,6 +127,16 @@ struct FlashingView: View {
             if newState == .dfuMode, let zip = pendingFirmware {
                 flash(zip)
             }
+        }
+        .confirmationDialog(L10n.t("Confirm firmware flash"), isPresented: $showFlashConfirm, titleVisibility: .visible) {
+            Button(L10n.t("Flash"), role: .destructive) {
+                proceedConfirmedFlash()
+            }
+            Button(L10n.t("Cancel"), role: .cancel) {}
+        } message: {
+            Text(forceArmed
+                 ? L10n.t("This package FAILED verification. Force flashing will very likely damage your device. Really continue?")
+                 : L10n.t("Flashing the wrong firmware can permanently brick your Chameleon. Continue?"))
         }
         .sheet(isPresented: $showPicker) {
             DocumentPicker(contentTypes: [UTType(filenameExtension: "zip") ?? .zip, .data]) { url in
@@ -143,9 +155,9 @@ struct FlashingView: View {
                         .font(.system(size: 26))
                         .foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Firmware update").font(.headline)
+                        Text(L10n.t("Firmware update")).font(.headline)
                         if let version = app.firmwareVersion {
-                            Text("Device firmware: v\(numToVersionCode(version))")
+                            Text("\(L10n.t("Device firmware")): v\(numToVersionCode(version))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -158,7 +170,7 @@ struct FlashingView: View {
                 if firmware.checking {
                     HStack {
                         ProgressView()
-                        Text("Checking for updates…").foregroundStyle(.secondary)
+                        Text(L10n.t("Checking for updates…")).foregroundStyle(.secondary)
                     }
                 } else if let latest = firmware.latest {
                     let updateAvailable = firmware.isUpdateAvailable(currentVersion: app.firmwareVersion ?? 0)
@@ -168,14 +180,14 @@ struct FlashingView: View {
                             .foregroundStyle(updateAvailable ? .orange : .green)
                         VStack(alignment: .leading, spacing: 2) {
                             if updateAvailable {
-                                Text("Firmware v\(latest.versionString) available")
+                                Text(L10n.tf("Firmware v%@ available", latest.versionString))
                                     .font(.subheadline.weight(.semibold))
                             } else {
-                                Text("Up to date (latest: v\(latest.versionString))")
+                                Text(L10n.tf("Up to date (latest: v%@)", latest.versionString))
                                     .font(.subheadline.weight(.semibold))
                             }
                             if latest.isPrerelease {
-                                Text("dev channel")
+                                Text(L10n.t("dev channel"))
                                     .font(.caption2.bold())
                                     .padding(.horizontal, 6).padding(.vertical, 2)
                                     .background(.orange.opacity(0.2), in: Capsule())
@@ -191,32 +203,23 @@ struct FlashingView: View {
                             .lineLimit(6)
                     }
 
-                    if updateAvailable {
-                        Button {
-                            guidedUpdate(latest)
-                        } label: {
-                            Label("Download and flash v\(latest.versionString)", systemImage: "arrow.down.circle.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(busyPhase != .idle)
-                    } else {
-                        Button {
-                            guidedUpdate(latest)
-                        } label: {
-                            Label("Re-flash v\(latest.versionString)", systemImage: "arrow.triangle.2.circlepath")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(busyPhase != .idle)
+                    // Download + verify only. Flashing happens after the user confirms.
+                    Button {
+                        guidedUpdate(latest)
+                    } label: {
+                        Label(L10n.tf(updateAvailable ? "Download and flash v%@" : "Re-flash v%@", latest.versionString),
+                              systemImage: updateAvailable ? "arrow.down.circle.fill" : "arrow.triangle.2.circlepath")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(updateAvailable ? .borderedProminent : .bordered)
+                    .disabled(busyPhase != .idle)
 
                     Button {
                         if let url = URL(string: "https://github.com/RfidResearchGroup/ChameleonUltra/releases") {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Label("View release page", systemImage: "safari")
+                        Label(L10n.t("View release page"), systemImage: "safari")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -228,7 +231,7 @@ struct FlashingView: View {
                         Button {
                             Task { await firmware.checkForUpdates(device: app.deviceType) }
                         } label: {
-                            Label("Retry", systemImage: "arrow.clockwise")
+                            Label(L10n.t("Retry"), systemImage: "arrow.clockwise")
                         }
                         .buttonStyle(.bordered)
                     }
@@ -239,7 +242,7 @@ struct FlashingView: View {
                 Button {
                     showPicker = true
                 } label: {
-                    Label("Flash local firmware (.zip)…", systemImage: "folder")
+                    Label(L10n.t("Flash local firmware (.zip)…"), systemImage: "folder")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -255,29 +258,28 @@ struct FlashingView: View {
             VStack(spacing: 12) {
                 DeviceImageView(device: app.deviceType)
                     .frame(height: 110)
-                Text("Device in DFU mode")
+                Text(L10n.t("Device in DFU mode"))
                     .font(.headline)
                 if app.dfuProgress == nil {
                     if pendingFirmware != nil {
-                        HStack { ProgressView(); Text("Preparing…").foregroundStyle(.secondary) }
-                    } else if localFirmware != nil && validation != nil && (validation?.isValid ?? false) {
-                        localFlashButton
-                    } else {
-                        Text("Pick a firmware .zip package (application.dat + application.bin), e.g. ultra-dfu-app.zip from the official releases. The package is verified before flashing.")
+                        HStack { ProgressView(); Text(L10n.t("Preparing…")).foregroundStyle(.secondary) }
+                    } else if stagedFirmware != nil {
+                        // decision buttons live in the validation card below
+                        Text(L10n.t("Firmware package loaded — choose an action below."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                    } else {
                         Button {
                             showPicker = true
                         } label: {
-                            Label("Select firmware package", systemImage: "folder")
+                            Label(L10n.t("Select firmware package"), systemImage: "folder")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
                     }
                 } else {
                     ProgressView(value: app.dfuProgress ?? 0)
-                    Text("Flashing… \(Int((app.dfuProgress ?? 0) * 100))% — keep the app in the foreground")
+                    Text("\(L10n.t("Flashing…")) \(Int((app.dfuProgress ?? 0) * 100))% — \(L10n.t("keep the app in the foreground"))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -286,19 +288,19 @@ struct FlashingView: View {
         }
     }
 
-    // MARK: - Validation report card
+    // MARK: - Validation report card (user decides what happens next)
 
     private func validationCard(_ report: FirmwareValidationReport) -> some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Image(systemName: report.isValid ? "checkmark.shield.fill" : "xmark.shield.fill")
-                        .foregroundStyle(report.isValid ? .green : .red)
+                        .foregroundStyle(report.isValid ? Color.green : Color.red)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(report.isValid ? "Firmware package verified" : "Firmware package invalid")
+                        Text(report.isValid ? L10n.t("Firmware package verified") : L10n.t("Firmware package invalid"))
                             .font(.headline)
                         Text(report.sourceName.isEmpty
-                             ? "downloaded package · \(report.zipBytes) bytes"
+                             ? "\(L10n.t("downloaded package")) · \(report.zipBytes) bytes"
                              : "\(report.sourceName) · \(report.zipBytes) bytes")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -307,64 +309,74 @@ struct FlashingView: View {
                 }
 
                 if report.isValid {
-                    if let fwVersion = report.fwVersion {
-                        checkRow(true, "Signed dfu-cc package, firmware version \(fwVersion)")
-                    } else {
-                        checkRow(true, "Signed dfu-cc package")
-                    }
+                    checkRow(true, signedRowText(report))
                     if let digestOK = report.downloadDigestValid {
-                        checkRow(digestOK, "Download SHA-256 matches GitHub asset digest")
+                        checkRow(digestOK, L10n.t("Download SHA-256 matches GitHub asset digest"))
                     }
-                    checkRow(report.zipCrcValid, "Zip entries CRC32 verified (\(report.entriesFound.count) files)")
-                    checkRow(true, "Firmware hash \(report.hashTypeName) matches application.bin")
+                    checkRow(report.zipCrcValid, "\(L10n.t("Zip entries CRC32 verified")) (\(report.entriesFound.count) \(L10n.t("files")))")
+                    checkRow(true, "\(L10n.t("Firmware hash matches application.bin")) (\(report.hashTypeName))")
                     if let sizeOK = report.sizeMatches {
-                        checkRow(sizeOK, "Manifest app size \(report.declaredAppSize ?? 0) == bin size \(report.actualBinSize)")
+                        checkRow(sizeOK, "\(L10n.t("Manifest app size matches bin size")) (\(report.declaredAppSize ?? 0) == \(report.actualBinSize))")
                     }
-                    localFlashButton
+
+                    Button {
+                        forceArmed = false
+                        showFlashConfirm = true
+                    } label: {
+                        Label(L10n.t("Flash this firmware"), systemImage: "bolt.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(busyPhase != .idle || stagedFirmware == nil)
                 } else {
                     if let fatal = report.fatal {
                         checkRow(false, fatal)
                     }
                     if report.downloadDigestValid == false {
-                        checkRow(false, "Download SHA-256 does NOT match GitHub digest — download corrupted")
+                        checkRow(false, L10n.t("Download SHA-256 does NOT match GitHub digest — download corrupted"))
                     }
                     if !report.zipCrcValid {
-                        checkRow(false, "Zip CRC check failed — archive corrupted")
+                        checkRow(false, L10n.t("Zip CRC check failed — archive corrupted"))
                     }
                     if !report.hasApplicationDat || !report.hasApplicationBin {
                         let names = report.entriesFound.joined(separator: ", ")
-                        checkRow(false, "application.dat / application.bin missing (found: \(names))")
+                        checkRow(false, "\(L10n.t("application.dat / application.bin missing")) (\(names))")
                     }
                     if !report.signedPackage {
-                        checkRow(false, "Package isn't signed")
+                        checkRow(false, L10n.t("Package isn't signed"))
                     }
                     if report.hasApplicationBin && !report.firmwareHashMatches && !report.hashTypeName.isEmpty {
-                        checkRow(false, "Firmware \(report.hashTypeName) mismatch — wrong or damaged file")
+                        checkRow(false, "\(L10n.t("Firmware hash mismatch — wrong or damaged file")) (\(report.hashTypeName))")
                     }
                     if report.sizeMatches == false {
-                        checkRow(false, "Manifest app size \(report.declaredAppSize ?? 0) != bin size \(report.actualBinSize)")
+                        checkRow(false, "\(L10n.t("Manifest app size does not match bin size")) (\(report.declaredAppSize ?? 0) != \(report.actualBinSize))")
                     }
+
+                    Divider()
+
+                    Label(L10n.t("Force flash (unsafe)"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.red)
+                    Button(role: .destructive) {
+                        forceArmed = true
+                        showFlashConfirm = true
+                    } label: {
+                        Label(L10n.t("Force flash (unsafe)"), systemImage: "bolt.trianglebadge.exclamationmark.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .disabled(busyPhase != .idle || stagedFirmware == nil)
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private var localFlashButton: some View {
-        Button {
-            if let zip = localFirmware {
-                if app.connectionState == .dfuMode {
-                    flash(zip)
-                } else {
-                    rebootAndFlash(zip: zip)
-                }
-            }
-        } label: {
-            Label("Flash this firmware", systemImage: "bolt.fill")
-                .frame(maxWidth: .infinity)
+    private func signedRowText(_ report: FirmwareValidationReport) -> String {
+        if let fwVersion = report.fwVersion {
+            return "\(L10n.t("Signed dfu-cc package")), \(L10n.t("firmware version")) \(fwVersion)"
         }
-        .buttonStyle(.borderedProminent)
-        .disabled(busyPhase != .idle || !(validation?.isValid ?? false) || localFirmware == nil)
+        return L10n.t("Signed dfu-cc package")
     }
 
     private func checkRow(_ ok: Bool, _ text: String) -> some View {
@@ -379,34 +391,37 @@ struct FlashingView: View {
         }
     }
 
-    // MARK: - Local firmware pick
+    // MARK: - Local firmware pick (staged, never flashed directly)
 
     private func loadLocalFirmware(url: URL) {
         error = nil
         status = nil
         validation = nil
-        localFirmware = nil
+        stagedFirmware = nil
+        pendingFirmware = nil
         do {
             let data = try Data(contentsOf: url)
-            localFirmwareName = url.lastPathComponent
+            stagedName = url.lastPathComponent
             busyPhase = .verifying
             let report = FirmwareValidator.validate(zip: data, sourceName: url.lastPathComponent)
             withAnimation {
                 validation = report
-                localFirmware = data
+                stagedFirmware = data
                 busyPhase = .idle
             }
         } catch {
             busyPhase = .idle
-            self.error = "Could not read file: \(error.localizedDescription)"
+            self.error = error.localizedDescription
         }
     }
 
-    // MARK: - Guided flow
+    // MARK: - Guided flow (download + verify only, then stop)
 
     private func guidedUpdate(_ release: FirmwareRelease) {
         error = nil
         status = nil
+        validation = nil
+        stagedFirmware = nil
         busyPhase = .downloading
         operationTask = Task {
             do {
@@ -418,41 +433,30 @@ struct FlashingView: View {
                 let report = FirmwareValidator.validate(zip: zip,
                                                         expectedDigestSHA256: release.digestSHA256,
                                                         sourceName: "\(release.tagName).zip")
-                validation = report
-                guard report.isValid else {
+                withAnimation {
+                    validation = report
+                    stagedFirmware = zip
+                    stagedName = "\(release.tagName).zip"
                     busyPhase = .idle
-                    error = "Firmware verification failed — nothing was flashed."
-                    return
                 }
-
-                pendingFirmware = zip
-                busyPhase = .rebooting
-                try await app.communicator?.enterDFUMode()
-                try await Task.sleep(nanoseconds: 2_000_000_000)
-                app.disconnect()
-                busyPhase = .scanning
-                app.ble.startScan()
-
-                for _ in 0..<30 {
-                    try Task.checkCancellation()
-                    try await Task.sleep(nanoseconds: 1_000_000_000)
-                    if let dfuDevice = app.ble.devices.first(where: { $0.isDFU }) {
-                        await app.connect(to: dfuDevice)   // → .dfuMode → onChange flashes
-                        return
-                    }
-                }
-                busyPhase = .idle
-                pendingFirmware = nil
-                error = "Timed out waiting for the DFU device. Power-cycle the Chameleon and try again."
+                // Stop here — the user decides (and confirms) before anything is flashed.
             } catch is CancellationError {
-                // cancelled by user — state cleaned in cancelOperation()
             } catch let urlError as URLError where urlError.code == .cancelled {
-                // download cancelled by user
             } catch {
                 busyPhase = .idle
-                pendingFirmware = nil
                 self.error = error.localizedDescription
             }
+        }
+    }
+
+    // MARK: - Confirmed flash
+
+    private func proceedConfirmedFlash() {
+        guard let zip = stagedFirmware else { return }
+        if app.connectionState == .dfuMode {
+            flash(zip)
+        } else {
+            rebootAndFlash(zip: zip)
         }
     }
 
@@ -470,13 +474,13 @@ struct FlashingView: View {
                     try Task.checkCancellation()
                     try await Task.sleep(nanoseconds: 1_000_000_000)
                     if let dfuDevice = app.ble.devices.first(where: { $0.isDFU }) {
-                        await app.connect(to: dfuDevice)
+                        await app.connect(to: dfuDevice)   // → .dfuMode → onChange flashes
                         return
                     }
                 }
                 busyPhase = .idle
                 pendingFirmware = nil
-                error = "Timed out waiting for the DFU device."
+                error = L10n.t("Timed out waiting for the DFU device. Power-cycle the Chameleon and try again.")
             } catch is CancellationError {
             } catch let urlError as URLError where urlError.code == .cancelled {
             } catch {
@@ -494,12 +498,9 @@ struct FlashingView: View {
         app.cancelConnection()
         pendingFirmware = nil
         busyPhase = .idle
-        status = "Update cancelled"
+        status = L10n.t("Update cancelled")
     }
 
-    /// Only called with packages that passed FirmwareValidator on the way in
-    /// (guided download validates before `pendingFirmware` is set, the local
-    /// button is only enabled for a valid report).
     private func flash(_ zip: Data) {
         busyPhase = .flashing
         error = nil
@@ -517,11 +518,11 @@ struct FlashingView: View {
                     dfuLog = lines
                 }
 
-                status = "Sending init packet…"
+                status = L10n.t("Sending init packet…")
                 app.dfuProgress = 0
                 try await dfu.flashFirmware(objectType: 0x01, firmware: appDat) { _ in }
 
-                status = "Flashing firmware…"
+                status = L10n.t("Flashing firmware…")
                 try await dfu.flashFirmware(objectType: 0x02, firmware: appBin) { fraction in
                     Task { @MainActor in app.dfuProgress = fraction }
                 }
@@ -529,7 +530,7 @@ struct FlashingView: View {
                 app.dfuProgress = nil
                 pendingFirmware = nil
                 busyPhase = .idle
-                status = "Done! Firmware updated — the device is rebooting."
+                status = L10n.t("Done! Firmware updated — the device is rebooting.")
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
                 app.disconnect()
             } catch {

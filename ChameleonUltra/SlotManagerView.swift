@@ -13,7 +13,9 @@ struct SlotManagerView: View {
                 Section { Text(error).foregroundStyle(.red) }
             }
             ForEach(0..<8, id: \.self) { slot in
-                Section(app.activeSlot == slot ? "Slot \(slot)  •  active" : "Slot \(slot)") {
+                Section(app.activeSlot == slot
+                        ? "\(L10n.t("Slot")) \(slot)  •  \(L10n.t("active"))"
+                        : "\(L10n.t("Slot")) \(slot)") {
                     slotRow(slot, frequency: .hf)
                     slotRow(slot, frequency: .lf)
                 }
@@ -22,11 +24,11 @@ struct SlotManagerView: View {
                 Button {
                     Task { try? await app.communicator?.saveSlotData() }
                 } label: {
-                    Label("Save slot names to flash", systemImage: "square.and.arrow.down")
+                    Label(L10n.t("Save slot names to flash"), systemImage: "square.and.arrow.down")
                 }
             }
         }
-        .navigationTitle("Slot manager")
+        .navigationTitle(L10n.t("Slot manager"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { try? await app.refreshSlots() }
     }
@@ -42,7 +44,7 @@ struct SlotManagerView: View {
             HStack {
                 Image(systemName: isHF ? "waveform" : "antenna.radiowaves.left.and.right")
                     .foregroundStyle(isHF ? .green : .blue)
-                Text(isHF ? "HF" : "LF")
+                Text(isHF ? L10n.t("HF") : L10n.t("LF"))
                     .font(.subheadline.bold())
                 if !name.isEmpty {
                     Text(name).foregroundStyle(.secondary)
@@ -61,7 +63,7 @@ struct SlotManagerView: View {
                     .labelsHidden()
             }
 
-            Picker("Tag type", selection: Binding(
+            Picker(L10n.t("Tag type"), selection: Binding(
                 get: { type },
                 set: { newType in
                     guard newType != .unknown else { return }
@@ -75,7 +77,7 @@ struct SlotManagerView: View {
                         busySlot = nil
                     }
                 })) {
-                Text("Not set").tag(TagType.unknown)
+                Text(L10n.t("Not set")).tag(TagType.unknown)
                 ForEach((isHF ? TagType.hfTypes : TagType.lfTypes), id: \.self) { tagType in
                     Text(tagType.displayName).tag(tagType)
                 }
@@ -89,7 +91,7 @@ struct SlotManagerView: View {
                         }
                     }
                 } label: {
-                    Label("Load saved card…", systemImage: "creditcard")
+                    Label(L10n.t("Load saved card…"), systemImage: "creditcard")
                         .font(.subheadline)
                 }
             }
@@ -103,7 +105,7 @@ struct SlotManagerView: View {
                         } catch { self.error = error.localizedDescription }
                     }
                 } label: {
-                    Label("Reset slot", systemImage: "arrow.counterclockwise")
+                    Label(L10n.t("Reset slot"), systemImage: "arrow.counterclockwise")
                         .font(.subheadline)
                 }
                 .buttonStyle(.bordered)
@@ -112,7 +114,7 @@ struct SlotManagerView: View {
                     Button {
                         Task { await app.activateSlot(slot) }
                     } label: {
-                        Label("Activate", systemImage: "bolt.fill")
+                        Label(L10n.t("Activate"), systemImage: "bolt.fill")
                             .font(.subheadline)
                     }
                     .buttonStyle(.borderedProminent)

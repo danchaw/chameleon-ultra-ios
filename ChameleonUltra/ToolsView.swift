@@ -8,25 +8,25 @@ struct ToolsView: View {
 
     var body: some View {
         List {
-            Section("Sniffing") {
+            Section(L10n.t("Sniffing")) {
                 NavigationLink {
                     SniffingView(isLF: true)
                 } label: {
-                    Label("LF sniffing (125 kHz)", systemImage: "waveform.path")
+                    Label(L10n.t("LF sniffing (125 kHz)"), systemImage: "waveform.path")
                         .foregroundStyle(.blue)
                 }
                 NavigationLink {
                     SniffingView(isLF: false)
                 } label: {
-                    Label("HF sniffing (13.56 MHz)", systemImage: "dot.radiowaves.left.and.right")
+                    Label(L10n.t("HF sniffing (13.56 MHz)"), systemImage: "dot.radiowaves.left.and.right")
                         .foregroundStyle(.green)
                 }
             }
-            Section("Tag tools") {
+            Section(L10n.t("Tag tools")) {
                 NavigationLink {
                     T55XXPasswordCleanerView()
                 } label: {
-                    Label("T55xx password cleaner", systemImage: "password")
+                    Label(L10n.t("T55xx password cleaner"), systemImage: "password")
                 }
             }
             Section {
@@ -36,7 +36,7 @@ struct ToolsView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Tools")
+        .navigationTitle(L10n.t("Tools"))
     }
 }
 
@@ -67,7 +67,7 @@ struct SniffingView: View {
                         Button {
                             Task { await sniff() }
                         } label: {
-                            Label(running ? "Sniffing…" : "Start sniff", systemImage: "record.circle")
+                            Label(running ? L10n.t("Sniffing…") : L10n.t("Start sniff"), systemImage: "record.circle")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -148,7 +148,7 @@ struct T55XXPasswordCleanerView: View {
                 Button {
                     Task { await clean() }
                 } label: {
-                    if busy { ProgressView() } else { Label("Reset tag", systemImage: "arrow.counterclockwise.circle.fill") }
+                    if busy { ProgressView() } else { Label(L10n.t("Reset tag"), systemImage: "arrow.counterclockwise.circle.fill") }
                 }
                 .disabled(busy)
             }
@@ -159,7 +159,7 @@ struct T55XXPasswordCleanerView: View {
                 Section { Text(error).foregroundStyle(.red) }
             }
         }
-        .navigationTitle("T55xx cleaner")
+        .navigationTitle(L10n.t("T55xx cleaner"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

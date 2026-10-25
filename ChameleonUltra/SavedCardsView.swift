@@ -27,8 +27,8 @@ struct SavedCardsView: View {
                 }
             }
         }
-        .searchable(text: $search, prompt: "Search name, UID or type")
-        .navigationTitle("Saved cards")
+        .searchable(text: $search, prompt: L10n.t("name, UID or type"))
+        .navigationTitle(L10n.t("Saved cards"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -98,9 +98,9 @@ struct CardDetailView: View {
 
     var body: some View {
         List {
-            Section("Card") {
-                TextField("Name", text: $editableName, onCommit: saveName)
-                LabeledContent("Type", value: card.displayType)
+            Section(L10n.t("Card")) {
+                TextField(L10n.t("Name"), text: $editableName, onCommit: saveName)
+                LabeledContent(L10n.t("Type"), value: card.displayType)
                 LabeledContent("UID", value: card.uid.uppercased())
                 if card.tagType.frequency == .hf {
                     LabeledContent("SAK", value: String(format: "%02X", card.sak))
@@ -109,11 +109,11 @@ struct CardDetailView: View {
                         LabeledContent("ATS", value: card.ats.map { String(format: "%02X", $0) }.joined(separator: " "))
                     }
                 }
-                LabeledContent("Blocks", value: "\(card.data.count)")
+                LabeledContent(L10n.t("Blocks"), value: "\(card.data.count)")
             }
 
             if !card.data.isEmpty {
-                Section("Dump") {
+                Section(L10n.t("Dump")) {
                     HexDumpView(blocks: card.data, blockSize: blockSize)
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
@@ -124,7 +124,7 @@ struct CardDetailView: View {
                     Button {
                         showApplySheet = true
                     } label: {
-                        Label("Apply to device slot…", systemImage: "square.grid.3x3")
+                        Label(L10n.t("Apply to device slot…"), systemImage: "square.grid.3x3")
                     }
                 } else {
                     Label("Connect a device to emulate this card", systemImage: "antenna.radiowaves.left.and.right.slash")
@@ -136,20 +136,20 @@ struct CardDetailView: View {
                 Button {
                     export(json: true)
                 } label: {
-                    Label("Export as JSON", systemImage: "curlybraces.square")
+                    Label(L10n.t("Export as JSON"), systemImage: "curlybraces.square")
                 }
                 Button {
                     export(json: false)
                 } label: {
-                    Label("Export as binary dump", systemImage: "doc.binary")
+                    Label(L10n.t("Export as binary dump"), systemImage: "doc.binary")
                 }
             }
 
-            Section("Danger zone") {
+            Section(L10n.t("Danger zone")) {
                 Button(role: .destructive) {
                     store.delete(card)
                 } label: {
-                    Label("Delete card", systemImage: "trash")
+                    Label(L10n.t("Delete card"), systemImage: "trash")
                 }
             }
 
@@ -183,7 +183,7 @@ struct CardDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Choose slot")
+            .navigationTitle(L10n.t("Choose slot"))
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium])
@@ -241,7 +241,7 @@ struct DictionaryManagerView: View {
                 }
             }
         }
-        .navigationTitle("Dictionaries")
+        .navigationTitle(L10n.t("Dictionaries"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: { Image(systemName: "plus") }
@@ -253,21 +253,21 @@ struct DictionaryManagerView: View {
         .sheet(isPresented: $showAdd) {
             NavigationStack {
                 Form {
-                    TextField("Name", text: $newName)
-                    Section("Keys (one hex key per line)") {
+                    TextField(L10n.t("Name"), text: $newName)
+                    Section(L10n.t("Keys (one hex key per line)")) {
                         TextEditor(text: $newText)
                             .font(.system(size: 13, design: .monospaced))
                             .frame(minHeight: 180)
                     }
                 }
-                .navigationTitle("New dictionary")
+                .navigationTitle(L10n.t("New dictionary"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { showAdd = false }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("Add") {
+                        Button(L10n.t("Add")) {
                             let dict = KeyDictionary.fromText(newText, name: newName.isEmpty ? "Dictionary" : newName)
                             store.add(dictionary: dict)
                             newText = ""; newName = ""

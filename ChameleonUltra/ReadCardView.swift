@@ -46,7 +46,7 @@ struct ReadCardView: View {
 
                 if !app.isConnected {
                     GlassCard {
-                        Label("Connect a Chameleon device first (Home tab).", systemImage: "antenna.radiowaves.left.and.right.slash")
+                        Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
                             .foregroundStyle(.secondary)
                     }
                 } else {
@@ -61,7 +61,7 @@ struct ReadCardView: View {
             }
             .padding()
         }
-        .navigationTitle("Read card")
+        .navigationTitle(L10n.t("Read card"))
         .sheet(isPresented: $showSaveSheet) { saveSheet }
     }
 
@@ -75,14 +75,14 @@ struct ReadCardView: View {
                         Image(systemName: "creditcard.viewfinder")
                             .font(.system(size: 40))
                             .foregroundStyle(.tint)
-                        Text("Place a HF tag on the Chameleon antenna")
+                        Text(L10n.t("Place a HF tag on the Chameleon antenna"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         Button {
                             Task { await readHF() }
                         } label: {
-                            Label(phase == .scanning ? "Reading…" : "Read tag", systemImage: "play.fill")
+                            Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -121,7 +121,7 @@ struct ReadCardView: View {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Key recovery")
+                            Text(L10n.t("Key recovery"))
                                 .font(.headline)
                             Spacer()
                             if let progress = recoveryModel.keyCheckProgress {
@@ -142,7 +142,7 @@ struct ReadCardView: View {
                             Button {
                                 Task { await checkKeys(autoDump: true) }
                             } label: {
-                                Label("Check keys & dump", systemImage: "key.fill")
+                                Label(L10n.t("Check keys & dump"), systemImage: "key.fill")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
@@ -150,7 +150,7 @@ struct ReadCardView: View {
                         }
 
                         if phase == .dumping {
-                            HStack { ProgressView(value: recoveryModel.dumpProgress); Text("Dumping…") }
+                            HStack { ProgressView(value: recoveryModel.dumpProgress); Text(L10n.t("Dumping…")) }
                         }
 
                         if phase == .done {
@@ -158,7 +158,7 @@ struct ReadCardView: View {
                                 saveName = defaultSaveName
                                 showSaveSheet = true
                             } label: {
-                                Label("Save card", systemImage: "square.and.arrow.down.fill")
+                                Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
@@ -178,7 +178,7 @@ struct ReadCardView: View {
                                 saveName = defaultSaveName
                                 showSaveSheet = true
                             } label: {
-                                Label("Save card", systemImage: "square.and.arrow.down.fill")
+                                Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
@@ -221,7 +221,7 @@ struct ReadCardView: View {
                 try await communicator.setReaderDeviceMode(true)
             }
             guard let found = try await communicator.scan14443aTag() else {
-                error = "No tag found"
+                error = L10n.t("No tag found")
                 phase = .idle
                 return
             }
@@ -281,14 +281,14 @@ struct ReadCardView: View {
                         Image(systemName: "antenna.radiowaves.left.and.right")
                             .font(.system(size: 40))
                             .foregroundStyle(.tint)
-                        Text("Place a LF tag on the Chameleon antenna")
+                        Text(L10n.t("Place a LF tag on the Chameleon antenna"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         Button {
                             Task { await readLF() }
                         } label: {
-                            Label(phase == .scanning ? "Reading…" : "Read tag", systemImage: "play.fill")
+                            Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -309,7 +309,7 @@ struct ReadCardView: View {
                             saveName = "\(lfCard.uid) \(lfCard.type.displayName)"
                             showSaveSheet = true
                         } label: {
-                            Label("Save card", systemImage: "square.and.arrow.down.fill")
+                            Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -342,7 +342,7 @@ struct ReadCardView: View {
             } else if let io = try await communicator.readIoProx(), !io.uid.isEmpty {
                 lfCard = (io.type, io.uid.hexSpaced)
             } else {
-                error = "No LF tag found"
+                error = L10n.t("No LF tag found")
             }
         } catch {
             self.error = error.localizedDescription
@@ -355,13 +355,13 @@ struct ReadCardView: View {
     private var saveSheet: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $saveName)
+                TextField(L10n.t("Name"), text: $saveName)
                 if let card {
                     LabeledContent("UID", value: card.uid.hexSpaced)
                     LabeledContent("Type", value: defaultSaveNameContainsType)
                 }
             }
-            .navigationTitle("Save card")
+            .navigationTitle(L10n.t("Save card"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showSaveSheet = false } }

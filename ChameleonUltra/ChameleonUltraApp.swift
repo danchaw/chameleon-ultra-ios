@@ -4,6 +4,7 @@ import SwiftUI
 struct ChameleonUltraApp: App {
     @StateObject private var app = AppModel.shared
     @AppStorage("themeColor") private var themeColor: String = "orange"
+    @AppStorage("appLanguage") private var appLanguage: String = "system"
 
     var body: some Scene {
         WindowGroup {
@@ -33,21 +34,21 @@ struct RootTabView: View {
     var body: some View {
         TabView {
             NavigationStack { HomeEntryPoint() }
-                .tabItem { Label("Home", systemImage: "house.fill") }
+                .tabItem { Label(L10n.t("Home"), systemImage: "house.fill") }
 
             NavigationStack { ReadCardView() }
-                .tabItem { Label("Read", systemImage: "creditcard.viewfinder") }
+                .tabItem { Label(L10n.t("Read"), systemImage: "creditcard.viewfinder") }
                 .disabled(!app.isConnected)
 
             NavigationStack { SavedCardsView() }
-                .tabItem { Label("Cards", systemImage: "rectangle.stack.fill") }
+                .tabItem { Label(L10n.t("Cards"), systemImage: "rectangle.stack.fill") }
 
             NavigationStack { WriteCardView() }
-                .tabItem { Label("Write", systemImage: "square.and.pencil") }
+                .tabItem { Label(L10n.t("Write"), systemImage: "square.and.pencil") }
                 .disabled(!app.isConnected)
 
             NavigationStack { SettingsView() }
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+                .tabItem { Label(L10n.t("Settings"), systemImage: "gearshape.fill") }
         }
     }
 }
@@ -68,15 +69,15 @@ struct HomeEntryPoint: View {
                     VStack(spacing: 16) {
                         ProgressView()
                             .controlSize(.large)
-                        Text("Connecting to \(app.deviceName.isEmpty ? "Chameleon" : app.deviceName)…")
+                        Text("\(L10n.t("Connecting to")) \(app.deviceName.isEmpty ? "Chameleon" : app.deviceName)…")
                             .font(.headline)
-                        Text("This can take a few seconds.")
+                        Text(L10n.t("This can take a few seconds."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         Button {
                             app.cancelConnection()
                         } label: {
-                            Label("Cancel", systemImage: "xmark.circle.fill")
+                            Label(L10n.t("Cancel"), systemImage: "xmark.circle.fill")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)

@@ -41,12 +41,12 @@ struct WriteCardView: View {
 
                 if !app.isConnected {
                     GlassCard {
-                        Label("Connect a Chameleon device first (Home tab).", systemImage: "antenna.radiowaves.left.and.right.slash")
+                        Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
                             .foregroundStyle(.secondary)
                     }
                 } else {
                     Picker("Mode", selection: $mode) {
-                        ForEach(WriteMode.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(WriteMode.allCases) { Text(L10n.t($0.rawValue)).tag($0) }
                     }
                     .pickerStyle(.segmented)
 
@@ -59,14 +59,14 @@ struct WriteCardView: View {
             }
             .padding()
         }
-        .navigationTitle("Write card")
+        .navigationTitle(L10n.t("Write card"))
         .disabled(writing)
         .overlay {
             if writing {
                 VStack(spacing: 12) {
                     ProgressView(value: progress)
                         .frame(width: 200)
-                    Text("Writing… \(Int(progress * 100))%")
+                    Text("\(L10n.t("Writing…")) \(Int(progress * 100))%")
                         .font(.footnote)
                 }
                 .padding(24)
@@ -81,9 +81,9 @@ struct WriteCardView: View {
         VStack(spacing: 16) {
             GlassCard {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Source card").font(.headline)
+                    Text(L10n.t("Source card")).font(.headline)
                     if store.cards.filter({ $0.isMifareClassic }).isEmpty {
-                        Text("No saved Mifare Classic cards. Read one first.")
+                        Text(L10n.t("No saved Mifare Classic cards. Read one first."))
                             .font(.footnote).foregroundStyle(.secondary)
                     } else {
                         Picker("Card", selection: $selectedCard) {
@@ -93,14 +93,14 @@ struct WriteCardView: View {
                         }
                         .pickerStyle(.menu)
 
-                        Picker("Card type", selection: $magicType) {
-                            ForEach(MagicType.allCases) { Text($0.rawValue).tag($0) }
+                        Picker(L10n.t("Card type"), selection: $magicType) {
+                            ForEach(MagicType.allCases) { Text(L10n.t($0.rawValue)).tag($0) }
                         }
                         .pickerStyle(.segmented)
 
                         if magicType == .gen2 {
                             HStack {
-                                Text("Key A").foregroundStyle(.secondary)
+                                Text(L10n.t("Key A")).foregroundStyle(.secondary)
                                 TextField("FFFFFFFFFFFF", text: $keyA)
                                     .font(.system(size: 13, design: .monospaced))
                                     .autocorrectionDisabled()
@@ -111,7 +111,7 @@ struct WriteCardView: View {
                         Button {
                             Task { await writeMifareDump() }
                         } label: {
-                            Label("Write dump to card", systemImage: "square.and.pencil")
+                            Label(L10n.t("Write dump to card"), systemImage: "square.and.pencil")
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.borderedProminent)
@@ -178,8 +178,8 @@ struct WriteCardView: View {
     private var uidWriteSection: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Write UID (Gen1 magic card)").font(.headline)
-                Text("4 or 7 byte hex UID. Block 0 is rebuilt from UID/SAK/ATQA.")
+                Text(L10n.t("Write UID (Gen1 magic card)")).font(.headline)
+                Text(L10n.t("4 or 7 byte hex UID. Block 0 is rebuilt from UID/SAK/ATQA."))
                     .font(.footnote).foregroundStyle(.secondary)
                 TextField("04 A2 B3 C4 D5 E6", text: $newUID)
                     .font(.system(size: 15, design: .monospaced))
@@ -188,7 +188,7 @@ struct WriteCardView: View {
                 Button {
                     Task { await writeUID() }
                 } label: {
-                    Label("Write UID", systemImage: "person.text.rectangle")
+                    Label(L10n.t("Write UID"), systemImage: "person.text.rectangle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -246,7 +246,7 @@ struct WriteCardView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Clone LF card to T55xx").font(.headline)
                 if store.cards.filter({ $0.tagType.frequency == .lf }).isEmpty {
-                    Text("No saved LF cards. Read one first.")
+                    Text(L10n.t("No saved LF cards. Read one first."))
                         .font(.footnote).foregroundStyle(.secondary)
                 } else {
                     Picker("Card", selection: $selectedCard) {
@@ -258,7 +258,7 @@ struct WriteCardView: View {
                     Button {
                         Task { await cloneLF() }
                     } label: {
-                        Label("Write to T55xx tag", systemImage: "doc.on.doc.fill")
+                        Label(L10n.t("Write to T55xx tag"), systemImage: "doc.on.doc.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)

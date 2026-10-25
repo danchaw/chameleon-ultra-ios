@@ -66,12 +66,12 @@ struct HomeDashboardView: View {
 
                 Divider()
 
-                infoRow("Firmware", app.firmwareVersion.map { numToVersionCode($0) } ?? "—")
+                infoRow(L10n.t("Firmware"), app.firmwareVersion.map { numToVersionCode($0) } ?? "—")
                 if !app.gitCommit.isEmpty {
                     infoRow("Git", String(app.gitCommit.prefix(12)))
                 }
-                infoRow("Chip ID", app.chipID)
-                infoRow("BLE address", app.bleAddress)
+                infoRow(L10n.t("Chip ID"), app.chipID)
+                infoRow(L10n.t("BLE address"), app.bleAddress)
             }
         }
     }
@@ -92,22 +92,22 @@ struct HomeDashboardView: View {
             NavigationLink {
                 SlotManagerView()
             } label: {
-                actionTile("Slot manager", "square.grid.3x3.fill")
+                actionTile(L10n.t("Slot manager"), "square.grid.3x3.fill")
             }
             NavigationLink {
                 ToolsView()
             } label: {
-                actionTile("Tools", "wrench.and.screwdriver.fill")
+                actionTile(L10n.t("Tools"), "wrench.and.screwdriver.fill")
             }
             Button {
                 showEmulatorSettings = true
             } label: {
-                actionTile("Emulator", "waveform.path.ecg.rectangle")
+                actionTile(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
             }
             NavigationLink {
                 FlashingView(embedded: true)
             } label: {
-                actionTile("Firmware update", "arrow.down.doc.fill")
+                actionTile(L10n.t("Firmware update"), "arrow.down.doc.fill")
             }
         }
         .buttonStyle(.plain)
@@ -150,12 +150,12 @@ struct EmulatorSettingsSheet: View {
         NavigationStack {
             List {
                 if settings != nil {
-                    Section("Mifare Classic emulator") {
-                        Toggle("Key detection (mfkey32)", isOn: detectionBinding)
-                        Toggle("Gen1a mode", isOn: gen1aBinding)
-                        Toggle("Gen2 mode", isOn: gen2Binding)
-                        Toggle("Use anti-collision data from block 0", isOn: antiCollBinding)
-                        Picker("Write mode", selection: writeModeBinding) {
+                    Section(L10n.t("Mifare Classic emulator")) {
+                        Toggle(L10n.t("Key detection (mfkey32)"), isOn: detectionBinding)
+                        Toggle(L10n.t("Gen1a mode"), isOn: gen1aBinding)
+                        Toggle(L10n.t("Gen2 mode"), isOn: gen2Binding)
+                        Toggle(L10n.t("Use anti-collision data from block 0"), isOn: antiCollBinding)
+                        Picker(L10n.t("Write mode"), selection: writeModeBinding) {
                             ForEach(MifareWriteMode.allCases) { mode in
                                 Text(mode.displayName).tag(mode)
                             }
@@ -175,7 +175,7 @@ struct EmulatorSettingsSheet: View {
                     Section { Text(error).foregroundStyle(.red) }
                 }
             }
-            .navigationTitle("Emulator settings")
+            .navigationTitle(L10n.t("Emulator settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

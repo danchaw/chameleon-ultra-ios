@@ -161,7 +161,7 @@ struct SettingsView: View {
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
             }
 
-            Section(L10n.t("Settings management")) {
+            Section {
                 Button {
                     hapticFeedback()
                     Task { await exportSettings() }
@@ -176,6 +176,8 @@ struct SettingsView: View {
                     Label(L10n.t("Import settings"), systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(ListRowHighlightStyle())
+            } header: {
+                Text(L10n.t("Settings management"))
             } footer: {
                 Text("\(L10n.t("App settings")) + \(L10n.t("Device settings")) · .cusettings")
             }

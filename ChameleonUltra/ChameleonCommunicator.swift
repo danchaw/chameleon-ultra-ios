@@ -348,7 +348,9 @@ final class ChameleonCommunicator {
     }
 
     static func parseCardData(_ data: Data) -> CardData? {
-        guard let uidLength = data.first, data.count >= uidLength + 5 else { return nil }
+        guard let uidLengthByte = data.first else { return nil }
+        let uidLength = Int(uidLengthByte)
+        guard data.count >= uidLength + 5 else { return nil }
         let base = data.startIndex
         let atsLength = Int(data[base + uidLength + 4])
         let atqaRaw = data.subdata(in: (base + uidLength + 1)..<(base + uidLength + 3))
@@ -422,7 +424,7 @@ final class ChameleonCommunicator {
     func getMf1DetectionCount() async throws -> Int {
         let data = try await sendCmd(.mf1GetDetectionCount).data
         guard data.count >= 4 else { return 0 }
-        return Int(bitPattern: data.readU32(at: 0))
+        return Int(Int32(bitPattern: data.readU32(at: 0)))
     }
 
     func getMf1DetectionResults(count: Int) async throws -> [DetectionResult] {

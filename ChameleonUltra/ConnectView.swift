@@ -149,9 +149,9 @@ struct ConnectView: View {
 
     private func signalIcon(_ rssi: Int) -> String {
         switch rssi {
-        case ..<-90: return "wifi.exclamationmark"
-        case ..<-70: return "wifi.1"
-        case ..<-55: return "wifi.2"
+        case ..<(-90): return "wifi.exclamationmark"
+        case ..<(-70): return "wifi.1"
+        case ..<(-55): return "wifi.2"
         default: return "wifi.3"
         }
     }

@@ -570,10 +570,12 @@ final class ChameleonCommunicator {
                 return data.subdata(in: 2..<(2 + uidLength))
             }
         }
-        if let activeLfType = try? await activeSlotLfType(),
-           uidLength = activeLfType.lfUIDSize, uidLength > 0 {
-            if data.count >= uidLength + 2 { return data.subdata(in: 2..<(2 + uidLength)) }
-            if data.count >= uidLength { return data.prefix(uidLength) }
+        if let activeLfType = try? await activeSlotLfType() {
+            let uidLength = activeLfType.lfUIDSize
+            if uidLength > 0 {
+                if data.count >= uidLength + 2 { return data.subdata(in: 2..<(2 + uidLength)) }
+                if data.count >= uidLength { return data.prefix(uidLength) }
+            }
         }
         return data
     }

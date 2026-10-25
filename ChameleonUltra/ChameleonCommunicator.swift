@@ -191,6 +191,13 @@ final class ChameleonCommunicator {
         try await sendCmd(.setActiveSlot, data: Data([UInt8(slot)]))
     }
 
+    /// The firmware has no explicit "deactivate" command — disabling both
+    /// frequencies of the slot is the equivalent (the slot stops emulating).
+    func deactivateSlot(_ slot: Int) async throws {
+        try await enableSlot(slot, frequency: .hf, status: false)
+        try await enableSlot(slot, frequency: .lf, status: false)
+    }
+
     func getActiveSlot() async throws -> Int {
         Int(try await sendCmd(.getActiveSlot).data.first ?? 0)
     }

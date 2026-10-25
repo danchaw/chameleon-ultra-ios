@@ -156,11 +156,31 @@ final class AppModel: ObservableObject {
         try await communicator.setDefaultDataToSlot(slot, type: tag)
 
         if tag.isMifareClassic {
-            let blocks = card.data.flatMap { $0.count == 16 ? $0 : [] }
+            // write in ≤128-byte (8-block) chunks with a 1 ms pause, exactly
+            // like the original writeHfDumpToSlot — bigger frames overflow the
+            // BLE buffer and fail with ATT errors
+            let blocks = card.data.filter { $0.count == 16 }
             if !blocks.isEmpty {
-                try await communicator.setMf1BlockData(startBlock: 0, blocks: Data(blocks))
+                var lastSend = 0
+                var chunk: [UInt8] = []
+                var blockIndex = 0
+                for block in blocks {
+                    if chunk.count >= 128 {
+                        try await communicator.setMf1BlockData(startBlock: lastSend, blocks: Data(chunk))
+                        try? await Task.sleep(nanoseconds: 1_000_000)
+                        chunk = []
+                        lastSend = blockIndex
+                    }
+                    chunk.append(contentsOf: block)
+                    blockIndex += 1
+                }
+                if !chunk.isEmpty {
+                    try await communicator.setMf1BlockData(startBlock: lastSend, blocks: Data(chunk))
+                    try? await Task.sleep(nanoseconds: 1_000_000)
+                }
             }
             if card.uidData.count > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000)
                 try await communicator.setMf1AntiCollision(CardData(
                     uid: card.uidData, sak: UInt8(card.sak), atqa: Data(card.atqa), ats: Data(card.ats)))
             }

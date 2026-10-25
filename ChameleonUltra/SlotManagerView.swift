@@ -145,20 +145,36 @@ struct SlotManagerView: View {
                 }
                 .buttonStyle(PressableButtonStyle())
 
-                if app.activeSlot != slot {
-                    Button {
-                        hapticFeedback()
-                        Task { await app.activateSlot(slot) }
-                    } label: {
-                        Text(L10n.t("Activate"))
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color.accentColor, in: Capsule())
-                            .foregroundStyle(.white)
+                // per-slot active management: activate or deactivate each slot
+                Button {
+                    hapticFeedback()
+                    Task {
+                        busySlot = slot
+                        do {
+                            if app.activeSlot == slot {
+                                try await app.communicator?.deactivateSlot(slot)
+                                app.activeSlot = -1
+                            } else {
+                                await app.activateSlot(slot)
+                            }
+                            try? await app.refreshSlots()
+                        } catch {
+                            self.error = error.localizedDescription
+                        }
+                        busySlot = nil
                     }
-                    .buttonStyle(PressableButtonStyle())
+                } label: {
+                    Text(app.activeSlot == slot ? L10n.t("Deactivate") : L10n.t("Activate"))
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(app.activeSlot == slot
+                                    ? Color.accentColor.opacity(0.25)
+                                    : Color.accentColor,
+                                    in: Capsule())
+                        .foregroundStyle(app.activeSlot == slot ? Color.accentColor : Color.white)
                 }
+                .buttonStyle(PressableButtonStyle())
                 Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }
             }

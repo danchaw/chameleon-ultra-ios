@@ -103,6 +103,7 @@ enum L10n {
         "Load saved card…": "载入已保存卡片…",
         "Reset slot": "重置卡槽",
         "Activate": "激活",
+        "Deactivate": "取消激活",
         "active": "激活",
         "Save slot names to flash": "将卡槽名称保存到闪存",
 

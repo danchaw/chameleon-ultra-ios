@@ -18,6 +18,19 @@ struct PressableButtonStyle: ButtonStyle {
 
 /// Stronger feedback for List rows: pressed rows light up with an accent
 /// background so the tap is unmistakable.
+/// Label whose icon follows the app theme accent color.
+struct AccentLabel: View {
+    let title: String
+    let icon: String
+    @Environment(\.themeAccent) private var accent
+
+    var body: some View {
+        Label { Text(title) } icon: {
+            Image(systemName: icon).foregroundStyle(accent)
+        }
+    }
+}
+
 struct ListRowHighlightStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         ListRowHighlightBody(configuration: configuration)

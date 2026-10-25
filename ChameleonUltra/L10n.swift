@@ -331,6 +331,7 @@ enum L10n {
         "Device settings applied": "设备设置已应用",
         "Device not connected — app settings only": "设备未连接——仅应用应用设置",
 
+        "No card": "无卡片",
         // read card extras
         "Continuous scan": "连续扫描",
         "Re-read tag": "重新读取",

@@ -151,7 +151,7 @@ struct SettingsView: View {
                     NavigationLink {
                         DeviceSettingsView()
                     } label: {
-                        Label(L10n.t("Device settings"), systemImage: "gearshape.2")
+                        AccentLabel(L10n.t("Device settings"), "gearshape.2")
                     }
                 }
             }
@@ -166,14 +166,14 @@ struct SettingsView: View {
                     hapticFeedback()
                     Task { await exportSettings() }
                 } label: {
-                    Label(L10n.t("Export settings"), systemImage: "square.and.arrow.up")
+                    AccentLabel(L10n.t("Export settings"), "square.and.arrow.up")
                 }
                 .buttonStyle(ListRowHighlightStyle())
                 Button {
                     hapticFeedback()
                     showSettingsImporter = true
                 } label: {
-                    Label(L10n.t("Import settings"), systemImage: "square.and.arrow.down")
+                    AccentLabel(L10n.t("Import settings"), "square.and.arrow.down")
                 }
                 .buttonStyle(ListRowHighlightStyle())
             } header: {
@@ -192,10 +192,10 @@ struct SettingsView: View {
                 NavigationLink {
                     LogsView()
                 } label: {
-                    Label(L10n.t("Protocol log"), systemImage: "doc.text.magnifyingglass")
+                    AccentLabel(L10n.t("Protocol log"), "doc.text.magnifyingglass")
                 }
                 Link(destination: URL(string: "https://github.com/GameTec-live/ChameleonUltraGUI")!) {
-                    Label(L10n.t("Original project (Flutter)"), systemImage: "safari")
+                    AccentLabel(L10n.t("Original project (Flutter)"), "safari")
                 }
             }
 
@@ -295,7 +295,7 @@ struct DeviceSettingsView: View {
                 Button(role: .destructive) {
                     confirmResetSettings = true
                 } label: {
-                    Label(L10n.t("Reset device settings"), systemImage: "arrow.counterclockwise")
+                    AccentLabel(L10n.t("Reset device settings"), "arrow.counterclockwise")
                 }
             } footer: {
                 Text(L10n.t("Applies device defaults. Does not erase slots."))
@@ -304,7 +304,7 @@ struct DeviceSettingsView: View {
                 Button(role: .destructive) {
                     confirmFactoryReset = true
                 } label: {
-                    Label(L10n.t("Factory reset (erases everything)"), systemImage: "exclamationmark.triangle")
+                    AccentLabel(L10n.t("Factory reset (erases everything)"), "exclamationmark.triangle")
                 }
             }
             if let error {

@@ -29,12 +29,12 @@ struct SavedCardsView: View {
                             copy.name = card.name + " 副本"
                             store.add(copy)
                         } label: {
-                            Label(L10n.t("Duplicate card"), systemImage: "plus.square.on.square")
+                            AccentLabel(L10n.t("Duplicate card"), "plus.square.on.square")
                         }
                         Button(role: .destructive) {
                             pendingDelete = [card]
                         } label: {
-                            Label(L10n.t("Delete card"), systemImage: "trash")
+                            AccentLabel(L10n.t("Delete card"), "trash")
                         }
                     }
                 }
@@ -66,7 +66,7 @@ struct SavedCardsView: View {
             Button {
                 showImporter = true
             } label: {
-                Label(L10n.t("Import cards"), systemImage: "square.and.arrow.down.on.square")
+                AccentLabel(L10n.t("Import cards"), "square.and.arrow.down.on.square")
             }
         }
         .sheet(isPresented: $showImporter) {
@@ -112,7 +112,7 @@ struct SavedCardsView: View {
                 .frame(width: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.name).font(.headline)
-                Text("\(card.displayType) · \(card.uid.uppercased())")
+                    Text("(card.displayType) · (card.uidData.hexSpaced.isEmpty ? card.uid.uppercased() : card.uidData.hexSpaced)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -149,7 +149,7 @@ struct CardDetailView: View {
             Section(L10n.t("Card")) {
                 TextField(L10n.t("Name"), text: $editableName, onCommit: saveName)
                 LabeledContent(L10n.t("Type"), value: card.displayType)
-                LabeledContent("UID", value: card.uid.uppercased())
+                LabeledContent("UID", value: card.uidData.hexSpaced.isEmpty ? card.uid.uppercased() : card.uidData.hexSpaced)
                 if card.tagType.frequency == .hf {
                     LabeledContent("SAK", value: String(format: "%02X", card.sak))
                     LabeledContent("ATQA", value: card.atqa.map { String(format: "%02X", $0) }.joined(separator: " "))
@@ -174,7 +174,7 @@ struct CardDetailView: View {
                         showApplySheet = true
                     } label: {
                         HStack {
-                            Label(L10n.t("Apply to device slot…"), systemImage: "square.grid.3x3")
+                            AccentLabel(L10n.t("Apply to device slot…"), "square.grid.3x3")
                             Spacer()
                             if applyingSlot != nil { ProgressView() }
                         }
@@ -191,7 +191,7 @@ struct CardDetailView: View {
                     hapticFeedback()
                     export(json: true)
                 } label: {
-                    Label(L10n.t("Export as JSON"), systemImage: "curlybraces.square")
+                    AccentLabel(L10n.t("Export as JSON"), "curlybraces.square")
                 }
                 .buttonStyle(ListRowHighlightStyle())
 
@@ -199,7 +199,7 @@ struct CardDetailView: View {
                     hapticFeedback()
                     export(json: false)
                 } label: {
-                    Label(L10n.t("Export as binary dump"), systemImage: "doc.zipper")
+                    AccentLabel(L10n.t("Export as binary dump"), "doc.zipper")
                 }
                 .buttonStyle(ListRowHighlightStyle())
 
@@ -208,15 +208,15 @@ struct CardDetailView: View {
                         Button {
                             exportDumpKeys(saveToDictionaries: true)
                         } label: {
-                            Label(L10n.t("Save to dictionaries"), systemImage: "book")
+                            AccentLabel(L10n.t("Save to dictionaries"), "book")
                         }
                         Button {
                             exportDumpKeys(saveToDictionaries: false)
                         } label: {
-                            Label(L10n.t("Share as .dic"), systemImage: "square.and.arrow.up")
+                            AccentLabel(L10n.t("Share as .dic"), "square.and.arrow.up")
                         }
                     } label: {
-                        Label(L10n.t("Export keys from dump"), systemImage: "key.horizontal")
+                        AccentLabel(L10n.t("Export keys from dump"), "key.horizontal")
                     }
                     .buttonStyle(ListRowHighlightStyle())
                 }
@@ -229,7 +229,7 @@ struct CardDetailView: View {
                     editUID = card.uid
                     showEditSheet = true
                 } label: {
-                    Label(L10n.t("Edit card"), systemImage: "pencil")
+                    AccentLabel(L10n.t("Edit card"), "pencil")
                 }
                 .buttonStyle(ListRowHighlightStyle())
 
@@ -237,7 +237,7 @@ struct CardDetailView: View {
                     hapticFeedback()
                     duplicateCard()
                 } label: {
-                    Label(L10n.t("Duplicate card"), systemImage: "plus.square.on.square")
+                    AccentLabel(L10n.t("Duplicate card"), "plus.square.on.square")
                 }
                 .buttonStyle(ListRowHighlightStyle())
 
@@ -252,7 +252,7 @@ struct CardDetailView: View {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                 } label: {
-                    Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
+                    AccentLabel(L10n.t("Dump editor"), "square.and.pencil")
                 }
 
                 Button {
@@ -261,7 +261,7 @@ struct CardDetailView: View {
                     saveAsJSON = true
                     showSaveAsSheet = true
                 } label: {
-                    Label(L10n.t("Save as…"), systemImage: "wand.and.stars")
+                    AccentLabel(L10n.t("Save as…"), "wand.and.stars")
                 }
                 .buttonStyle(ListRowHighlightStyle())
             }
@@ -271,7 +271,7 @@ struct CardDetailView: View {
                     hapticFeedback(.medium)
                     showDeleteConfirm = true
                 } label: {
-                    Label(L10n.t("Delete card"), systemImage: "trash")
+                    AccentLabel(L10n.t("Delete card"), "trash")
                 }
                 .buttonStyle(ListRowHighlightStyle())
             }

@@ -90,10 +90,10 @@ struct SlotManagerView: View {
                         }
                     }
                 } label: {
-                    // blank when nothing is loaded; tapping opens the card menu + clear
-                    Text(name)
+                    // "无卡片" when nothing is loaded; tapping opens the card menu + clear
+                    Text(name.isEmpty ? L10n.t("No card") : name)
                         .font(.subheadline)
-                        .foregroundStyle(Color.secondary)
+                        .foregroundStyle(name.isEmpty ? Color.secondary.opacity(0.6) : Color.secondary)
                         .lineLimit(1)
                 }
                 Spacer()

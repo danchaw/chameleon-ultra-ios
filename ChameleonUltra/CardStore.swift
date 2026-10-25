@@ -262,7 +262,11 @@ final class CardStore: ObservableObject {
     }
 
     private static func card(fromRaw raw: [String: Any]) -> CardSave? {
-        guard let uid = raw["uid"] as? String else { return nil }
+        guard let rawUID = raw["uid"] as? String else { return nil }
+        // normalize: original exports may carry "AA BB CC" / "AA:BB:CC" spacing
+        let uid = rawUID.replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ":", with: "")
+        guard !uid.isEmpty else { return nil }
         let name = raw["name"] as? String ?? "Card"
         let tagRaw = raw["tag"] as? Int ?? Int(TagType.unknown.rawValue)
         var card = CardSave(uid: uid, name: name, tag: TagType(rawValue: UInt16(tagRaw)) ?? .unknown)

@@ -220,11 +220,22 @@ final class AppModel: ObservableObject {
 
         var card: CardSave? = nil
         if tag.isMifareClassic {
-            let raw = try await communicator.mf1GetBlockData(startBlock: 0, blockCount: tag.blockCount)
+            // the firmware limits blocks per read — original uses 16-block
+            // chunks in a loop (slot_dump.dart); reading all at once returns
+            // nothing
+            var binData = Data()
+            var currentBlock = 0
+            let readCount = 16
+            while currentBlock < tag.blockCount {
+                let blocksToRead = min(readCount, tag.blockCount - currentBlock)
+                binData.append(try await communicator.mf1GetBlockData(
+                    startBlock: currentBlock, blockCount: blocksToRead))
+                currentBlock += blocksToRead
+            }
             var blocks: [[UInt8]] = []
             var offset = 0
-            while offset + 16 <= raw.count {
-                blocks.append(Array(raw[offset..<(offset + 16)]))
+            while offset + 16 <= binData.count {
+                blocks.append(Array(binData[offset..<(offset + 16)]))
                 offset += 16
             }
             let anti = try await communicator.mf1GetAntiCollData()

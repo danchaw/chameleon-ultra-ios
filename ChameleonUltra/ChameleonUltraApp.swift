@@ -12,7 +12,7 @@ struct ChameleonUltraApp: App {
                 .environmentObject(app)
                 .environmentObject(app.store)
                 .tint(Color(hexString: themeColor))
-                .environment(.themeAccent, Color(hexString: themeColor))
+                .environment(\.themeAccent, Color(hexString: themeColor))
                 .preferredColorScheme(ColorSchemePreference.current)
         }
     }

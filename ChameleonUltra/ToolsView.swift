@@ -31,7 +31,7 @@ struct ToolsView: View {
                 NavigationLink {
                     DictionaryDownloadView()
                 } label: {
-                    Label(L10n.t("Dictionary download"), systemImage: "arrow.down.circle")
+                    Text(L10n.t("Dictionary download"))
                 }
             }
             Section {
@@ -189,106 +189,102 @@ struct T55XXPasswordCleanerView: View {
     }
 }
 
-// MARK: - Dictionary download (same sources as the original app)
+// MARK: - Dictionary download (same five sources as the original app)
 
-struct DictionaryDownloadSource: Identifiable {
-    let id: String
-    let nameKey: String
-    let url: URL
-}
-
-/// Downloads the same external dictionaries as the original app
-/// (`gui/menu/tools/dictionary_download.dart`): proxmark3 default keys.
 struct DictionaryDownloadView: View {
     @EnvironmentObject var store: CardStore
 
-    static let sources = [
-        DictionaryDownloadSource(
-            id: "mfc",
-            nameKey: "Mifare Classic keys (proxmark3)",
-            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfc_default_keys.dic")!),
-        DictionaryDownloadSource(
-            id: "t55xx",
-            nameKey: "T55xx passwords (proxmark3)",
-            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/t55xx_default_pwds.dic")!),
-        DictionaryDownloadSource(
-            id: "mfulc",
-            nameKey: "Mifare Ultralight C keys (proxmark3)",
-            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfulc_default_keys.dic")!),
+    /// name / url pairs identical to `dictionary_download.dart`
+    private let sources: [(name: String, urlString: String)] = [
+        ("Proxmark3 (Mifare Classic)",
+         "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfc_default_keys.dic"),
+        ("Proxmark3 (T55XX)",
+         "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/t55xx_default_pwds.dic"),
+        ("Proxmark3 (Mifare Ultralight C)",
+         "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfulc_default_keys.dic"),
+        ("Proxmark3 (Mifare Plus)",
+         "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfp_default_keys.dic"),
+        ("Flipper Zero Unleashed Firmware (Mifare Classic)",
+         "https://raw.githubusercontent.com/DarkFlippers/unleashed-firmware/refs/heads/dev/applications/main/nfc/resources/nfc/assets/mf_classic_dict.nfc"),
     ]
 
-    @State private var downloading: Set<String> = []
-    @State private var results: [String: String] = [:]
+    @State private var downloadingIndex: Int? = nil
+    @State private var results: [Int: String] = [:]
 
     var body: some View {
         List {
             Section {
-                ForEach(Self.sources) { source in
-                    row(source)
+                ForEach(sources.indices, id: \.self) { index in
+                    row(index)
                 }
-            } footer: {
-                Text(L10n.t("keys imported") + " · proxmark3")
             }
         }
         .navigationTitle(L10n.t("Dictionary download"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    @ViewBuilder
-    private func row(_ source: DictionaryDownloadSource) -> some View {
-        let isDownloaded = store.dictionaries.contains { $0.name == source.nameKey }
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.t(source.nameKey))
-                if let result = results[source.id] {
+    private func row(_ index: Int) -> some View {
+        let source = sources[index]
+        let isDownloaded = store.dictionaries.contains { $0.name == source.name }
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(source.name)
+                    .font(.subheadline)
+                if let result = results[index] {
                     Text(result)
                         .font(.caption)
                         .foregroundStyle(result.hasPrefix("✓") ? Color.green : Color.red)
                 }
             }
-            Spacer()
-            if downloading.contains(source.id) {
+            Spacer(minLength: 8)
+            if downloadingIndex == index {
                 ProgressView()
             } else if isDownloaded {
-                Label(L10n.t("Downloaded"), systemImage: "checkmark.circle.fill")
+                Text(L10n.t("Downloaded"))
                     .font(.caption)
                     .foregroundStyle(.green)
-                    .labelStyle(.titleAndIcon)
             } else {
                 Button {
-                    download(source)
+                    download(index)
                 } label: {
-                    Label(L10n.t("Download"), systemImage: "arrow.down.circle.fill")
+                    Text(L10n.t("Download"))
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(PressableButtonStyle())
             }
         }
+        .padding(.vertical, 2)
     }
 
-    private func download(_ source: DictionaryDownloadSource) {
+    private func download(_ index: Int) {
+        let source = sources[index]
+        guard let url = URL(string: source.urlString) else { return }
         hapticFeedback()
-        downloading.insert(source.id)
+        downloadingIndex = index
         Task {
             do {
-                var request = URLRequest(url: source.url)
-                request.timeoutInterval = 20
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 30
                 let (data, _) = try await URLSession.shared.data(for: request)
                 let text = String(data: data, encoding: .utf8) ?? ""
-                var dictionary = KeyDictionary.fromText(text, name: source.nameKey)
-                dictionary.name = source.nameKey
+                var dictionary = KeyDictionary.fromText(text, name: source.name)
+                dictionary.name = source.name
                 guard !dictionary.keys.isEmpty else {
-                    results[source.id] = "✗ " + L10n.t("Download failed")
-                    downloading.remove(source.id)
+                    results[index] = "✗ " + L10n.t("Download failed")
+                    downloadingIndex = nil
                     return
                 }
                 store.add(dictionary: dictionary)
-                let count = dictionary.keys.count
-                results[source.id] = "✓ \(count) \(L10n.t("keys imported"))"
+                results[index] = "✓ \(dictionary.keys.count) \(L10n.t("keys imported"))"
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch {
-                results[source.id] = "✗ " + L10n.t("Download failed")
+                results[index] = "✗ " + L10n.t("Download failed")
             }
-            downloading.remove(source.id)
+            downloadingIndex = nil
         }
     }
 }

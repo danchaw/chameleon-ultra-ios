@@ -41,6 +41,10 @@ struct ReadCardView: View {
     @State private var showShare = false
     @State private var shareURL: URL?
 
+    // key check options (port of additional_key_dict / skipDefaultDictionary)
+    @State private var selectedDictionaryID: UUID?
+    @State private var skipDefaultDictionary = false
+
     private var communicator: ChameleonCommunicator? { app.communicator }
 
     var body: some View {
@@ -146,6 +150,20 @@ struct ReadCardView: View {
                         KeyCheckGridView(recovery: recoveryModel)
 
                         if phase == .cardFound || phase == .checkingKeys {
+                            DisclosureGroup(L10n.t("Additional key dictionary")) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Picker(L10n.t("Additional key dictionary"), selection: $selectedDictionaryID) {
+                                        Text(L10n.t("None")).tag(UUID?.none)
+                                        ForEach(mifareDictionaries) { dict in
+                                            Text("\(dict.name) (\(dict.keys.count))").tag(UUID?.some(dict.id))
+                                        }
+                                    }
+                                    Toggle(L10n.t("Skip default keys"), isOn: $skipDefaultDictionary)
+                                }
+                                .padding(.top, 4)
+                            }
+                            .font(.subheadline)
+
                             Button {
                                 Task { await checkKeys(autoDump: true) }
                             } label: {
@@ -217,6 +235,11 @@ struct ReadCardView: View {
         recovery.attached
     }
 
+    /// Dictionaries usable as a Mifare Classic key source (6-byte keys).
+    private var mifareDictionaries: [KeyDictionary] {
+        store.dictionaries.filter { $0.keyLength == 12 }
+    }
+
     private var defaultSaveName: String {
         guard let card else { return "Card" }
         let typeName = isMifareClassic ? tagType.displayName : (mfuTypeDetermined == .unknown ? "HF" : mfuTypeDetermined.displayName)
@@ -282,8 +305,9 @@ struct ReadCardView: View {
         error = nil
         phase = .checkingKeys
         do {
-            let dictionary = store.dictionaries.first { $0.keyLength == 12 }
-            try await recoveryModel.checkKeys(dictionary: dictionary)
+            let dictionary = mifareDictionaries.first { $0.id == selectedDictionaryID }
+            try await recoveryModel.checkKeys(dictionary: dictionary,
+                                              skipDefaultDictionary: skipDefaultDictionary)
             if autoDump {
                 phase = .dumping
                 try await recoveryModel.dumpData()

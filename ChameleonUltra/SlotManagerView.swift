@@ -122,7 +122,7 @@ struct SlotManagerView: View {
                     hapticFeedback()
                     confirmReset = (slot, frequency)
                 } label: {
-                    Label(L10n.t("Reset slot"), systemImage: "arrow.counterclockwise")
+                    Text(L10n.t("Reset slot"))
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
@@ -136,7 +136,7 @@ struct SlotManagerView: View {
                         hapticFeedback()
                         Task { await app.activateSlot(slot) }
                     } label: {
-                        Label(L10n.t("Activate"), systemImage: "bolt.fill")
+                        Text(L10n.t("Activate"))
                             .font(.subheadline.weight(.medium))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)

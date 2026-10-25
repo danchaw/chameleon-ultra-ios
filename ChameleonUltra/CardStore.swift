@@ -125,13 +125,18 @@ struct KeyDictionary: Identifiable, Codable, Equatable {
         self.keyLength = keys.first?.count ?? 0
     }
 
-    /// Parse a text list of hex keys (one per line), same rules as the original.
+    /// Parse a text list of hex keys (one per line). Accepts proxmark3
+    /// `.dic` (`KEY # comment`) and Flipper `.nfc` (`KEY:comment`) formats.
     static func fromText(_ text: String, name: String) -> KeyDictionary {
         let allowedKeySizes = [12, 8, 32]
         var keys: [Data] = []
         var currentKeySize = 0
         for rawLine in text.split(separator: "\n") {
-            var line = rawLine.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "#", with: " ")
+            var line = rawLine.trimmingCharacters(in: .whitespaces)
+                .replacingOccurrences(of: "#", with: " ")
+            if line.contains(":") {                       // Flipper format: strip comment after ':'
+                line = String(line.split(separator: ":")[0])
+            }
             if line.contains(" ") { line = String(line.split(separator: " ")[0]) }
             if allowedKeySizes.contains(line.count),
                line.data(using: .utf8)?.isValidHex ?? false,

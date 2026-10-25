@@ -127,23 +127,30 @@ struct KeyDictionary: Identifiable, Codable, Equatable {
 
     /// Parse a text list of hex keys (one per line). Accepts proxmark3
     /// `.dic` (`KEY # comment`) and Flipper `.nfc` (`KEY:comment`) formats.
+    /// Written without any index arithmetic — comment-only lines are common
+    /// in proxmark3 dictionaries and must not trap.
     static func fromText(_ text: String, name: String) -> KeyDictionary {
-        let allowedKeySizes = [12, 8, 32]
+        let allowedKeySizes: Set<Int> = [12, 8, 32]
         var keys: [Data] = []
+        var seen = Set<String>()
         var currentKeySize = 0
-        for rawLine in text.split(separator: "\n") {
+        for rawLine in text.split(whereSeparator: { $0 == "\n" || $0 == "\r" }) {
             var line = rawLine.trimmingCharacters(in: .whitespaces)
-                .replacingOccurrences(of: "#", with: " ")
-            if line.contains(":") {                       // Flipper format: strip comment after ':'
-                line = String(line.split(separator: ":")[0])
+            if let hash = line.firstIndex(of: "#") {        // proxmark3 comment
+                line = String(line[..<hash])
             }
-            if line.contains(" ") { line = String(line.split(separator: " ")[0]) }
-            if allowedKeySizes.contains(line.count),
-               line.data(using: .utf8)?.isValidHex ?? false,
-               currentKeySize == 0 || currentKeySize == line.count {
-                if currentKeySize == 0 { currentKeySize = line.count }
-                keys.append(Data(hex: line))
+            if let colon = line.firstIndex(of: ":") {       // flipper comment
+                line = String(line[..<colon])
             }
+            line = line.trimmingCharacters(in: .whitespaces)
+
+            guard allowedKeySizes.contains(line.count),
+                  line.allSatisfy(\.isHexDigit),
+                  currentKeySize == 0 || currentKeySize == line.count,
+                  seen.insert(line).inserted else { continue }
+
+            if currentKeySize == 0 { currentKeySize = line.count }
+            keys.append(Data(hex: line))
         }
         var dict = KeyDictionary(name: name, keys: keys)
         dict.keyLength = currentKeySize

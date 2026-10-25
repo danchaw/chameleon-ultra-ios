@@ -150,19 +150,18 @@ struct ReadCardView: View {
                         KeyCheckGridView(recovery: recoveryModel)
 
                         if phase == .cardFound || phase == .checkingKeys {
-                            DisclosureGroup(L10n.t("Additional key dictionary")) {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Picker(L10n.t("Additional key dictionary"), selection: $selectedDictionaryID) {
-                                        Text(L10n.t("None")).tag(UUID?.none)
-                                        ForEach(mifareDictionaries) { dict in
-                                            Text("\(dict.name) (\(dict.keys.count))").tag(UUID?.some(dict.id))
-                                        }
+                            VStack(alignment: .leading, spacing: 10) {
+                                Picker(L10n.t("Additional key dictionary"), selection: $selectedDictionaryID) {
+                                    Text(L10n.t("None")).tag(UUID?.none)
+                                    ForEach(mifareDictionaries) { dict in
+                                        Text("\(dict.name) (\(dict.keys.count))").tag(UUID?.some(dict.id))
                                     }
-                                    Toggle(L10n.t("Skip default keys"), isOn: $skipDefaultDictionary)
                                 }
-                                .padding(.top, 4)
+                                Toggle(L10n.t("Skip default keys"), isOn: $skipDefaultDictionary)
                             }
                             .font(.subheadline)
+                            .padding(10)
+                            .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
 
                             Button {
                                 Task { await checkKeys(autoDump: true) }

@@ -7,17 +7,23 @@ extension Data {
     var hexSpaced: String { map { String(format: "%02X", $0) }.joined(separator: " ") }
 
     init(hex string: String) {
-        var clean = string.replacingOccurrences(of: " ", with: "")
-        clean = clean.replacingOccurrences(of: ":", with: "")
-        if clean.count % 2 != 0 { clean = "0" + clean }
-        var data = Data(capacity: clean.count / 2)
-        var index = clean.startIndex
-        while index < clean.endIndex {
-            let next = clean.index(after: index)
-            if let byte = UInt8(String(clean[index...next]), radix: 16) {
-                data.append(byte)
+        let clean = string.replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: ":", with: "")
+        var data = Data()
+        data.reserveCapacity(clean.count / 2)
+        var iterator = clean.makeIterator()
+        var high: UInt8? = nil
+        while let ch = iterator.next() {
+            guard let digit = ch.hexDigitValue else {
+                high = nil
+                continue
             }
-            index = clean.index(after: next)
+            if let h = high {
+                data.append(h << 4 | UInt8(digit))
+                high = nil
+            } else {
+                high = UInt8(digit)
+            }
         }
         self = data
     }

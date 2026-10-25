@@ -274,7 +274,7 @@ enum L10n {
 
         // key check options (original: additional_key_dict)
         "Additional key dictionary": "附加密钥字典",
-        "Skip default keys": "跳过默认密钥（仅使用所选字典）",
+        "Skip default keys": "跳过默认密钥",
 
         // firmware validation
         "Firmware package verified": "固件包校验通过",

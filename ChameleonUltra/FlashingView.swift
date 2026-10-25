@@ -268,7 +268,7 @@ struct FlashingView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .tint(.orange)
+                // unified accent color
                 .disabled(busyPhase != .idle)
 
                 Button {

@@ -21,6 +21,21 @@ struct SavedCardsView: View {
                     } label: {
                         cardRow(card)
                     }
+                    .contextMenu {
+                        Button {
+                            var copy = card
+                            copy.id = UUID()
+                            copy.name = card.name + " 副本"
+                            store.add(copy)
+                        } label: {
+                            Label(L10n.t("Duplicate card"), systemImage: "plus.square.on.square")
+                        }
+                        Button(role: .destructive) {
+                            pendingDelete = [card]
+                        } label: {
+                            Label(L10n.t("Delete card"), systemImage: "trash")
+                        }
+                    }
                 }
                 .onDelete { indexSet in
                     pendingDelete = indexSet.map { filtered[$0] }
@@ -35,8 +50,9 @@ struct SavedCardsView: View {
                     hapticFeedback()
                     showImporter = true
                 } label: {
-                    Image(systemName: "square.and.arrow.up.on.square")
+                    Image(systemName: "square.and.arrow.down.on.square")
                 }
+                .buttonStyle(PressableButtonStyle())
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -44,6 +60,13 @@ struct SavedCardsView: View {
                 } label: {
                     Image(systemName: "key.horizontal")
                 }
+            }
+        }
+        .contextMenu {
+            Button {
+                showImporter = true
+            } label: {
+                Label(L10n.t("Import cards"), systemImage: "square.and.arrow.down.on.square")
             }
         }
         .sheet(isPresented: $showImporter) {
@@ -111,6 +134,13 @@ struct CardDetailView: View {
     @State private var showApplySheet = false
     @State private var applyingSlot: Int?
     @State private var showDeleteConfirm = false
+    // card actions
+    @State private var showEditSheet = false
+    @State private var editName = ""
+    @State private var editUID = ""
+    @State private var showSaveAsSheet = false
+    @State private var saveAsName = ""
+    @State private var saveAsJSON = true
 
     private var blockSize: Int { card.isMifareClassic ? 16 : 4 }
 
@@ -192,6 +222,48 @@ struct CardDetailView: View {
                 }
             }
 
+            Section(L10n.t("Card actions")) {
+                Button {
+                    hapticFeedback()
+                    editName = card.name
+                    editUID = card.uid
+                    showEditSheet = true
+                } label: {
+                    Label(L10n.t("Edit card"), systemImage: "pencil")
+                }
+                .buttonStyle(PressableButtonStyle())
+
+                Button {
+                    hapticFeedback()
+                    duplicateCard()
+                } label: {
+                    Label(L10n.t("Duplicate card"), systemImage: "plus.square.on.square")
+                }
+                .buttonStyle(PressableButtonStyle())
+
+                if !card.data.isEmpty {
+                    NavigationLink {
+                        DumpEditorView(title: card.name, blocks: card.data, blockSize: blockSize) { newBlocks in
+                            card.data = newBlocks
+                            store.update(card)
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
+                    } label: {
+                        Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
+                    }
+                }
+
+                Button {
+                    hapticFeedback()
+                    saveAsName = card.name
+                    saveAsJSON = true
+                    showSaveAsSheet = true
+                } label: {
+                    Label(L10n.t("Save as…"), systemImage: "wand.and.stars")
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+
             Section(L10n.t("Danger zone")) {
                 Button(role: .destructive) {
                     hapticFeedback(.medium)
@@ -215,6 +287,8 @@ struct CardDetailView: View {
             }
         }
         .sheet(isPresented: $showApplySheet) { applySheet }
+        .sheet(isPresented: $showEditSheet) { editSheet }
+        .sheet(isPresented: $showSaveAsSheet) { saveAsSheet }
         .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(card)
@@ -275,6 +349,87 @@ struct CardDetailView: View {
     private func saveName() {
         card.name = editableName
         store.update(card)
+    }
+
+    private func duplicateCard() {
+        var copy = card
+        copy.id = UUID()
+        copy.name = card.name + " 副本"
+        store.add(copy)
+        message = L10n.t("Card updated")
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private var editSheet: some View {
+        NavigationStack {
+            Form {
+                TextField(L10n.t("Name"), text: $editName)
+                TextField("UID", text: $editUID)
+                    .font(.system(size: 14, design: .monospaced))
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.characters)
+            }
+            .navigationTitle(L10n.t("Edit card"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("Cancel")) { showEditSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.t("Save")) {
+                        card.name = editName
+                        let uid = editUID.replacingOccurrences(of: " ", with: "")
+                        if !uid.isEmpty { card.uid = uid }
+                        store.update(card)
+                        showEditSheet = false
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var saveAsSheet: some View {
+        NavigationStack {
+            Form {
+                TextField(L10n.t("Name"), text: $saveAsName)
+                Picker(L10n.t("Save as…"), selection: $saveAsJSON) {
+                    Text(L10n.t("JSON")).tag(true)
+                    Text(L10n.t("Binary")).tag(false)
+                }
+                .pickerStyle(.segmented)
+            }
+            .navigationTitle(L10n.t("Save as…"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("Cancel")) { showSaveAsSheet = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.t("Save")) {
+                        showSaveAsSheet = false
+                        var asCard = card
+                        asCard.name = saveAsName.isEmpty ? card.name : saveAsName
+                        do {
+                            let ext = saveAsJSON ? "json" : "bin"
+                            let url = FileManager.default.temporaryDirectory
+                                .appendingPathComponent("\(asCard.name.replacingOccurrences(of: "/", with: "_")).\(ext)")
+                            if saveAsJSON {
+                                try JSONEncoder().encode([asCard]).write(to: url)
+                            } else {
+                                try asCard.binaryDump.write(to: url)
+                            }
+                            shareURL = url
+                            showShare = true
+                        } catch {
+                            message = error.localizedDescription
+                        }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 
     private func export(json: Bool) {

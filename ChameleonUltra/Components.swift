@@ -216,7 +216,7 @@ struct SlotChanger: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Emulation slot")
+            Text(L10n.t("Emulation slot"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
@@ -244,7 +244,6 @@ struct SlotChanger: View {
                                 ? AnyShapeStyle(Color.accentColor.opacity(0.25))
                                 : AnyShapeStyle(Color(.systemBackground).opacity(0.5))
                         )
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(app.activeSlot == slot ? Color.accentColor : Color.clear, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
                 }

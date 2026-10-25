@@ -7,6 +7,38 @@ struct SettingsView: View {
     @AppStorage("themeColor") private var themeColor: String = "orange"
     @AppStorage("colorScheme") private var colorScheme: String = "system"
     @AppStorage("appLanguage") private var appLanguage: String = "system"
+    @AppStorage("autoScan") private var autoScan = false
+    @AppStorage("autoConnectFirst") private var autoConnectFirst = false
+    @State private var showSettingsImporter = false
+    @State private var showSettingsShare = false
+    @State private var settingsURL: URL?
+
+    static let settingsKeys = ["themeColor", "colorScheme", "appLanguage",
+                               "autoScan", "autoConnectFirst", "hapticsEnabled"]
+
+    private func exportSettings() {
+        var dict: [String: String] = ["format": "chameleon-ultra-ios-settings", "version": "1"]
+        for key in Self.settingsKeys {
+            dict[key] = UserDefaults.standard.string(forKey: key) ?? ""
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: dict),
+           let url = try? data.write(to: FileManager.default.temporaryDirectory
+                .appendingPathComponent("settings.json"), options: .atomic) {
+            settingsURL = url
+            showSettingsShare = true
+        }
+    }
+
+    private func importSettings(from url: URL) {
+        guard let data = try? Data(contentsOf: url),
+              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: String] else { return }
+        for key in Self.settingsKeys {
+            if let value = dict[key], !value.isEmpty {
+                UserDefaults.standard.set(value, forKey: key)
+            }
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
 
     /// Shown in About; reads the real bundle version so it never drifts.
     private var appVersionString: String {
@@ -62,6 +94,25 @@ struct SettingsView: View {
                 }
             }
 
+            Section(L10n.t("Connection")) {
+                Toggle(L10n.t("Auto scan devices"), isOn: $autoScan)
+                Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
+                Button {
+                    hapticFeedback()
+                    exportSettings()
+                } label: {
+                    Label(L10n.t("Export settings"), systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(PressableButtonStyle())
+                Button {
+                    hapticFeedback()
+                    showSettingsImporter = true
+                } label: {
+                    Label(L10n.t("Import settings"), systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+
             Section(L10n.t("About")) {
                 LabeledContent("App", value: appVersionString)
                 LabeledContent(L10n.t("License"), value: "GPL-3.0")
@@ -82,6 +133,14 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(L10n.t("Settings"))
+        .sheet(isPresented: $showSettingsImporter) {
+            DocumentPicker(contentTypes: [.json]) { url in
+                importSettings(from: url)
+            }
+        }
+        .sheet(isPresented: $showSettingsShare) {
+            if let settingsURL { ShareSheet(items: [settingsURL]) }
+        }
     }
 }
 
@@ -100,6 +159,7 @@ struct DeviceSettingsView: View {
     @State private var bPress: ButtonConfig?
     @State private var aLongPress: ButtonConfig?
     @State private var bLongPress: ButtonConfig?
+    @State private var longPressThreshold: Int?
 
     var body: some View {
         Form {
@@ -131,6 +191,18 @@ struct DeviceSettingsView: View {
                         pairing = newValue
                         Task { try? await app.communicator?.setBLEPairEnabled(newValue) }
                     }))
+            }
+            if let currentThreshold = longPressThreshold {
+                Stepper("\(L10n.t("Long press threshold")): \(currentThreshold) \(L10n.t("ms"))",
+                        value: Binding(
+                            get: { longPressThreshold ?? currentThreshold },
+                            set: { newValue in
+                                longPressThreshold = newValue
+                                Task {
+                                    try? await app.communicator?.setLongPressThreshold(newValue)
+                                    hapticFeedback()
+                                }
+                            }), in: 100...5000, step: 100)
             }
             Section(L10n.t("Button config")) {
                 if let current = aPress {
@@ -194,6 +266,7 @@ struct DeviceSettingsView: View {
             bPress = try? await communicator.getButtonConfig(.b, long: false)
             aLongPress = try? await communicator.getButtonConfig(.a, long: true)
             bLongPress = try? await communicator.getButtonConfig(.b, long: true)
+            longPressThreshold = try? await communicator.getLongPressThreshold()
         }
     }
 

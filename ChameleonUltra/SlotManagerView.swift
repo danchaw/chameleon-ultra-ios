@@ -7,6 +7,10 @@ struct SlotManagerView: View {
     @State private var error: String?
     @State private var busySlot: Int?
     @State private var confirmReset: (Int, TagFrequency)?
+    @State private var showExport = false
+    @State private var exportURL: URL?
+    @State private var editingSlot: Int?
+    @State private var editingBlocks: [[UInt8]]?
 
     var body: some View {
         List {
@@ -48,6 +52,33 @@ struct SlotManagerView: View {
         } message: {
             Text(L10n.t("This clears the slot data on the device."))
         }
+        .sheet(isPresented: $showExport) {
+            if let exportURL { ShareSheet(items: [exportURL]) }
+        }
+        .sheet(isPresented: editingShown) {
+            if let blocks = editingBlocks, let slot = editingSlot {
+                NavigationStack {
+                    DumpEditorView(title: "\(L10n.t("Slot")) \(slot)", blocks: blocks, blockSize: 16) { newBlocks in
+                        Task {
+                            do {
+                                try await app.communicator?.setMf1BlockData(
+                                    startBlock: 0, blocks: Data(newBlocks.flatMap { $0 }))
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            } catch {
+                                self.error = error.localizedDescription
+                            }
+                        }
+                        editingSlot = nil
+                        editingBlocks = nil
+                    }
+                }
+            }
+        }
+    }
+
+    private var editingShown: Binding<Bool> {
+        Binding(get: { editingSlot != nil && editingBlocks != nil },
+                set: { if !$0 { editingSlot = nil; editingBlocks = nil } })
     }
 
     private var resetDialogShown: Binding<Bool> {
@@ -148,8 +179,104 @@ struct SlotManagerView: View {
                 Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }
             }
+
+            if type != .unknown {
+                Menu {
+                    Button {
+                        exportSlot(slot, mode: .file)
+                    } label: {
+                        Label(L10n.t("Save to file"), systemImage: "doc")
+                    }
+                    Button {
+                        exportSlot(slot, mode: .newCard)
+                    } label: {
+                        Label(L10n.t("Export to new card"), systemImage: "creditcard")
+                    }
+                    if !store.cards.isEmpty {
+                        Menu {
+                            ForEach(store.cards) { card in
+                                Button(card.name) {
+                                    exportSlot(slot, mode: .updateCard(card))
+                                }
+                            }
+                        } label: {
+                            Label(L10n.t("Update saved card…"), systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    if type.isMifareClassic {
+                        Button {
+                            openSlotDumpEditor(slot)
+                        } label: {
+                            Label(L10n.t("Dump editor"), systemImage: "square.and.pencil")
+                        }
+                    }
+                } label: {
+                    Label(L10n.t("Export slot data"), systemImage: "square.and.arrow.up")
+                        .font(.subheadline)
+                }
+            }
         }
         .padding(.vertical, 2)
+    }
+
+    enum SlotExportMode {
+        case file
+        case newCard
+        case updateCard(CardSave)
+    }
+
+    private func exportSlot(_ slot: Int, mode: SlotExportMode) {
+        hapticFeedback()
+        Task {
+            busySlot = slot
+            do {
+                guard var card = try await app.readSlotAsCard(slot: slot) else {
+                    error = L10n.t("No dump data")
+                    busySlot = nil
+                    return
+                }
+                switch mode {
+                case .file:
+                    let data = try JSONEncoder().encode([card])
+                    let url = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("\(card.name.replacingOccurrences(of: "/", with: "_")).json")
+                    try data.write(to: url)
+                    exportURL = url
+                    showExport = true
+                case .newCard:
+                    store.add(card)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                case .updateCard(let existing):
+                    card.id = existing.id
+                    card.name = existing.name
+                    card.color = existing.color
+                    store.update(card)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            } catch {
+                self.error = error.localizedDescription
+            }
+            busySlot = nil
+        }
+    }
+
+    private func openSlotDumpEditor(_ slot: Int) {
+        Task {
+            busySlot = slot
+            do {
+                guard let card = try await app.readSlotAsCard(slot: slot), !card.data.isEmpty else {
+                    error = L10n.t("No dump data")
+                    busySlot = nil
+                    return
+                }
+                editingSlot = slot
+                editingBlocks = card.data
+                busySlot = nil
+            } catch {
+                self.error = error.localizedDescription
+                busySlot = nil
+            }
+        }
     }
 
     private func applyCard(_ card: CardSave, to slot: Int) {

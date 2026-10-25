@@ -4,6 +4,8 @@ import SwiftUI
 struct ConnectView: View {
     @EnvironmentObject var app: AppModel
     @State private var isScanning = false
+    @AppStorage("autoScan") private var autoScan = false
+    @AppStorage("autoConnectFirst") private var autoConnectFirst = false
 
     private var ble: BLEManager { app.ble }
 
@@ -106,11 +108,13 @@ struct ConnectView: View {
         }
         .navigationTitle(L10n.t("Connect"))
         .onAppear {
-            toggleScan()
+            if autoScan {
+                toggleScan()
+            }
             // Bluetooth may not be powered on yet – retry once shortly after.
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
-                if ble.state == .idle && !isScanning { toggleScan() }
+                if autoScan && ble.state == .idle && !isScanning { toggleScan() }
             }
         }
         .onDisappear { ble.stopScan() }
@@ -136,6 +140,24 @@ struct ConnectView: View {
                         isScanning = false
                     }
                 }
+            }
+            if autoConnectFirst {
+                autoConnectToFirst()
+            }
+        }
+    }
+
+    /// Watch the scan results and connect to the first Chameleon found
+    /// (original: auto_connect_first_device). Once per scan session.
+    private func autoConnectToFirst() {
+        Task { @MainActor in
+            for _ in 0..<20 {
+                if !isScanning { return }
+                if let first = ble.devices.first(where: { !$0.isDFU }) {
+                    connect(first)
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }

@@ -196,6 +196,42 @@ final class AppModel: ObservableObject {
         appendLog("Disconnected")
     }
 
+    /// Read a device slot back into a CardSave (Mifare Classic full dump
+    /// with anti-collision data, or EM410X uid) — port of helpers/slot_dump.dart.
+    func readSlotAsCard(slot: Int) async throws -> CardSave? {
+        guard let communicator else { throw ChameleonError.notConnected }
+        var tag = slotTypes[slot].hf
+        var isHF = true
+        if tag == .unknown {
+            tag = slotTypes[slot].lf
+            isHF = false
+        }
+        guard tag != .unknown else { return nil }
+        let nick = isHF ? slotNames[slot].hf : slotNames[slot].lf
+        let name = nick.isEmpty ? "Slot \(slot)" : nick
+
+        if tag.isMifareClassic {
+            let raw = try await communicator.mf1GetBlockData(startBlock: 0, blockCount: tag.blockCount)
+            var blocks: [[UInt8]] = []
+            var offset = 0
+            while offset + 16 <= raw.count {
+                blocks.append(Array(raw[offset..<(offset + 16)]))
+                offset += 16
+            }
+            let anti = try await communicator.mf1GetAntiCollData()
+            return CardSave(uid: anti.uid.hex, name: name, tag: tag,
+                            sak: Int(anti.sak), atqa: Array(anti.atqa), ats: Array(anti.ats),
+                            data: blocks)
+        }
+
+        if tag.isEM410X {
+            let uid = try await communicator.getEM410XEmulatorID()
+            return CardSave(uid: uid.hex, name: name, tag: tag)
+        }
+
+        return nil   // other LF tag types not supported for slot export yet
+    }
+
     private func handleDisconnect() {
         communicator = nil
         if connectionState == .dfuMode {

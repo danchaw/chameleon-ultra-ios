@@ -556,6 +556,45 @@ final class ChameleonCommunicator {
         try await sendCmd(.setEM410XemulatorID, data: uid)
     }
 
+    /// Port of getEM410XEmulatorID with the same fallback chain: raw data may
+    /// be the uid itself (5/13 bytes) or `type(2) + uid`.
+    func getEM410XEmulatorID() async throws -> Data {
+        let data = try await sendCmd(.getEM410XemulatorID).data
+        if data.count == 5 || data.count == 13 {
+            return data
+        }
+        if data.count >= 2 {
+            let type = TagType(rawValue: data.readU16(at: 0)) ?? .em410X
+            let uidLength = type.lfUIDSize
+            if uidLength > 0 && data.count >= uidLength + 2 {
+                return data.subdata(in: 2..<(2 + uidLength))
+            }
+        }
+        if let activeLfType = try? await activeSlotLfType(),
+           uidLength = activeLfType.lfUIDSize, uidLength > 0 {
+            if data.count >= uidLength + 2 { return data.subdata(in: 2..<(2 + uidLength)) }
+            if data.count >= uidLength { return data.prefix(uidLength) }
+        }
+        return data
+    }
+
+    private func activeSlotLfType() async throws -> TagType {
+        let slot = try await getActiveSlot()
+        let types = try await getSlotTagTypes()
+        guard slot < types.count else { return .unknown }
+        return types[slot].lf
+    }
+
+    func getLongPressThreshold() async throws -> Int {
+        let data = try await sendCmd(.getLongPressThreshold).data
+        guard data.count >= 2 else { return 0 }
+        return Int(data.readU16(at: 0))
+    }
+
+    func setLongPressThreshold(_ milliseconds: Int) async throws {
+        try await sendCmd(.setLongPressThreshold, data: Data(UInt16(milliseconds).bytesBE))
+    }
+
     func setHIDProxEmulatorID(_ uid: Data) async throws {
         try await sendCmd(.setHIDProxEmulatorID, data: uid)
     }

@@ -21,9 +21,9 @@ struct SettingsView: View {
         for key in Self.settingsKeys {
             dict[key] = UserDefaults.standard.string(forKey: key) ?? ""
         }
-        if let data = try? JSONSerialization.data(withJSONObject: dict),
-           let url = try? data.write(to: FileManager.default.temporaryDirectory
-                .appendingPathComponent("settings.json"), options: .atomic) {
+        if let data = try? JSONSerialization.data(withJSONObject: dict) {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("settings.json")
+            try? data.write(to: url, options: .atomic)
             settingsURL = url
             showSettingsShare = true
         }
@@ -194,7 +194,7 @@ struct DeviceSettingsView: View {
             }
             if let currentThreshold = longPressThreshold {
                 Stepper("\(L10n.t("Long press threshold")): \(currentThreshold) \(L10n.t("ms"))",
-                        value: Binding(
+                        value: Binding<Int>(
                             get: { longPressThreshold ?? currentThreshold },
                             set: { newValue in
                                 longPressThreshold = newValue

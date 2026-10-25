@@ -30,6 +30,7 @@ final class AppModel: ObservableObject {
 
     let ble = BLEManager()
     let store = CardStore()
+    let firmwareStore = FirmwareStore()
     private(set) var communicator: ChameleonCommunicator?
     private var cancellables: [AnyCancellable] = []
 

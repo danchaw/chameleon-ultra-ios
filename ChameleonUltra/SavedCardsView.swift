@@ -419,9 +419,11 @@ struct DictionaryManagerView: View {
 
 struct DictionaryDetailView: View {
     @EnvironmentObject var store: CardStore
+    @Environment(\.dismiss) private var dismiss
     let dictionary: KeyDictionary
     @State private var showShare = false
     @State private var shareURL: URL?
+    @State private var confirmDelete = false
 
     var body: some View {
         List(dictionary.keys, id: \.self) { key in
@@ -444,9 +446,28 @@ struct DictionaryDetailView: View {
                 }
                 .buttonStyle(PressableButtonStyle())
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    hapticFeedback(.medium)
+                    confirmDelete = true
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
         }
         .sheet(isPresented: $showShare) {
             if let shareURL { ShareSheet(items: [shareURL]) }
+        }
+        .confirmationDialog(L10n.t("Confirm deletion"), isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button(L10n.t("Delete"), role: .destructive) {
+                store.delete(dictionary: dictionary)
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                dismiss()
+            }
+            Button(L10n.t("Cancel"), role: .cancel) {}
+        } message: {
+            Text("\(L10n.t("Delete this dictionary?")) \(L10n.t("This cannot be undone."))")
         }
     }
 }

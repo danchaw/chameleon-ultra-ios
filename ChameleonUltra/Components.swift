@@ -212,7 +212,7 @@ struct SlotChanger: View {
                                 ? AnyShapeStyle(Color.accentColor.opacity(0.25))
                                 : AnyShapeStyle(Color(.systemBackground).opacity(0.5))
                         )
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(app.activeSlot == slot ? .tint : .clear, lineWidth: 1.5))
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(app.activeSlot == slot ? Color.accentColor : Color.clear, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
                 }

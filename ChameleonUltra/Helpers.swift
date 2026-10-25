@@ -76,7 +76,7 @@ enum CRC32 {
     static func update(_ crc: UInt32, with data: Data) -> UInt32 {
         var c = ~crc
         for byte in data {
-            c = (c >> 8) ^ table[(c ^ UInt32(byte)) & 0xFF]
+            c = (c >> 8) ^ table[Int((c ^ UInt32(byte)) & 0xFF)]
         }
         return ~c
     }

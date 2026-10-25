@@ -89,9 +89,9 @@ struct DeviceSettingsView: View {
 
     var body: some View {
         Form {
-            if let animation {
+            if let currentAnimation = animation {
                 Picker("LED animation", selection: Binding(
-                    get: { animation },
+                    get: { animation ?? currentAnimation },
                     set: { newValue in
                         animation = newValue
                         Task { try? await app.communicator?.setAnimationMode(newValue) }
@@ -101,18 +101,18 @@ struct DeviceSettingsView: View {
                     }
                 }
             }
-            if let wakeTime {
+            if let currentWakeTime = wakeTime {
                 Stepper(wakeTime == 0 ? "Sleep timeout: never" : "Sleep timeout: \(wakeTime) min",
                         value: Binding(
-                            get: { wakeTime },
+                            get: { wakeTime ?? currentWakeTime },
                             set: { newValue in
                                 wakeTime = newValue
                                 Task { try? await app.communicator?.setSleepTimeout(newValue) }
                             }), in: 0...120, step: 5)
             }
-            if let pairing {
+            if let currentPairing = pairing {
                 Toggle("BLE pairing", isOn: Binding(
-                    get: { pairing },
+                    get: { pairing ?? currentPairing },
                     set: { newValue in
                         pairing = newValue
                         Task { try? await app.communicator?.setBLEPairEnabled(newValue) }

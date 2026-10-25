@@ -593,7 +593,7 @@ final class ChameleonCommunicator {
 
     func lfSniff(timeoutMs: Int = 2000) async throws -> Data {
         let clamped = min(max(timeoutMs, 1), 10000)
-        let resp = try await sendCmd(.lfSniff, data: Data([(clamped >> 8) & 0xFF, clamped & 0xFF]),
+        let resp = try await sendCmd(.lfSniff, data: Data([UInt8((clamped >> 8) & 0xFF), UInt8(clamped & 0xFF)]),
                                      timeout: TimeInterval(clamped / 1000 + 2))
         if resp.status == 0x40 { return resp.data }
         if resp.status == 0x41 { return Data() }
@@ -602,7 +602,7 @@ final class ChameleonCommunicator {
 
     func hf14aSniff(timeoutMs: Int = 5000) async throws -> Data {
         let clamped = min(max(timeoutMs, 1), 30000)
-        let resp = try await sendCmd(.hf14aSniff, data: Data([(clamped >> 8) & 0xFF, clamped & 0xFF]),
+        let resp = try await sendCmd(.hf14aSniff, data: Data([UInt8((clamped >> 8) & 0xFF), UInt8(clamped & 0xFF)]),
                                      timeout: TimeInterval(clamped / 1000 + 5))
         if resp.status == 0x68 || resp.status == 0x00 { return resp.data }
         if resp.status == 0x01 { return Data() }

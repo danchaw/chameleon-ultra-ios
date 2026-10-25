@@ -6,22 +6,19 @@ enum MifareClassic {
 
     /// Default keys from Proxmark3 (same order as the original app).
     static let defaultKeys: [Data] = [
-        UInt64(0xFFFFFFFFFFFF), UInt64(0xA0A1A2A3A4A5), UInt64(0xD3F7D3F7D3F7), UInt64(0x4B791BEA7BCC),
-        UInt64(0x5C8FF9990DA2), UInt64(0xD01AFEEB890A), UInt64(0x75CCB59C9BED), UInt64(0x6471A5EF2D1A),
-        UInt64(0x4E3552426B32), UInt64(0xEF1232AB18A0), UInt64(0xB7BF0C13066E), UInt64(0x135B88A94B8B),
-        UInt64(0x2A2C13CC242A), UInt64(0x5A7A52D5E20D), UInt64(0x314B49474956), UInt64(0x564C505F4D41),
-        UInt64(0x021209197591), UInt64(0x484558414354), UInt64(0xEC0A9B1A9E06), UInt64(0x66B31E64CA4B),
-        UInt64(0xE00000000000), UInt64(0x199404281970), UInt64(0x199404281998), UInt64(0x6A1987C40A21),
-        UInt64(0x7F33625BC129), UInt64(0x484944204953), UInt64(0x204752454154), UInt64(0x3B7E4FD575AD),
-        UInt64(0x11496F97752A), UInt64(0x000000000000), UInt64(0xB0B1B2B3B4B5), UInt64(0xAABBCCDDEEFF),
-        UInt64(0x1A2B3C4D5E6F), UInt64(0x123456789ABC), UInt64(0x010203040506), UInt64(0x123456ABCDEF),
-        UInt64(0xABCDEF123456), UInt64(0x4D3A99C351DD), UInt64(0x1A982C7E459A), UInt64(0x714C5C886E97),
-        UInt64(0x587EE5F9350F), UInt64(0xA0478CC39091), UInt64(0x533CB6C723F6), UInt64(0x8FD0A4F256E9),
-        UInt64(0x0000014B5C31), UInt64(0xB578F38A5C61), UInt64(0x96A301BCE267),
-    ].map { key in
-        Data([UInt8((key >> 40) & 0xFF), UInt8((key >> 32) & 0xFF), UInt8((key >> 24) & 0xFF),
-              UInt8((key >> 16) & 0xFF), UInt8((key >> 8) & 0xFF), UInt8(key & 0xFF)])
-    }
+        "FFFFFFFFFFFF", "A0A1A2A3A4A5", "D3F7D3F7D3F7", "4B791BEA7BCC",
+        "5C8FF9990DA2", "D01AFEEB890A", "75CCB59C9BED", "6471A5EF2D1A",
+        "4E3552426B32", "EF1232AB18A0", "B7BF0C13066E", "135B88A94B8B",
+        "2A2C13CC242A", "5A7A52D5E20D", "314B49474956", "564C505F4D41",
+        "021209197591", "484558414354", "EC0A9B1A9E06", "66B31E64CA4B",
+        "E00000000000", "199404281970", "199404281998", "6A1987C40A21",
+        "7F33625BC129", "484944204953", "204752454154", "3B7E4FD575AD",
+        "11496F97752A", "000000000000", "B0B1B2B3B4B5", "AABBCCDDEEFF",
+        "1A2B3C4D5E6F", "123456789ABC", "010203040506", "123456ABCDEF",
+        "ABCDEF123456", "4D3A99C351DD", "1A982C7E459A", "714C5C886E97",
+        "587EE5F9350F", "A0478CC39091", "533CB6C723F6", "8FD0A4F256E9",
+        "0000014B5C31", "B578F38A5C61", "96A301BCE267",
+    ].map { Data(hex: $0) }
 
     static let ev1SignatureKeys: [Data] = [
         defaultKeys[3], defaultKeys[4], defaultKeys[5], defaultKeys[6],
@@ -247,7 +244,7 @@ final class MifareClassicRecovery: ObservableObject {
         let totalBlocks = isEV1 && mifareClassicType == .m1k ? 72 : mifareClassicType.blockCount
 
         for sector in 0..<sectorCount {
-            for block in 0..<MifareClassic.blockCountInSector(sector) {
+            for block in 0..<MifareClassic.blockCountInSector(sector: sector) {
                 let absoluteBlock = block + MifareClassic.firstBlockOfSector(sector: sector)
                 var blockData = Data()
 

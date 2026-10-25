@@ -248,7 +248,7 @@ struct ReadCardView: View {
             }
             phase = .cardFound
         } catch {
-            error = error.localizedDescription
+            self.error = error.localizedDescription
             phase = .idle
         }
     }

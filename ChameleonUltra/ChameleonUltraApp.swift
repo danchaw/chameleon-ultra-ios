@@ -18,7 +18,7 @@ struct ChameleonUltraApp: App {
 
 enum ColorSchemePreference {
     private static let key = "colorScheme"
-    static var current: Color.Scheme? {
+    static var current: ColorScheme? {
         switch UserDefaults.standard.string(forKey: key) ?? "system" {
         case "light": return .light
         case "dark": return .dark

@@ -2,6 +2,25 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+// MARK: - Press feedback
+
+/// Button style that visibly reacts to presses (opacity + slight scale),
+/// so taps in plain lists never feel dead. Pair with `hapticFeedback()`
+/// inside the action for a tactile response.
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.5 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+@MainActor
+func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
+    UIImpactFeedbackGenerator(style: style).impactOccurred()
+}
+
 // MARK: - Device photo (official product images from the original project)
 
 struct DeviceImageView: View {

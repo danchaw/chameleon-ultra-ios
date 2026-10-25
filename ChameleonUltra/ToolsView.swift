@@ -28,6 +28,11 @@ struct ToolsView: View {
                 } label: {
                     Label(L10n.t("T55xx password cleaner"), systemImage: "password")
                 }
+                NavigationLink {
+                    DictionaryDownloadView()
+                } label: {
+                    Label(L10n.t("Dictionary download"), systemImage: "arrow.down.circle")
+                }
             }
             Section {
                 Label("Mifare Classic Gen4 config is not available in this build.",
@@ -181,5 +186,109 @@ struct T55XXPasswordCleanerView: View {
             self.error = error.localizedDescription
         }
         busy = false
+    }
+}
+
+// MARK: - Dictionary download (same sources as the original app)
+
+struct DictionaryDownloadSource: Identifiable {
+    let id: String
+    let nameKey: String
+    let url: URL
+}
+
+/// Downloads the same external dictionaries as the original app
+/// (`gui/menu/tools/dictionary_download.dart`): proxmark3 default keys.
+struct DictionaryDownloadView: View {
+    @EnvironmentObject var store: CardStore
+
+    static let sources = [
+        DictionaryDownloadSource(
+            id: "mfc",
+            nameKey: "Mifare Classic keys (proxmark3)",
+            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfc_default_keys.dic")!),
+        DictionaryDownloadSource(
+            id: "t55xx",
+            nameKey: "T55xx passwords (proxmark3)",
+            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/t55xx_default_pwds.dic")!),
+        DictionaryDownloadSource(
+            id: "mfulc",
+            nameKey: "Mifare Ultralight C keys (proxmark3)",
+            url: URL(string: "https://raw.githubusercontent.com/RfidResearchGroup/proxmark3/refs/heads/master/client/dictionaries/mfulc_default_keys.dic")!),
+    ]
+
+    @State private var downloading: Set<String> = []
+    @State private var results: [String: String] = [:]
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(Self.sources) { source in
+                    row(source)
+                }
+            } footer: {
+                Text(L10n.t("keys imported") + " · proxmark3")
+            }
+        }
+        .navigationTitle(L10n.t("Dictionary download"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func row(_ source: DictionaryDownloadSource) -> some View {
+        let isDownloaded = store.dictionaries.contains { $0.name == source.nameKey }
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.t(source.nameKey))
+                if let result = results[source.id] {
+                    Text(result)
+                        .font(.caption)
+                        .foregroundStyle(result.hasPrefix("✓") ? Color.green : Color.red)
+                }
+            }
+            Spacer()
+            if downloading.contains(source.id) {
+                ProgressView()
+            } else if isDownloaded {
+                Label(L10n.t("Downloaded"), systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .labelStyle(.titleAndIcon)
+            } else {
+                Button {
+                    download(source)
+                } label: {
+                    Label(L10n.t("Download"), systemImage: "arrow.down.circle.fill")
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+    }
+
+    private func download(_ source: DictionaryDownloadSource) {
+        hapticFeedback()
+        downloading.insert(source.id)
+        Task {
+            do {
+                var request = URLRequest(url: source.url)
+                request.timeoutInterval = 20
+                let (data, _) = try await URLSession.shared.data(for: request)
+                let text = String(data: data, encoding: .utf8) ?? ""
+                var dictionary = KeyDictionary.fromText(text, name: source.nameKey)
+                dictionary.name = source.nameKey
+                guard !dictionary.keys.isEmpty else {
+                    results[source.id] = "✗ " + L10n.t("Download failed")
+                    downloading.remove(source.id)
+                    return
+                }
+                store.add(dictionary: dictionary)
+                let count = dictionary.keys.count
+                results[source.id] = "✓ \(count) \(L10n.t("keys imported"))"
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } catch {
+                results[source.id] = "✗ " + L10n.t("Download failed")
+            }
+            downloading.remove(source.id)
+        }
     }
 }

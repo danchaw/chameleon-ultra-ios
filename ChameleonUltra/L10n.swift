@@ -228,6 +228,45 @@ enum L10n {
         "T55xx cleaner": "T55XX 密码清理器",
         "Write UID (Gen1 magic card)": "写入 UID（Gen1 魔术卡）",
 
+        // dictionary download (original: dictionary_download)
+        "Dictionary download": "字典下载",
+        "Mifare Classic keys (proxmark3)": "Mifare Classic 密钥 (proxmark3)",
+        "T55xx passwords (proxmark3)": "T55xx 密码 (proxmark3)",
+        "Mifare Ultralight C keys (proxmark3)": "Mifare Ultralight C 密钥 (proxmark3)",
+        "Download": "下载",
+        "Downloaded": "已下载",
+        "Download failed": "下载失败",
+        "keys imported": "个密钥已导入",
+
+        // key export
+        "Export found keys": "导出找到的密钥",
+        "Export keys from dump": "导出转储中的密钥",
+        "Save to dictionaries": "保存到字典",
+        "Share as .dic": "导出 .dic 文件",
+        "No keys found yet": "尚未找到任何密钥",
+        "Keys from dump": "来自转储的密钥",
+
+        // confirmations
+        "Confirm deletion": "确认删除",
+        "Delete this card?": "删除这张卡片？",
+        "Delete this dictionary?": "删除这个字典？",
+        "This cannot be undone.": "此操作无法撤销。",
+        "Factory reset?": "恢复出厂设置？",
+        "Are you sure you want to factory reset your Chameleon?": "您确定要将您的 Chameleon 恢复出厂设置吗？",
+        "Reset device settings?": "重置设备设置？",
+        "Reset slot?": "重置卡槽？",
+        "This clears the slot data on the device.": "这将清除设备上该卡槽的数据。",
+
+        // apply feedback
+        "Applying…": "正在应用…",
+        "Applied to slot": "已应用到卡槽",
+        "Applied to slot %d": "已应用到卡槽 %d",
+        "Applied": "已应用",
+        "Export": "导出",
+        "Imported %d": "已导入 %d",
+        "Imported": "已导入",
+        "No compatible cards found in file": "文件中没有兼容的卡片",
+
         // firmware validation
         "Firmware package verified": "固件包校验通过",
         "Firmware package invalid": "固件包无效",

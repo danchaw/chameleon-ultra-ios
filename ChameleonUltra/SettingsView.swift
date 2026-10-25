@@ -91,6 +91,8 @@ struct DeviceSettingsView: View {
     @State private var wakeTime: Int?
     @State private var pairing: Bool?
     @State private var error: String?
+    @State private var confirmFactoryReset = false
+    @State private var confirmResetSettings = false
 
     var body: some View {
         Form {
@@ -125,9 +127,7 @@ struct DeviceSettingsView: View {
             }
             Section {
                 Button(role: .destructive) {
-                    Task {
-                        try? await app.communicator?.resetSettings()
-                    }
+                    confirmResetSettings = true
                 } label: {
                     Label(L10n.t("Reset device settings"), systemImage: "arrow.counterclockwise")
                 }
@@ -136,9 +136,7 @@ struct DeviceSettingsView: View {
             }
             Section {
                 Button(role: .destructive) {
-                    Task {
-                        try? await app.communicator?.factoryReset()
-                    }
+                    confirmFactoryReset = true
                 } label: {
                     Label(L10n.t("Factory reset (erases everything)"), systemImage: "exclamationmark.triangle")
                 }
@@ -149,6 +147,23 @@ struct DeviceSettingsView: View {
         }
         .navigationTitle(L10n.t("Device settings"))
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(L10n.t("Reset device settings?"), isPresented: $confirmResetSettings, titleVisibility: .visible) {
+            Button(L10n.t("Reset device settings"), role: .destructive) {
+                Task { try? await app.communicator?.resetSettings() }
+            }
+            Button(L10n.t("Cancel"), role: .cancel) {}
+        } message: {
+            Text(L10n.t("Applies device defaults. Does not erase slots."))
+        }
+        .confirmationDialog(L10n.t("Factory reset?"), isPresented: $confirmFactoryReset, titleVisibility: .visible) {
+            Button(L10n.t("Factory reset (erases everything)"), role: .destructive) {
+                Task { try? await app.communicator?.factoryReset() }
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+            Button(L10n.t("Cancel"), role: .cancel) {}
+        } message: {
+            Text(L10n.t("Are you sure you want to factory reset your Chameleon?"))
+        }
         .task {
             guard let communicator = app.communicator else { return }
             animation = try? await communicator.getAnimationMode()

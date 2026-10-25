@@ -13,18 +13,15 @@ struct ConnectView: View {
                 ErrorBanner(message: $app.lastError)
 
                 GlassCard {
-                    HStack(spacing: 16) {
-                        DeviceImageView(device: .ultra)
-                            .frame(height: 96)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Chameleon Ultra")
-                                .font(.title3.bold())
-                            Text(L10n.t("NFC & RFID research tool"))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                    VStack(spacing: 6) {
+                        Text("Chameleon Ultra")
+                            .font(.title3.bold())
+                        Text(L10n.t("NFC & RFID research tool"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                 }
 
                 HStack {

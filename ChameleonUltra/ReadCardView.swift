@@ -37,6 +37,10 @@ struct ReadCardView: View {
     @State private var showSaveSheet = false
     @State private var saveName = ""
 
+    // key export
+    @State private var showShare = false
+    @State private var shareURL: URL?
+
     private var communicator: ChameleonCommunicator? { app.communicator }
 
     var body: some View {
@@ -63,6 +67,9 @@ struct ReadCardView: View {
         }
         .navigationTitle(L10n.t("Read card"))
         .sheet(isPresented: $showSaveSheet) { saveSheet }
+        .sheet(isPresented: $showShare) {
+            if let shareURL { ShareSheet(items: [shareURL]) }
+        }
     }
 
     // MARK: HF
@@ -162,6 +169,23 @@ struct ReadCardView: View {
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
+
+                            Menu {
+                                Button {
+                                    exportFoundKeys(shareOnly: false)
+                                } label: {
+                                    Label(L10n.t("Save to dictionaries"), systemImage: "book")
+                                }
+                                Button {
+                                    exportFoundKeys(shareOnly: true)
+                                } label: {
+                                    Label(L10n.t("Share as .dic"), systemImage: "square.and.arrow.up")
+                                }
+                            } label: {
+                                Label(L10n.t("Export found keys"), systemImage: "key.horizontal")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
                         }
                     }
                 }
@@ -406,6 +430,37 @@ struct ReadCardView: View {
                                ats: Array(card.ats),
                                data: mfuPages))
         }
+    }
+
+    // MARK: Key export
+
+    private func exportFoundKeys(shareOnly: Bool) {
+        guard let recoveryModel = recovery.attached else { return }
+        var unique: [Data] = []
+        var seen = Set<String>()
+        for key in recoveryModel.validKeys where !key.isEmpty && !seen.contains(key.hex) {
+            seen.insert(key.hex)
+            unique.append(key)
+        }
+        guard !unique.isEmpty else {
+            error = L10n.t("No keys found yet")
+            return
+        }
+        hapticFeedback()
+
+        if !shareOnly {
+            var dictionary = KeyDictionary(name: "\(card?.uid.hex.uppercased() ?? "Card") · \(L10n.t("Keys from dump"))")
+            dictionary.keys = unique.map { Array($0) }
+            dictionary.keyLength = 12
+            store.add(dictionary: dictionary)
+        }
+
+        let text = unique.map { $0.hex.uppercased() }.joined(separator: "\n") + "\n"
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("recovered_keys.dic")
+        try? text.data(using: .utf8)?.write(to: url)
+        shareURL = url
+        showShare = true
     }
 }
 

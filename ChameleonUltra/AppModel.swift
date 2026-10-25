@@ -64,16 +64,30 @@ final class AppModel: ObservableObject {
 
     // MARK: - Connection
 
+    private var cancelRequested = false
+
+    /// Abort an in-flight connect/handshake from the UI.
+    func cancelConnection() {
+        cancelRequested = true
+        communicator = nil
+        ble.disconnect()
+        connectionState = .disconnected
+        appendLog("Connection cancelled")
+    }
+
     func connect(to device: DiscoveredDevice) async {
+        cancelRequested = false
         connectionState = .connecting
         communicator = nil
         appendLog("Connecting to \(device.displayName)…")
 
         let ok = await ble.connect(to: device)
-        guard ok else {
-            connectionState = .disconnected
-            lastError = "Could not connect to \(device.displayName)"
-            appendLog("Connection failed")
+        guard ok, !cancelRequested else {
+            if !cancelRequested {
+                connectionState = .disconnected
+                lastError = "Could not connect to \(device.displayName)"
+                appendLog("Connection failed")
+            }
             return
         }
 
@@ -92,6 +106,7 @@ final class AppModel: ObservableObject {
 
         do {
             deviceType = try await communicator.getDeviceType()
+            if cancelRequested { ble.disconnect(); connectionState = .disconnected; return }
             let version = try await communicator.getFirmwareVersion()
             firmwareVersion = version.version
             gitCommit = (try? await communicator.getGitCommitHash()) ?? ""
@@ -99,9 +114,11 @@ final class AppModel: ObservableObject {
             bleAddress = (try? await communicator.getDeviceBLEAddress()) ?? ""
             battery = try await communicator.getBatteryCharge()
             try await refreshSlots()
+            if cancelRequested { ble.disconnect(); connectionState = .disconnected; return }
             connectionState = .connected
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
+            if cancelRequested { return }
             lastError = "Device handshake failed: \(error.localizedDescription)"
             appendLog("Handshake failed: \(error)")
             ble.disconnect()

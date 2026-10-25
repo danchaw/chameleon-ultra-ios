@@ -36,11 +36,11 @@ struct RootTabView: View {
                 .tabItem { Label("Home", systemImage: "house.fill") }
 
             NavigationStack { ReadCardView() }
-                .tabItem { Label("Read", systemImage: "sensor.tag.rfid.fill") }
+                .tabItem { Label("Read", systemImage: "creditcard.viewfinder") }
                 .disabled(!app.isConnected)
 
             NavigationStack { SavedCardsView() }
-                .tabItem { Label("Cards", systemImage: "wallet.cards.fill") }
+                .tabItem { Label("Cards", systemImage: "rectangle.stack.fill") }
 
             NavigationStack { WriteCardView() }
                 .tabItem { Label("Write", systemImage: "square.and.pencil") }
@@ -63,10 +63,28 @@ struct HomeEntryPoint: View {
         case .dfuMode:
             FlashingView()
         case .connecting:
-            VStack(spacing: 16) {
-                ProgressView()
-                Text("Connecting…")
-                    .foregroundStyle(.secondary)
+            ScrollView {
+                GlassCard {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .controlSize(.large)
+                        Text("Connecting to \(app.deviceName.isEmpty ? "Chameleon" : app.deviceName)…")
+                            .font(.headline)
+                        Text("This can take a few seconds.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            app.cancelConnection()
+                        } label: {
+                            Label("Cancel", systemImage: "xmark.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .padding()
             }
             .navigationTitle("Chameleon")
         case .disconnected:

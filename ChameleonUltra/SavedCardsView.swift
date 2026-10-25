@@ -67,7 +67,7 @@ struct SavedCardsView: View {
 
     private func cardRow(_ card: CardSave) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: card.tagType.frequency == .lf ? "antenna.radiowaves.left.and.right" : "sensor.tag.rfid")
+            Image(systemName: card.tagType.frequency == .lf ? "antenna.radiowaves.left.and.right" : "creditcard.viewfinder")
                 .font(.system(size: 20))
                 .foregroundStyle(card.tagType.frequency == .lf ? .blue : .green)
                 .frame(width: 30)

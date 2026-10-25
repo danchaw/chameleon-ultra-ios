@@ -13,18 +13,18 @@ struct ConnectView: View {
                 ErrorBanner(message: $app.lastError)
 
                 GlassCard {
-                    VStack(spacing: 10) {
-                        Image(systemName: "sensor.tag.rfid.fill")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.tint)
-                        Text("Chameleon Ultra")
-                            .font(.title2.bold())
-                        Text("Native iOS client for the Chameleon Ultra / Lite NFC & RFID research tool.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                    HStack(spacing: 16) {
+                        DeviceImageView(device: .ultra)
+                            .frame(height: 96)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Chameleon Ultra")
+                                .font(.title3.bold())
+                            Text("NFC & RFID research tool")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity)
                 }
 
                 HStack {
@@ -62,7 +62,9 @@ struct ConnectView: View {
                         connect(device)
                     } label: {
                         GlassCard {
-                            HStack {
+                            HStack(spacing: 14) {
+                                DeviceImageView(device: device.deviceType)
+                                    .frame(height: 52)
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 8) {
                                         Text(device.displayName)

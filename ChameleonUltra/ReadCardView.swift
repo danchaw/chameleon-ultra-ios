@@ -72,7 +72,7 @@ struct ReadCardView: View {
             if phase == .idle || phase == .scanning {
                 GlassCard {
                     VStack(spacing: 12) {
-                        Image(systemName: "sensor.tag.rfid.fill")
+                        Image(systemName: "creditcard.viewfinder")
                             .font(.system(size: 40))
                             .foregroundStyle(.tint)
                         Text("Place a HF tag on the Chameleon antenna")

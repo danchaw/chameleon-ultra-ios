@@ -88,7 +88,9 @@ final class BLEManager: NSObject, ObservableObject {
     /// Connect with the same retry policy as the original app (5 attempts).
     func connect(to device: DiscoveredDevice) async -> Bool {
         guard bluetoothReady else { return false }
+        abortAll = false
         for _ in 0..<5 {
+            if abortAll { return false }
             if await connectOnce(device) { return true }
             try? await Task.sleep(nanoseconds: 300_000_000)
         }
@@ -96,7 +98,10 @@ final class BLEManager: NSObject, ObservableObject {
         return false
     }
 
+    private var abortAll = false
+
     private func connectOnce(_ device: DiscoveredDevice) async -> Bool {
+        guard !abortAll else { return false }
         stopScan()
         guard let target = knownPeripherals[device.id]
                 ?? central.retrievePeripherals(withIdentifiers: [device.id]).first else {
@@ -162,6 +167,7 @@ final class BLEManager: NSObject, ObservableObject {
     }
 
     func disconnect() {
+        abortAll = true
         connectContinuation?.resume(returning: false); connectContinuation = nil
         servicesContinuation?.resume(returning: nil); servicesContinuation = nil
         characteristicsContinuation?.resume(returning: false); characteristicsContinuation = nil

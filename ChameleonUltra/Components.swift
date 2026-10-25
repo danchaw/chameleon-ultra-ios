@@ -2,6 +2,19 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+// MARK: - Device photo (official product images from the original project)
+
+struct DeviceImageView: View {
+    var device: ChameleonDevice
+
+    var body: some View {
+        Image(device == .ultra ? "DeviceUltra" : "DeviceLite")
+            .resizable()
+            .scaledToFit()
+            .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
+    }
+}
+
 // MARK: - Liquid-glass style card
 
 struct GlassCard<Content: View>: View {

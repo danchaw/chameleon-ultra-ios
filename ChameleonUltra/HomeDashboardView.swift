@@ -42,27 +42,26 @@ struct HomeDashboardView: View {
     private var deviceCard: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "battery")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.tint)
-                    VStack(alignment: .leading) {
-                        Text(app.deviceName)
-                            .font(.headline)
+                HStack(spacing: 16) {
+                    DeviceImageView(device: app.deviceType)
+                        .frame(height: 88)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "battery")
+                                .foregroundStyle(.tint)
+                            Text(app.deviceName)
+                                .font(.headline)
+                        }
                         Text("Chameleon \(app.deviceType.displayName)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if let battery = app.battery {
-                        VStack(alignment: .trailing) {
-                            Text("\(battery.percent)%")
-                                .font(.title3.bold().monospacedDigit())
-                            Text("\(String(format: "%.2f", Double(battery.voltage) / 1000)) V")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        if let battery = app.battery {
+                            Text("\(battery.percent)% · \(String(format: "%.2f", Double(battery.voltage) / 1000)) V")
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundStyle(.green)
                         }
                     }
+                    Spacer()
                 }
 
                 Divider()

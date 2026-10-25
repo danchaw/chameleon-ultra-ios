@@ -21,11 +21,16 @@ jobs:
 
       - name: Guard against duplicate L10n keys (crashes at launch)
         run: |
-          DUP=$(grep -oE '^[[:space:]]+"[^"]+": ' ChameleonUltra/L10n.swift | sed 's/^[[:space:]]*"//;s/": $//' | sort | uniq -d)
-          if [ -n "$DUP" ]; then
-            echo "::error::Duplicate L10n keys (dictionary literal would trap at launch): $DUP"
-            exit 1
-          fi
+          python3 - <<'EOF'
+          import re, sys, collections
+          text = open('ChameleonUltra/L10n.swift', encoding='utf-8').read()
+          keys = re.findall(r'^\s+"([^"]+)":', text, re.M)
+          dupes = [k for k, c in collections.Counter(keys).items() if c > 1]
+          if dupes:
+              print(f"::error::Duplicate L10n keys (dictionary literal traps at launch): {dupes}")
+              sys.exit(1)
+          print(f"L10n OK: {len(keys)} unique keys")
+          EOF
 
       - name: Build (Release, no code signing)
         run: |

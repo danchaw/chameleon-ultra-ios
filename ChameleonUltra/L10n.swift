@@ -41,7 +41,6 @@ enum L10n {
         "Search": "搜索",
         "Copy": "复制",
         "name, UID or type": "名称、UID 或类型",
-        "Imported": "已导入",
 
         // tabs & titles (original: home/read_card/saved_cards/write_card/settings/tools/…)
         "Home": "首页",
@@ -266,6 +265,12 @@ enum L10n {
         "Imported %d": "已导入 %d",
         "Imported": "已导入",
         "No compatible cards found in file": "文件中没有兼容的卡片",
+
+        // firmware library
+        "Downloaded firmware": "已下载的固件",
+        "Delete firmware package?": "删除该固件包？",
+        "Clear all": "全部清空",
+        "Clear all downloaded firmware?": "清空所有已下载的固件？",
 
         // firmware validation
         "Firmware package verified": "固件包校验通过",

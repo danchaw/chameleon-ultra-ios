@@ -19,6 +19,14 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Guard against duplicate L10n keys (crashes at launch)
+        run: |
+          DUP=$(grep -oE '^[[:space:]]+"[^"]+": ' ChameleonUltra/L10n.swift | sed 's/^[[:space:]]*"//;s/": $//' | sort | uniq -d)
+          if [ -n "$DUP" ]; then
+            echo "::error::Duplicate L10n keys (dictionary literal would trap at launch): $DUP"
+            exit 1
+          fi
+
       - name: Build (Release, no code signing)
         run: |
           set -o pipefail

@@ -25,17 +25,27 @@ struct ListRowHighlightStyle: ButtonStyle {
 
     private struct ListRowHighlightBody: View {
         let configuration: Configuration
-        @Environment(\.tint) private var tint
+        @Environment(\.themeAccent) private var accent
 
         var body: some View {
-            let accent = tint ?? Color.accentColor
-            return configuration.label
+            configuration.label
                 .contentShape(Rectangle())
                 .foregroundStyle(configuration.isPressed ? accent : Color.primary)
                 .background(configuration.isPressed ? accent.opacity(0.18) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 10))
                 .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
         }
+    }
+}
+
+private struct ThemeAccentKey: EnvironmentKey {
+    static let defaultValue: Color = .accentColor
+}
+
+extension EnvironmentValues {
+    var themeAccent: Color {
+        get { self[ThemeAccentKey.self] }
+        set { self[ThemeAccentKey.self] = newValue }
     }
 }
 

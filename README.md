@@ -15,7 +15,7 @@
 | 已存卡片 | 与原版 JSON 格式互通的保存/搜索/编辑/删除、十六进制转储查看、JSON/BIN 导出、JSON 导入、一键写入设备槽位 |
 | 写卡 | Mifare dump 写入（Gen1 免鉴权 magic 卡：40/43 解锁 + A0 写；Gen2 密钥写入）、UID 写入（4/7 字节 Block0 重建）、LF T55xx 克隆 |
 | 工具 | T55xx 密码清理重置、LF/HF 嗅探（原始数据捕获）、密钥字典管理（导入 .dic/.txt、导出） |
-| 固件升级 | Nordic Secure DFU 完整流程：应用内重启进入 DFU → 自动扫描重连 → 解析固件 zip（内置 ZIP 解压器）→ init packet + 固件对象流式写入（CRC32 校验、50 次重试、进度条） |
+| 固件升级 | Nordic Secure DFU 完整流程：**在线检测新固件（GitHub Releases）+ 引导刷写**，或选择本地 zip；刷写前三重校验：zip 逐项 CRC32、（在线包）SHA-256 与 GitHub 资产摘要比对、dfu-cc 签名清单解析 + 固件哈希（SHA-1/256/512）与 application.bin 一致性 + 尺寸核对 |
 | 设置 | 主题色、深色模式、设备设置（LED 动画、休眠超时、BLE 配对、恢复出厂）、协议日志查看器 |
 
 ### 与原版的差异（平台限制 / 未实现）

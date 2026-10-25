@@ -9,6 +9,8 @@ struct FirmwareRelease: Identifiable {
     let body: String
     let zipURL: URL
     let isPrerelease: Bool
+    /// "sha256:…" digest of the release asset, when GitHub provides one.
+    let digestSHA256: String?
 
     var versionParts: (major: Int, minor: Int, patch: Int) {
         let cleaned = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
@@ -66,12 +68,17 @@ final class FirmwareService: ObservableObject {
                           let urlString = asset["browser_download_url"] as? String,
                           let url = URL(string: urlString) else { continue }
 
+                    let digest = (asset["digest"] as? String) ?? ""
+                    let digestHex = digest.lowercased().hasPrefix("sha256:")
+                        ? String(digest.dropFirst("sha256:".count)) : nil
+
                     latest = FirmwareRelease(
                         tagName: (release["tag_name"] as? String) ?? "",
                         name: (release["name"] as? String) ?? "",
                         body: (release["body"] as? String) ?? "",
                         zipURL: url,
-                        isPrerelease: prerelease)
+                        isPrerelease: prerelease,
+                        digestSHA256: digestHex)
                     return
                 }
             }

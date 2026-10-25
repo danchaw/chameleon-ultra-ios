@@ -8,6 +8,8 @@ enum ZipArchive {
     struct Entry {
         let name: String
         let data: Data
+        /// central-directory CRC32 matches the decompressed content
+        let crcValid: Bool
     }
 
     enum ZipError: LocalizedError {
@@ -46,6 +48,7 @@ enum ZipArchive {
                   archive[cdOffset + 2] == 0x01, archive[cdOffset + 3] == 0x02 else { break }
 
             let method = u16(cdOffset + 10)
+            let storedCrc = UInt32(u32(cdOffset + 16))
             let compressedSize = u32(cdOffset + 20)
             let uncompressedSize = u32(cdOffset + 24)
             let nameLength = u16(cdOffset + 28)
@@ -81,7 +84,8 @@ enum ZipArchive {
                 default:
                     break
                 }
-                entries.append(Entry(name: name, data: content))
+                let computedCrc = content.isEmpty ? 0 : CRC32.update(0, with: content)
+                entries.append(Entry(name: name, data: content, crcValid: computedCrc == storedCrc))
             }
 
             cdOffset += 46 + nameLength + extraLength + commentLength

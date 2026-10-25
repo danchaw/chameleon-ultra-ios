@@ -4,14 +4,15 @@ import Combine
 import UniformTypeIdentifiers
 
 /// Firmware update: online check against official GitHub releases with a
-/// guided flash flow (download → reboot to DFU → auto-reconnect → flash).
+/// guided flash flow (download → verify → reboot to DFU → auto-reconnect →
+/// flash), plus a local-file path with the same verification report.
 struct FlashingView: View {
     @EnvironmentObject var app: AppModel
     @StateObject private var firmware = FirmwareService()
     var embedded = false
 
     enum BusyPhase: Equatable {
-        case idle, downloading, rebooting, scanning, flashing
+        case idle, downloading, verifying, rebooting, scanning, flashing
     }
 
     @State private var showPicker = false
@@ -23,6 +24,11 @@ struct FlashingView: View {
     @State private var busyPhase: BusyPhase = .idle
     @State private var pendingFirmware: Data?
     @State private var operationTask: Task<Void, Never>?
+
+    // local firmware pick + validation
+    @State private var localFirmware: Data?
+    @State private var localFirmwareName = ""
+    @State private var validation: FirmwareValidationReport?
 
     var body: some View {
         ScrollView {
@@ -40,6 +46,10 @@ struct FlashingView: View {
                     }
                 }
 
+                if let validation {
+                    validationCard(validation)
+                }
+
                 if let status {
                     GlassCard {
                         Label(status, systemImage: "checkmark.circle.fill")
@@ -55,6 +65,15 @@ struct FlashingView: View {
                             Text("\(Int(downloadProgress * 100))%")
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if busyPhase == .verifying {
+                    GlassCard {
+                        HStack {
+                            ProgressView()
+                            Text("Verifying firmware package…").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -109,16 +128,7 @@ struct FlashingView: View {
         }
         .sheet(isPresented: $showPicker) {
             DocumentPicker(contentTypes: [UTType(filenameExtension: "zip") ?? .zip, .data]) { url in
-                Task {
-                    if let data = try? Data(contentsOf: url) {
-                        busyPhase = .flashing
-                        if app.connectionState == .dfuMode {
-                            flash(data)
-                        } else {
-                            rebootAndFlash(zip: data)
-                        }
-                    }
-                }
+                loadLocalFirmware(url: url)
             }
         }
     }
@@ -229,7 +239,7 @@ struct FlashingView: View {
                 Button {
                     showPicker = true
                 } label: {
-                    Label("Select firmware .zip manually", systemImage: "folder")
+                    Label("Flash local firmware (.zip)…", systemImage: "folder")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -250,8 +260,10 @@ struct FlashingView: View {
                 if app.dfuProgress == nil {
                     if pendingFirmware != nil {
                         HStack { ProgressView(); Text("Preparing…").foregroundStyle(.secondary) }
+                    } else if localFirmware != nil && validation != nil && (validation?.isValid ?? false) {
+                        localFlashButton
                     } else {
-                        Text("Pick the firmware .zip package (application.dat + application.bin), e.g. ultra-dfu-app.zip from the official releases.")
+                        Text("Pick a firmware .zip package (application.dat + application.bin), e.g. ultra-dfu-app.zip from the official releases. The package is verified before flashing.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -274,6 +286,122 @@ struct FlashingView: View {
         }
     }
 
+    // MARK: - Validation report card
+
+    private func validationCard(_ report: FirmwareValidationReport) -> some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: report.isValid ? "checkmark.shield.fill" : "xmark.shield.fill")
+                        .foregroundStyle(report.isValid ? .green : .red)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(report.isValid ? "Firmware package verified" : "Firmware package invalid")
+                            .font(.headline)
+                        Text(report.sourceName.isEmpty
+                             ? "downloaded package · \(report.zipBytes) bytes"
+                             : "\(report.sourceName) · \(report.zipBytes) bytes")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                if report.isValid {
+                    if let fwVersion = report.fwVersion {
+                        checkRow(true, "Signed dfu-cc package, firmware version \(fwVersion)")
+                    } else {
+                        checkRow(true, "Signed dfu-cc package")
+                    }
+                    if let digestOK = report.downloadDigestValid {
+                        checkRow(digestOK, "Download SHA-256 matches GitHub asset digest")
+                    }
+                    checkRow(report.zipCrcValid, "Zip entries CRC32 verified (\(report.entriesFound.count) files)")
+                    checkRow(true, "Firmware hash \(report.hashTypeName) matches application.bin")
+                    if let sizeOK = report.sizeMatches {
+                        checkRow(sizeOK, "Manifest app size \(report.declaredAppSize ?? 0) == bin size \(report.actualBinSize)")
+                    }
+                    localFlashButton
+                } else {
+                    if let fatal = report.fatal {
+                        checkRow(false, fatal)
+                    }
+                    if report.downloadDigestValid == false {
+                        checkRow(false, "Download SHA-256 does NOT match GitHub digest — download corrupted")
+                    }
+                    if !report.zipCrcValid {
+                        checkRow(false, "Zip CRC check failed — archive corrupted")
+                    }
+                    if !report.hasApplicationDat || !report.hasApplicationBin {
+                        let names = report.entriesFound.joined(separator: ", ")
+                        checkRow(false, "application.dat / application.bin missing (found: \(names))")
+                    }
+                    if !report.signedPackage {
+                        checkRow(false, "Package isn't signed")
+                    }
+                    if report.hasApplicationBin && !report.firmwareHashMatches && !report.hashTypeName.isEmpty {
+                        checkRow(false, "Firmware \(report.hashTypeName) mismatch — wrong or damaged file")
+                    }
+                    if report.sizeMatches == false {
+                        checkRow(false, "Manifest app size \(report.declaredAppSize ?? 0) != bin size \(report.actualBinSize)")
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var localFlashButton: some View {
+        Button {
+            if let zip = localFirmware {
+                if app.connectionState == .dfuMode {
+                    flash(zip)
+                } else {
+                    rebootAndFlash(zip: zip)
+                }
+            }
+        } label: {
+            Label("Flash this firmware", systemImage: "bolt.fill")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(busyPhase != .idle || !(validation?.isValid ?? false) || localFirmware == nil)
+    }
+
+    private func checkRow(_ ok: Bool, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(ok ? .green : .red)
+                .font(.footnote)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(ok ? .primary : .red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Local firmware pick
+
+    private func loadLocalFirmware(url: URL) {
+        error = nil
+        status = nil
+        validation = nil
+        localFirmware = nil
+        do {
+            let data = try Data(contentsOf: url)
+            localFirmwareName = url.lastPathComponent
+            busyPhase = .verifying
+            let report = FirmwareValidator.validate(zip: data, sourceName: url.lastPathComponent)
+            withAnimation {
+                validation = report
+                localFirmware = data
+                busyPhase = .idle
+            }
+        } catch {
+            busyPhase = .idle
+            self.error = "Could not read file: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Guided flow
 
     private func guidedUpdate(_ release: FirmwareRelease) {
@@ -285,6 +413,18 @@ struct FlashingView: View {
                 let zip = try await firmware.download(release) { fraction in
                     downloadProgress = fraction
                 }
+
+                busyPhase = .verifying
+                let report = FirmwareValidator.validate(zip: zip,
+                                                        expectedDigestSHA256: release.digestSHA256,
+                                                        sourceName: "\(release.tagName).zip")
+                validation = report
+                guard report.isValid else {
+                    busyPhase = .idle
+                    error = "Firmware verification failed — nothing was flashed."
+                    return
+                }
+
                 pendingFirmware = zip
                 busyPhase = .rebooting
                 try await app.communicator?.enterDFUMode()
@@ -357,6 +497,9 @@ struct FlashingView: View {
         status = "Update cancelled"
     }
 
+    /// Only called with packages that passed FirmwareValidator on the way in
+    /// (guided download validates before `pendingFirmware` is set, the local
+    /// button is only enabled for a valid report).
     private func flash(_ zip: Data) {
         busyPhase = .flashing
         error = nil

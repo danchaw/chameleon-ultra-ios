@@ -9,8 +9,6 @@ struct SlotManagerView: View {
     @State private var confirmReset: (Int, TagFrequency)?
     @State private var showExport = false
     @State private var exportURL: URL?
-    @State private var editingSlot: Int?
-    @State private var editingBlocks: [[UInt8]]?
 
     var body: some View {
         List {
@@ -55,30 +53,6 @@ struct SlotManagerView: View {
         .sheet(isPresented: $showExport) {
             if let exportURL { ShareSheet(items: [exportURL]) }
         }
-        .sheet(isPresented: editingShown) {
-            if let blocks = editingBlocks, let slot = editingSlot {
-                NavigationStack {
-                    DumpEditorView(title: "\(L10n.t("Slot")) \(slot)", blocks: blocks, blockSize: 16) { newBlocks in
-                        Task {
-                            do {
-                                try await app.communicator?.setMf1BlockData(
-                                    startBlock: 0, blocks: Data(newBlocks.flatMap { $0 }))
-                                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                            } catch {
-                                self.error = error.localizedDescription
-                            }
-                        }
-                        editingSlot = nil
-                        editingBlocks = nil
-                    }
-                }
-            }
-        }
-    }
-
-    private var editingShown: Binding<Bool> {
-        Binding(get: { editingSlot != nil && editingBlocks != nil },
-                set: { if !$0 { editingSlot = nil; editingBlocks = nil } })
     }
 
     private var resetDialogShown: Binding<Bool> {
@@ -98,9 +72,30 @@ struct SlotManagerView: View {
                     .foregroundStyle(isHF ? .green : .blue)
                 Text(isHF ? L10n.t("HF") : L10n.t("LF"))
                     .font(.subheadline.bold())
-                if !name.isEmpty {
-                    Text(name).foregroundStyle(.secondary)
+                // tapping the card name area loads a saved card into the slot
+                Menu {
+                    ForEach(store.cards.filter { $0.tagType.frequency == frequency }) { card in
+                        Button("\(card.name) (\(card.tagType.displayName))") {
+                            applyCard(card, to: slot)
+                        }
+                    }
+                    if !name.isEmpty {
+                        Button(role: .destructive) {
+                            Task {
+                                try? await app.communicator?.deleteSlotTagNick(slot, frequency: frequency)
+                                try? await app.refreshSlots()
+                            }
+                        } label: {
+                            Label(L10n.t("Clear nickname"), systemImage: "xmark")
+                        }
+                    }
+                } label: {
+                    Text(name.isEmpty ? L10n.t("Load card…") : name)
+                        .font(name.isEmpty ? .subheadline : .subheadline)
+                        .foregroundStyle(name.isEmpty ? Color.accentColor.opacity(0.75) : Color.secondary)
+                        .lineLimit(1)
                 }
+                .disabled(store.cards.filter { $0.tagType.frequency == frequency }.isEmpty && name.isEmpty)
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { enabled },
@@ -132,41 +127,6 @@ struct SlotManagerView: View {
                 Text(L10n.t("Not set")).tag(TagType.unknown)
                 ForEach((isHF ? TagType.hfTypes : TagType.lfTypes), id: \.self) { tagType in
                     Text(tagType.displayName).tag(tagType)
-                }
-            }
-
-            if !store.cards.filter({ $0.tagType.frequency == frequency }).isEmpty {
-                HStack(spacing: 10) {
-                    Menu {
-                        ForEach(store.cards.filter { $0.tagType.frequency == frequency }) { card in
-                            Button("\(card.name) (\(card.tagType.displayName))") {
-                                applyCard(card, to: slot)
-                            }
-                        }
-                    } label: {
-                        Text(L10n.t("Load saved card…"))
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color.accentColor.opacity(0.15), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
-                    }
-
-                    Button {
-                        hapticFeedback()
-                        openSlotDumpEditor(slot)
-                    } label: {
-                        Text(L10n.t("Dump editor"))
-                            .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(Color(.systemBackground).opacity(0.6), in: Capsule())
-                            .foregroundStyle(Color.primary)
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                    .disabled(type == .unknown)
-
-                    Spacer(minLength: 0)
                 }
             }
 
@@ -271,30 +231,16 @@ struct SlotManagerView: View {
         }
     }
 
-    private func openSlotDumpEditor(_ slot: Int) {
-        Task {
-            busySlot = slot
-            do {
-                guard let card = try await app.readSlotAsCard(slot: slot), !card.data.isEmpty else {
-                    error = L10n.t("No dump data")
-                    busySlot = nil
-                    return
-                }
-                editingSlot = slot
-                editingBlocks = card.data
-                busySlot = nil
-            } catch {
-                self.error = error.localizedDescription
-                busySlot = nil
-            }
-        }
-    }
 
     private func applyCard(_ card: CardSave, to slot: Int) {
         Task {
             busySlot = slot
             do {
                 try await app.applyCardToSlot(card, slot: slot)
+                // reflect the loaded card in the slot nickname shown next to HF/LF
+                try? await app.communicator?.setSlotTagName(slot, name: card.name,
+                                                            frequency: card.tagType.frequency)
+                try await app.refreshSlots()
             } catch {
                 self.error = error.localizedDescription
             }

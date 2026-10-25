@@ -22,6 +22,7 @@ struct FlashingView: View {
     @State private var downloadProgress: Double = 0
     @State private var busyPhase: BusyPhase = .idle
     @State private var pendingFirmware: Data?
+    @State private var operationTask: Task<Void, Never>?
 
     // staged firmware: verified (or not) and waiting for the user's decision
     @State private var stagedFirmware: Data?
@@ -204,15 +205,27 @@ struct FlashingView: View {
                     }
 
                     // Download + verify only. Flashing happens after the user confirms.
-                    Button {
-                        guidedUpdate(latest)
-                    } label: {
-                        Label(L10n.tf(updateAvailable ? "Download and flash v%@" : "Re-flash v%@", latest.versionString),
-                              systemImage: updateAvailable ? "arrow.down.circle.fill" : "arrow.triangle.2.circlepath")
-                            .frame(maxWidth: .infinity)
+                    if updateAvailable {
+                        Button {
+                            guidedUpdate(latest)
+                        } label: {
+                            Label(L10n.tf("Download and flash v%@", latest.versionString),
+                                  systemImage: "arrow.down.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(busyPhase != .idle)
+                    } else {
+                        Button {
+                            guidedUpdate(latest)
+                        } label: {
+                            Label(L10n.tf("Re-flash v%@", latest.versionString),
+                                  systemImage: "arrow.triangle.2.circlepath")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(busyPhase != .idle)
                     }
-                    .buttonStyle(updateAvailable ? .borderedProminent : .bordered)
-                    .disabled(busyPhase != .idle)
 
                     Button {
                         if let url = URL(string: "https://github.com/RfidResearchGroup/ChameleonUltra/releases") {

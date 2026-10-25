@@ -19,14 +19,8 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Resolve project
-        run: |
-          cd ChameleonUltra-iOS
-          xcodebuild -project ChameleonUltra.xcodeproj -scheme ChameleonUltra -showBuildSettings -quiet > /dev/null
-
       - name: Build (Release, no code signing)
         run: |
-          cd ChameleonUltra-iOS
           xcodebuild \
             -project ChameleonUltra.xcodeproj \
             -scheme ChameleonUltra \
@@ -37,12 +31,10 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            build | tail -40
+            build | tail -60
 
       - name: Package IPA (ad-hoc signed for sideload tools)
         run: |
-          cd ChameleonUltra-iOS
           APP="build/Build/Products/Release-iphoneos/ChameleonUltra.app"
           # Ad-hoc signature lets TrollStore install directly; AltStore/Sideloadly re-sign anyway.
           codesign -f -s - --generate-entitlement-der "$APP" || true
@@ -55,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ChameleonUltra-ipa
-          path: ChameleonUltra-iOS/ChameleonUltra.ipa
+          path: ChameleonUltra.ipa
           retention-days: 30

@@ -112,7 +112,7 @@ struct SavedCardsView: View {
                 .frame(width: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.name).font(.headline)
-                    Text("(card.displayType) · (card.uidData.hexSpaced.isEmpty ? card.uid.uppercased() : card.uidData.hexSpaced)")
+                Text("\(card.displayType) · \(card.uidData.hexSpaced.isEmpty ? card.uid.uppercased() : card.uidData.hexSpaced)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

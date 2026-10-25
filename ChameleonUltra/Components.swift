@@ -16,6 +16,19 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// Stronger feedback for List rows: pressed rows light up with an accent
+/// background so the tap is unmistakable.
+struct ListRowHighlightStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Rectangle())
+            .foregroundStyle(configuration.isPressed ? Color.accentColor : Color.primary)
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.18) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 10))
+            .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
 @MainActor
 func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
     UIImpactFeedbackGenerator(style: style).impactOccurred()

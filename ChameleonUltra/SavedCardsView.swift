@@ -178,7 +178,7 @@ struct CardDetailView: View {
                             if applyingSlot != nil { ProgressView() }
                         }
                     }
-                    .buttonStyle(PressableButtonStyle())
+                    .buttonStyle(ListRowHighlightStyle())
                 } else {
                     Label("Connect a device to emulate this card", systemImage: "antenna.radiowaves.left.and.right.slash")
                         .foregroundStyle(.secondary)
@@ -192,15 +192,15 @@ struct CardDetailView: View {
                 } label: {
                     Label(L10n.t("Export as JSON"), systemImage: "curlybraces.square")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
 
                 Button {
                     hapticFeedback()
                     export(json: false)
                 } label: {
-                    Label(L10n.t("Export as binary dump"), systemImage: "doc.binary")
+                    Label(L10n.t("Export as binary dump"), systemImage: "doc.zipper")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
 
                 if card.isMifareClassic && !card.dumpKeys.isEmpty {
                     Menu {
@@ -217,7 +217,7 @@ struct CardDetailView: View {
                     } label: {
                         Label(L10n.t("Export keys from dump"), systemImage: "key.horizontal")
                     }
-                    .buttonStyle(PressableButtonStyle())
+                    .buttonStyle(ListRowHighlightStyle())
                 }
             }
 
@@ -230,7 +230,7 @@ struct CardDetailView: View {
                 } label: {
                     Label(L10n.t("Edit card"), systemImage: "pencil")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
 
                 Button {
                     hapticFeedback()
@@ -238,7 +238,7 @@ struct CardDetailView: View {
                 } label: {
                     Label(L10n.t("Duplicate card"), systemImage: "plus.square.on.square")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
 
                 NavigationLink {
                     DumpEditorView(title: card.name,
@@ -262,7 +262,7 @@ struct CardDetailView: View {
                 } label: {
                     Label(L10n.t("Save as…"), systemImage: "wand.and.stars")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
             }
 
             Section(L10n.t("Danger zone")) {
@@ -272,7 +272,7 @@ struct CardDetailView: View {
                 } label: {
                     Label(L10n.t("Delete card"), systemImage: "trash")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
             }
 
             if let message {
@@ -318,7 +318,7 @@ struct CardDetailView: View {
                         }
                     }
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
                 .disabled(applyingSlot != nil)
             }
             .navigationTitle(L10n.t("Choose slot"))

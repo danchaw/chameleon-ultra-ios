@@ -145,7 +145,9 @@ final class MifareClassicRecovery: ObservableObject {
 
         if mark(sector: sector, keyType: keyType) != .found && mark(sector: sector, keyType: keyType) != .disabled {
             setMark(.checking, sector: sector, keyType: keyType)
-            let chunkSize = 32 // BLE
+            // 16 keys per chunk: halves the per-command device time so slow
+            // cards don't run into the response timeout (cmd 2015)
+            let chunkSize = 16
             let chunks = stride(from: 0, to: keys.count, by: chunkSize).map { Array(keys[$0..<min($0 + chunkSize, keys.count)]) }
             let totalChunks = chunks.count
 

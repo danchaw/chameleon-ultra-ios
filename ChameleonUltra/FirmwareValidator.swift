@@ -108,13 +108,13 @@ enum FirmwareValidator {
             let expectedReversed = Data(packet.hash.reversed())
             let actual: Data
             switch packet.hashType {
-            case 1:
+            case 2:
                 actual = Data(Insecure.SHA1.hash(data: bin))
                 report.hashTypeName = "SHA-1"
-            case 2:
+            case 3:
                 actual = Data(SHA256.hash(data: bin))
                 report.hashTypeName = "SHA-256"
-            case 3:
+            case 4:
                 actual = Data(SHA512.hash(data: bin))
                 report.hashTypeName = "SHA-512"
             default:
@@ -128,6 +128,16 @@ enum FirmwareValidator {
     }
 
     // MARK: - Minimal protobuf (dfu-cc) parsing
+    //
+    // Field numbers verified against the original app's generated
+    // `dfu-cc.pb.dart` and a real release package:
+    //   Packet        { Command command = 1; SignedCommand signed_command = 2; }
+    //   SignedCommand { Command command = 1; SignatureType type = 2; bytes signature = 3; }
+    //   Command       { OpCode op_code = 1; InitCommand init = 2; ResetCommand reset = 3; }
+    //   InitCommand   { uint32 fw_version = 1; hw_version = 2; sd_req = 3; type = 4;
+    //                   sd_size = 5; bl_size = 6; uint32 app_size = 7; Hash hash = 8; }
+    //   Hash          { HashType hash_type = 1; bytes hash = 2; }
+    //   HashType: 0 none, 1 CRC, 2 SHA128(SHA-1), 3 SHA256, 4 SHA512
 
     struct InitPacket {
         var signed: Bool
@@ -138,12 +148,6 @@ enum FirmwareValidator {
         var hashType: Int
     }
 
-    /// Packet { Command command = 1; SignedCommand signed_command = 2; }
-    /// SignedCommand { bytes signature = 1; Command command = 2; }
-    /// Command { Init init = 1; ... }
-    /// Init { uint32 fw_version = 1; device_type = 2; sd_size = 3; bl_size = 4;
-    ///        uint32 app_size = 5; Hash hash = 8; }
-    /// Hash { bytes hash = 1; HashType hash_type = 2; }
     static func parseInitPacket(_ dat: Data) throws -> InitPacket {
         let packetBytes = [UInt8](dat)
         var topLevel = PBReader(bytes: packetBytes)
@@ -153,40 +157,37 @@ enum FirmwareValidator {
         while let (field, wireType) = try topLevel.readFieldHeader() {
             switch (field, wireType) {
             case (1, 2):
+                // unsigned Command (still parsed as a fallback)
                 commandBytes = try Array(topLevel.readLengthDelimited())
             case (2, 2):
                 let signedBytes = try Array(topLevel.readLengthDelimited())
                 signed = true
-                // SignedCommand.command is field 2
                 var signedReader = PBReader(bytes: signedBytes)
-                var innerCommand: [UInt8]? = nil
                 while let (f, w) = try signedReader.readFieldHeader() {
-                    if f == 2 && w == 2 {
-                        innerCommand = try Array(signedReader.readLengthDelimited())
+                    if f == 1 && w == 2 {
+                        commandBytes = try Array(signedReader.readLengthDelimited())
                     } else {
                         try signedReader.skip(wireType: w)
                     }
                 }
-                if let innerCommand { commandBytes = innerCommand }
             default:
                 try topLevel.skip(wireType: wireType)
             }
         }
 
         guard signed else { throw FirmwareValidationError.notSigned }
-        guard var commandBytes else { throw FirmwareValidationError.notSigned }
+        guard let commandBytes else { throw FirmwareValidationError.notSigned }
 
-        // Command.init is field 1
+        // Command.init is field 2
         var commandReader = PBReader(bytes: commandBytes)
         var initBytes: [UInt8]? = nil
         while let (f, w) = try commandReader.readFieldHeader() {
-            if f == 1 && w == 2 {
+            if f == 2 && w == 2 {
                 initBytes = try Array(commandReader.readLengthDelimited())
             } else {
                 try commandReader.skip(wireType: w)
             }
         }
-        commandBytes = []
         guard let initBytes else { throw FirmwareValidationError.noInit }
 
         var fwVersion: UInt32 = 0
@@ -200,15 +201,15 @@ enum FirmwareValidator {
             switch (f, w) {
             case (1, 0): fwVersion = UInt32(try initReader.readVarint())
             case (2, 0): deviceType = UInt32(try initReader.readVarint())
-            case (5, 0): appSize = UInt32(try initReader.readVarint())
+            case (7, 0): appSize = UInt32(try initReader.readVarint())
             case (8, 2):
                 let hashBytes = try Array(initReader.readLengthDelimited())
                 var hashReader = PBReader(bytes: hashBytes)
                 while let (hf, hw) = try hashReader.readFieldHeader() {
-                    if hf == 1 && hw == 2 {
-                        hash = try Array(hashReader.readLengthDelimited())
-                    } else if hf == 2 && hw == 0 {
+                    if hf == 1 && hw == 0 {
                         hashType = Int(try hashReader.readVarint())
+                    } else if hf == 2 && hw == 2 {
+                        hash = try Array(hashReader.readLengthDelimited())
                     } else {
                         try hashReader.skip(wireType: hw)
                     }

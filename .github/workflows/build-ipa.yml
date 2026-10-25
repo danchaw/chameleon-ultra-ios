@@ -21,6 +21,7 @@ jobs:
 
       - name: Build (Release, no code signing)
         run: |
+          set -o pipefail
           xcodebuild \
             -project ChameleonUltra.xcodeproj \
             -scheme ChameleonUltra \

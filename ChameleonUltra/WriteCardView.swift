@@ -144,7 +144,8 @@ struct WriteCardView: View {
                     ok = try await communicator.mf1WriteBlock(block: index, keyType: 0x60, key: key, blockData: Data(block))
                 }
                 if !ok {
-                    throw ChameleonError.invalidResponse("write failed at block \(index) – is the card a \(magicType == .gen1 ? "Gen1 magic" : "writable") card?")
+                    let cardKind = magicType == .gen1 ? "Gen1 magic" : "writable"
+                    throw ChameleonError.invalidResponse("write failed at block \(index) – is the card a \(cardKind) card?")
                 }
                 progress = Double(index + 1) / Double(blockCount)
             }

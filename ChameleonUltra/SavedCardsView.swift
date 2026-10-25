@@ -196,8 +196,9 @@ struct CardDetailView: View {
 
     private func export(json: Bool) {
         let safeName = card.name.replacingOccurrences(of: "/", with: "_")
+        let ext = json ? "json" : "bin"
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(safeName).\(json ? "json" : "bin)")
+            .appendingPathComponent("\(safeName).\(ext)")
         do {
             if json {
                 try JSONEncoder().encode([card]).write(to: url)

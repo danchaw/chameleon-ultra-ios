@@ -13,7 +13,7 @@ struct SlotManagerView: View {
                 Section { Text(error).foregroundStyle(.red) }
             }
             ForEach(0..<8, id: \.self) { slot in
-                Section("Slot \(slot)\(app.activeSlot == slot ? "  •  active" : "")") {
+                Section(app.activeSlot == slot ? "Slot \(slot)  •  active" : "Slot \(slot)") {
                     slotRow(slot, frequency: .hf)
                     slotRow(slot, frequency: .lf)
                 }

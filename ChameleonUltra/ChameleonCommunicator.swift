@@ -76,7 +76,8 @@ final class ChameleonCommunicator {
         await acquire()
         do {
             let frame = ChameleonFrameParser.makeFrame(cmd: cmd, status: 0, data: data)
-            logger("⇒ cmd=\(cmd.rawValue) data=\(data?.hex ?? "")")
+            let dataHex = data?.hex ?? ""
+            logger("⇒ cmd=\(cmd.rawValue) data=\(dataHex)")
 
             if skipReceive {
                 try? await ble.write(frame)
@@ -142,7 +143,6 @@ final class ChameleonCommunicator {
             continuation.resume(throwing: error)
         }
     }
-}
 
     // MARK: - Device commands (ported 1:1)
 

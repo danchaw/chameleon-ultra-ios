@@ -141,7 +141,8 @@ final class MifareClassicRecovery: ObservableObject {
     }
 
     private func checkKeysOnSector(_ keys: [Data], keyType: Int, sector: Int) async throws -> Bool {
-        state = "Checking \(keys.count) keys (sector \(sector), key \(keyType == 0 ? "A" : "B"))"
+        let keyName = keyType == 0 ? "A" : "B"
+        state = "Checking \(keys.count) keys (sector \(sector), key \(keyName))"
         var foundKey: Data?
         keyCheckProgress = nil
 
@@ -198,7 +199,8 @@ final class MifareClassicRecovery: ObservableObject {
     private func recheckKey(_ key: Data, startingSector: Int) async throws {
         for sector in startingSector..<sectorCount {
             for keyType in 0..<2 where mark(sector: sector, keyType: keyType) == .none {
-                state = "Checking found key on sector \(sector), key \(keyType == 0 ? "A" : "B")"
+                let keyName = keyType == 0 ? "A" : "B"
+                state = "Checking found key on sector \(sector), key \(keyName)"
                 setMark(.checking, sector: sector, keyType: keyType)
                 if try await communicator.mf1Auth(block: MifareClassic.sectorTrailerBlock(sector: sector),
                                                   keyType: UInt8(0x60 + keyType), key: key) {

@@ -24,6 +24,11 @@ struct AccentLabel: View {
     let icon: String
     @Environment(\.themeAccent) private var accent
 
+    init(_ title: String, _ icon: String) {
+        self.title = title
+        self.icon = icon
+    }
+
     var body: some View {
         Label { Text(title) } icon: {
             Image(systemName: icon).foregroundStyle(accent)

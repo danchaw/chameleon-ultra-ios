@@ -370,11 +370,11 @@ struct FlashingView: View {
     private func checkRow(_ ok: Bool, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: ok ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .foregroundStyle(ok ? .green : .red)
+                .foregroundStyle(ok ? Color.green : Color.red)
                 .font(.footnote)
             Text(text)
                 .font(.footnote)
-                .foregroundStyle(ok ? .primary : .red)
+                .foregroundStyle(ok ? Color.primary : Color.red)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

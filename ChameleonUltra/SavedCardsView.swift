@@ -37,7 +37,6 @@ struct SavedCardsView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up.on.square")
                 }
-                .buttonStyle(PressableButtonStyle())
             }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
@@ -56,7 +55,7 @@ struct SavedCardsView: View {
                 }
             }
         }
-        .confirmationDialog(L10n.t("Confirm deletion"), isPresented: deleteDialogShown, titleVisibility: .visible) {
+        .alert(L10n.t("Confirm deletion"), isPresented: deleteDialogShown) {
             Button(L10n.t("Delete"), role: .destructive) {
                 pendingDelete?.forEach { store.delete($0) }
                 pendingDelete = nil
@@ -216,7 +215,7 @@ struct CardDetailView: View {
             }
         }
         .sheet(isPresented: $showApplySheet) { applySheet }
-        .confirmationDialog(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+        .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(card)
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
@@ -351,14 +350,12 @@ struct DictionaryManagerView: View {
                     hapticFeedback()
                     showAdd = true
                 } label: { Image(systemName: "plus") }
-                    .buttonStyle(PressableButtonStyle())
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     hapticFeedback()
                     showImporter = true
                 } label: { Image(systemName: "square.and.arrow.down") }
-                    .buttonStyle(PressableButtonStyle())
             }
         }
         .sheet(isPresented: $showAdd) {
@@ -400,7 +397,7 @@ struct DictionaryManagerView: View {
                 }
             }
         }
-        .confirmationDialog(L10n.t("Confirm deletion"), isPresented: deleteDictShown, titleVisibility: .visible) {
+        .alert(L10n.t("Confirm deletion"), isPresented: deleteDictShown) {
             Button(L10n.t("Delete"), role: .destructive) {
                 if let dict = pendingDeleteDict { store.delete(dictionary: dict) }
                 pendingDeleteDict = nil
@@ -444,7 +441,6 @@ struct DictionaryDetailView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .buttonStyle(PressableButtonStyle())
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) {
@@ -453,13 +449,12 @@ struct DictionaryDetailView: View {
                 } label: {
                     Image(systemName: "trash")
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
         .sheet(isPresented: $showShare) {
             if let shareURL { ShareSheet(items: [shareURL]) }
         }
-        .confirmationDialog(L10n.t("Confirm deletion"), isPresented: $confirmDelete, titleVisibility: .visible) {
+        .alert(L10n.t("Confirm deletion"), isPresented: $confirmDelete) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(dictionary: dictionary)
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)

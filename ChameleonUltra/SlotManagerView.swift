@@ -32,7 +32,7 @@ struct SlotManagerView: View {
         .navigationTitle(L10n.t("Slot manager"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { try? await app.refreshSlots() }
-        .confirmationDialog(L10n.t("Reset slot?"), isPresented: resetDialogShown, titleVisibility: .visible) {
+        .alert(L10n.t("Reset slot?"), isPresented: resetDialogShown) {
             Button(L10n.t("Reset slot"), role: .destructive) {
                 if let (slot, frequency) = confirmReset {
                     Task {

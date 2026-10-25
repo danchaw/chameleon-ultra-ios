@@ -147,7 +147,7 @@ struct DeviceSettingsView: View {
         }
         .navigationTitle(L10n.t("Device settings"))
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(L10n.t("Reset device settings?"), isPresented: $confirmResetSettings, titleVisibility: .visible) {
+        .alert(L10n.t("Reset device settings?"), isPresented: $confirmResetSettings) {
             Button(L10n.t("Reset device settings"), role: .destructive) {
                 Task { try? await app.communicator?.resetSettings() }
             }
@@ -155,7 +155,7 @@ struct DeviceSettingsView: View {
         } message: {
             Text(L10n.t("Applies device defaults. Does not erase slots."))
         }
-        .confirmationDialog(L10n.t("Factory reset?"), isPresented: $confirmFactoryReset, titleVisibility: .visible) {
+        .alert(L10n.t("Factory reset?"), isPresented: $confirmFactoryReset) {
             Button(L10n.t("Factory reset (erases everything)"), role: .destructive) {
                 Task { try? await app.communicator?.factoryReset() }
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)

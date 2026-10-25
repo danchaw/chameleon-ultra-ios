@@ -137,7 +137,7 @@ struct FlashingView: View {
                 flash(zip)
             }
         }
-        .confirmationDialog(L10n.t("Confirm firmware flash"), isPresented: $showFlashConfirm, titleVisibility: .visible) {
+        .alert(L10n.t("Confirm firmware flash"), isPresented: $showFlashConfirm) {
             Button(L10n.t("Flash"), role: .destructive) {
                 proceedConfirmedFlash()
             }
@@ -326,7 +326,7 @@ struct FlashingView: View {
                             .font(.footnote)
                     }
                     .buttonStyle(PressableButtonStyle())
-                    .confirmationDialog(L10n.t("Clear all downloaded firmware?"), isPresented: $confirmClearFirmware, titleVisibility: .visible) {
+                    .alert(L10n.t("Clear all downloaded firmware?"), isPresented: $confirmClearFirmware) {
                         Button(L10n.t("Clear all"), role: .destructive) {
                             app.firmwareStore.deleteAll()
                             if stagedFirmware != nil {
@@ -369,7 +369,7 @@ struct FlashingView: View {
                     .buttonStyle(PressableButtonStyle())
                 }
             }
-            .confirmationDialog(L10n.t("Delete firmware package?"), isPresented: deleteFirmwareShown, titleVisibility: .visible) {
+            .alert(L10n.t("Delete firmware package?"), isPresented: deleteFirmwareShown) {
                 Button(L10n.t("Delete"), role: .destructive) {
                     if let package = pendingDeleteFirmware {
                         app.firmwareStore.delete(package)

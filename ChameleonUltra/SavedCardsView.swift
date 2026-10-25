@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Saved cards browser (port of `gui/page/saved_cards.dart`).
 struct SavedCardsView: View {
@@ -69,7 +70,7 @@ struct SavedCardsView: View {
             }
         }
         .sheet(isPresented: $showImporter) {
-            DocumentPicker(contentTypes: [.json]) { url in
+            DocumentPicker(contentTypes: [.json, UTType(filenameExtension: "bin") ?? .data, .data]) { url in
                 if let data = try? Data(contentsOf: url) {
                     let count = store.importCards(from: data)
                     message = count > 0 ? "✓ \(count) \(L10n.t("Imported"))" : L10n.t("No compatible cards found in file")

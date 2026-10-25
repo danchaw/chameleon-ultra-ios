@@ -90,12 +90,12 @@ struct SlotManagerView: View {
                         }
                     }
                 } label: {
-                    Text(name.isEmpty ? L10n.t("Load card…") : name)
-                        .font(name.isEmpty ? .subheadline : .subheadline)
-                        .foregroundStyle(name.isEmpty ? Color.accentColor.opacity(0.75) : Color.secondary)
+                    // blank when nothing is loaded; tapping opens the card menu + clear
+                    Text(name)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.secondary)
                         .lineLimit(1)
                 }
-                .disabled(store.cards.filter { $0.tagType.frequency == frequency }.isEmpty && name.isEmpty)
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { enabled },

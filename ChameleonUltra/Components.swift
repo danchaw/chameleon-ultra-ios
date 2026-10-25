@@ -20,12 +20,22 @@ struct PressableButtonStyle: ButtonStyle {
 /// background so the tap is unmistakable.
 struct ListRowHighlightStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Rectangle())
-            .foregroundStyle(configuration.isPressed ? Color.accentColor : Color.primary)
-            .background(configuration.isPressed ? Color.accentColor.opacity(0.18) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 10))
-            .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
+        ListRowHighlightBody(configuration: configuration)
+    }
+
+    private struct ListRowHighlightBody: View {
+        let configuration: Configuration
+        @Environment(\.tint) private var tint
+
+        var body: some View {
+            let accent = tint ?? Color.accentColor
+            return configuration.label
+                .contentShape(Rectangle())
+                .foregroundStyle(configuration.isPressed ? accent : Color.primary)
+                .background(configuration.isPressed ? accent.opacity(0.18) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 10))
+                .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
+        }
     }
 }
 

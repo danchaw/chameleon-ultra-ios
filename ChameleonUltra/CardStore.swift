@@ -225,19 +225,99 @@ final class CardStore: ObservableObject {
         persist()
     }
 
+    /// Tolerant import: accepts a JSON array / single object (our own export
+    /// and the original app's format) or a raw binary dump (.bin, tag type
+    /// inferred from size like the original `getTagTypeByDumpSize`).
     func importCards(from data: Data) -> Int {
         var imported = 0
-        if let list = try? JSONDecoder().decode([CardSave].self, from: data) {
-            for card in list where !cards.contains(where: { $0.id == card.id }) {
-                cards.append(card)
-                imported += 1
+
+        // JSON shape (ours + original app)
+        if let obj = try? JSONSerialization.jsonObject(with: data) {
+            let rawCards: [[String: Any]]
+            if let list = obj as? [[String: Any]] {
+                rawCards = list
+            } else if let single = obj as? [String: Any], single["uid"] != nil {
+                rawCards = [single]
+            } else {
+                rawCards = []
             }
-        } else if let single = try? JSONDecoder().decode(CardSave.self, from: data),
-                  !cards.contains(where: { $0.id == single.id }) {
-            cards.append(single)
-            imported = 1
+            for raw in rawCards {
+                guard let card = Self.card(fromRaw: raw) else { continue }
+                if !cards.contains(where: { $0.id == card.id }) {
+                    cards.append(card)
+                    imported += 1
+                }
+            }
+            if imported > 0 { persist() }
+            return imported
         }
-        if imported > 0 { persist() }
-        return imported
+
+        // binary dump
+        if !data.isEmpty, let card = Self.card(fromBinaryDump: data) {
+            cards.append(card)
+            persist()
+            return 1
+        }
+        return 0
+    }
+
+    private static func card(fromRaw raw: [String: Any]) -> CardSave? {
+        guard let uid = raw["uid"] as? String else { return nil }
+        let name = raw["name"] as? String ?? "Card"
+        let tagRaw = raw["tag"] as? Int ?? Int(TagType.unknown.rawValue)
+        var card = CardSave(uid: uid, name: name, tag: TagType(rawValue: UInt16(tagRaw)) ?? .unknown)
+        if let sak = raw["sak"] as? Int { card.sak = sak }
+        if let atqa = raw["atqa"] as? [Int] { card.atqa = atqa.map { UInt8($0 & 0xFF) } }
+        if let ats = raw["ats"] as? [Int] { card.ats = ats.map { UInt8($0 & 0xFF) } }
+        if let color = raw["color"] as? String { card.color = color }
+        if let blocks = raw["data"] as? [[Int]] {
+            card.data = blocks.map { $0.map { UInt8($0 & 0xFF) } }
+        }
+        if let folder = raw["folderId"] as? String { card.folderId = folder }
+        return card
+    }
+
+    /// Port of getTagTypeByDumpSize + block-0 UID extraction.
+    private static func card(fromBinaryDump dump: Data) -> CardSave? {
+        guard let type = Self.type(byDumpSize: dump.count) else { return nil }
+        let blockSize = type.isMifareClassic ? 16 : 4
+        var blocks: [[UInt8]] = []
+        var offset = 0
+        while offset + blockSize <= dump.count {
+            blocks.append(Array(dump[offset..<offset + blockSize]))
+            offset += blockSize
+        }
+        var uid = ""
+        var sak = 0
+        var atqa: [UInt8] = []
+        if let first = blocks.first {
+            if first[0] == 0x88, first.count >= 8 {          // 7-byte UID cascade
+                uid = Data(first[1..<8]).hex
+                sak = blocks.count > 1 ? Int(blocks[1][0]) : 0
+                atqa = first.count >= 10 ? [first[9], first[8]] : []
+            } else if first.count >= 5 {                     // 4-byte UID + BCC
+                uid = Data(first[0..<4]).hex
+                sak = Int(first[5])
+                atqa = first.count >= 8 ? [first[7], first[6]] : []
+            }
+        }
+        return CardSave(uid: uid, name: "Imported dump", tag: type, sak: sak, atqa: atqa, data: blocks)
+    }
+
+    private static func type(byDumpSize size: Int) -> TagType? {
+        switch size {
+        case 320: return .mifareMini
+        case 1024, 1088, 1152: return .mifare1K
+        case 2048: return .mifare2K
+        case 4096: return .mifare4K
+        case 64: return .ultralight
+        case 192: return .ultralightC
+        case 80: return .ultralight11
+        case 164: return .ultralight21
+        case 180: return .ntag213
+        case 540: return .ntag215
+        case 924: return .ntag216
+        default: return nil
+        }
     }
 }

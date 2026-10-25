@@ -383,13 +383,28 @@ final class ChameleonCommunicator {
     }
 
     /// Returns the matching key (6 bytes) or nil.
+    /// The original app effectively retries forever on slow cards (its
+    /// timeout loop re-sends until a response arrives) — mirror that
+    /// patience with a bounded retry loop per chunk.
     func mf1AuthMultipleKeys(block: Int, keyType: UInt8, keys: [Data]) async throws -> Data? {
         guard !keys.isEmpty else { return nil }
         var payload = Data([UInt8(block), keyType, UInt8(keys.count)])
         keys.forEach { payload.append($0) }
-        let resp = try await sendCmd(.mf1CheckKeysOnBlock, data: payload, timeout: TimeInterval(10 + Double(keys.count) / 8))
-        guard resp.status == 0, resp.data.count >= 7 else { return nil }
-        return resp.data.subdata(in: 1..<7)
+
+        var lastError: Error?
+        for _ in 0..<4 {
+            do {
+                let resp = try await sendCmd(.mf1CheckKeysOnBlock, data: payload,
+                                              timeout: TimeInterval(10 + Double(keys.count) / 8),
+                                              retryOnTimeout: false)
+                guard resp.status == 0, resp.data.count >= 7 else { return nil }
+                return resp.data.subdata(in: 1..<7)
+            } catch {
+                lastError = error
+                try? await Task.sleep(nanoseconds: 300_000_000)
+            }
+        }
+        throw lastError ?? ChameleonError.timeout("2015")
     }
 
     func mf1ReadBlock(block: Int, keyType: UInt8, key: Data) async throws -> Data {

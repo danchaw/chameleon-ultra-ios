@@ -99,7 +99,7 @@ final class BLEManager: NSObject, ObservableObject {
     private func connectOnce(_ device: DiscoveredDevice) async -> Bool {
         stopScan()
         guard let target = knownPeripherals[device.id]
-                ?? central.retrievePeripheral(withIdentifiers: [device.id]).first else {
+                ?? central.retrievePeripherals(withIdentifiers: [device.id]).first else {
             return false
         }
         state = .connecting

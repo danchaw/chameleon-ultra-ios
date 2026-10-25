@@ -219,19 +219,21 @@ final class ChameleonCommunicator {
     func getSlotTagNames() async throws -> [SlotNames] {
         let data = try await sendCmd(.getAllSlotNicks).data
         var slots = Array(repeating: SlotNames(), count: 8)
+        let bytes = [UInt8](data)
         var i = 0
         var index = 0
-        while i < data.count && index < 8 {
-            let hfLen = Int(data[data.startIndex + i]); i += 1
-            if hfLen > 0 && i + hfLen <= data.count {
-                slots[index].hf = String(data: data[Range(NSRange(location: i, length: hfLen), in: data)!], encoding: .utf8) ?? ""
+        while i < bytes.count && index < 8 {
+            let hfLen = Int(bytes[i]); i += 1
+            if hfLen > 0 && i + hfLen <= bytes.count {
+                slots[index].hf = String(bytes: bytes[i..<(i + hfLen)], encoding: .utf8) ?? ""
                 i += hfLen
             }
-            guard i < data.count else { break }
-            let lfLen = Int(data[data.startIndex + i]); i += 1
-            if lfLen > 0 && i + lfLen <= data.count {
-                slots[index].lf = String(data: data[Range(NSRange(location: i, length: lfLen), in: data)!], encoding: .utf8) ?? ""
-                i += lfLen
+            if i < bytes.count {
+                let lfLen = Int(bytes[i]); i += 1
+                if lfLen > 0 && i + lfLen <= bytes.count {
+                    slots[index].lf = String(bytes: bytes[i..<(i + lfLen)], encoding: .utf8) ?? ""
+                    i += lfLen
+                }
             }
             index += 1
         }

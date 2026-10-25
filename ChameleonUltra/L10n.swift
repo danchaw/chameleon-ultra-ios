@@ -267,12 +267,6 @@ enum L10n {
         "Imported": "已导入",
         "No compatible cards found in file": "文件中没有兼容的卡片",
 
-        // firmware library
-        "Downloaded firmware": "已下载的固件",
-        "Delete firmware package?": "删除该固件包？",
-        "Clear all": "全部清空",
-        "Clear all downloaded firmware?": "清空所有已下载的固件？",
-
         // firmware validation
         "Firmware package verified": "固件包校验通过",
         "Firmware package invalid": "固件包无效",

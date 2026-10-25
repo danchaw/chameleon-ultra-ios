@@ -6,7 +6,6 @@ struct SlotManagerView: View {
     @EnvironmentObject var store: CardStore
     @State private var error: String?
     @State private var busySlot: Int?
-    @State private var confirmReset: (Int, TagFrequency)?
 
     var body: some View {
         List {
@@ -32,26 +31,6 @@ struct SlotManagerView: View {
         .navigationTitle(L10n.t("Slot manager"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { try? await app.refreshSlots() }
-        .alert(L10n.t("Reset slot?"), isPresented: resetDialogShown) {
-            Button(L10n.t("Reset slot"), role: .destructive) {
-                if let (slot, frequency) = confirmReset {
-                    Task {
-                        do {
-                            try await app.communicator?.deleteSlotInfo(slot, frequency: frequency)
-                            try await app.refreshSlots()
-                        } catch { self.error = error.localizedDescription }
-                    }
-                }
-                confirmReset = nil
-            }
-            Button(L10n.t("Cancel"), role: .cancel) { confirmReset = nil }
-        } message: {
-            Text(L10n.t("This clears the slot data on the device."))
-        }
-    }
-
-    private var resetDialogShown: Binding<Bool> {
-        Binding(get: { confirmReset != nil }, set: { if !$0 { confirmReset = nil } })
     }
 
     @ViewBuilder
@@ -118,14 +97,18 @@ struct SlotManagerView: View {
             }
 
             HStack {
-                Button(role: .destructive) {
-                    confirmReset = (slot, frequency)
+                Button {
+                    Task {
+                        do {
+                            try await app.communicator?.deleteSlotInfo(slot, frequency: frequency)
+                            try await app.refreshSlots()
+                        } catch { self.error = error.localizedDescription }
+                    }
                 } label: {
                     Label(L10n.t("Reset slot"), systemImage: "arrow.counterclockwise")
                         .font(.subheadline)
                 }
                 .buttonStyle(.bordered)
-                .tint(.red)
 
                 if app.activeSlot != slot {
                     Button {

@@ -33,10 +33,6 @@ struct FlashingView: View {
     @State private var showFlashConfirm = false
     @State private var forceArmed = false
 
-    // firmware library management
-    @State private var pendingDeleteFirmware: FirmwarePackage?
-    @State private var confirmClearFirmware = false
-
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -55,10 +51,6 @@ struct FlashingView: View {
 
                 if let validation {
                     validationCard(validation)
-                }
-
-                if !app.firmwareStore.packages.isEmpty {
-                    firmwareLibraryCard
                 }
 
                 if let status {
@@ -137,7 +129,7 @@ struct FlashingView: View {
                 flash(zip)
             }
         }
-        .alert(L10n.t("Confirm firmware flash"), isPresented: $showFlashConfirm) {
+        .confirmationDialog(L10n.t("Confirm firmware flash"), isPresented: $showFlashConfirm, titleVisibility: .visible) {
             Button(L10n.t("Flash"), role: .destructive) {
                 proceedConfirmedFlash()
             }
@@ -309,106 +301,6 @@ struct FlashingView: View {
         }
     }
 
-    // MARK: - Firmware library (downloaded packages)
-
-    private var firmwareLibraryCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label(L10n.t("Downloaded firmware"), systemImage: "externaldrive.fill")
-                        .font(.headline)
-                    Spacer()
-                    Button(role: .destructive) {
-                        hapticFeedback(.medium)
-                        confirmClearFirmware = true
-                    } label: {
-                        Label(L10n.t("Clear all"), systemImage: "trash")
-                            .font(.footnote)
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                    .alert(L10n.t("Clear all downloaded firmware?"), isPresented: $confirmClearFirmware) {
-                        Button(L10n.t("Clear all"), role: .destructive) {
-                            app.firmwareStore.deleteAll()
-                            if stagedFirmware != nil {
-                                stagedFirmware = nil
-                                validation = nil
-                            }
-                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                        }
-                        Button(L10n.t("Cancel"), role: .cancel) {}
-                    } message: {
-                        Text(L10n.t("This cannot be undone."))
-                    }
-                }
-
-                ForEach(app.firmwareStore.packages) { package in
-                    Button {
-                        stageFromLibrary(package)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.zipper")
-                                .foregroundStyle(.tint)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(package.title)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text("\(ByteCountFormatter.string(fromByteCount: Int64(package.sizeBytes), countStyle: .file)) · \(package.downloadedAt.formatted(.relative(presentation: .named)))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(role: .destructive) {
-                                hapticFeedback(.medium)
-                                pendingDeleteFirmware = package
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(PressableButtonStyle())
-                        }
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                }
-            }
-            .alert(L10n.t("Delete firmware package?"), isPresented: deleteFirmwareShown) {
-                Button(L10n.t("Delete"), role: .destructive) {
-                    if let package = pendingDeleteFirmware {
-                        app.firmwareStore.delete(package)
-                        if stagedFirmware != nil && validation?.sourceName == package.title {
-                            stagedFirmware = nil
-                            validation = nil
-                        }
-                    }
-                    pendingDeleteFirmware = nil
-                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                }
-                Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteFirmware = nil }
-            } message: {
-                Text(L10n.t("This cannot be undone."))
-            }
-        }
-    }
-
-    private var deleteFirmwareShown: Binding<Bool> {
-        Binding(get: { pendingDeleteFirmware != nil }, set: { if !$0 { pendingDeleteFirmware = nil } })
-    }
-
-    /// Load a library package back into the staging flow (verify again, then flash).
-    private func stageFromLibrary(_ package: FirmwarePackage) {
-        guard let data = app.firmwareStore.data(for: package) else {
-            error = L10n.t("Download failed")
-            return
-        }
-        hapticFeedback()
-        busyPhase = .verifying
-        let report = FirmwareValidator.validate(zip: data, sourceName: package.title)
-        withAnimation {
-            validation = report
-            stagedFirmware = data
-            stagedName = package.title
-            busyPhase = .idle
-        }
-    }
-
     // MARK: - Validation report card (user decides what happens next)
 
     private func validationCard(_ report: FirmwareValidationReport) -> some View {
@@ -560,8 +452,6 @@ struct FlashingView: View {
                     stagedName = "\(release.tagName).zip"
                     busyPhase = .idle
                 }
-                // keep the verified package for offline re-flashing
-                app.firmwareStore.save(zip: zip, title: "\(release.tagName).zip")
                 // Stop here — the user decides (and confirms) before anything is flashed.
             } catch is CancellationError {
             } catch let urlError as URLError where urlError.code == .cancelled {

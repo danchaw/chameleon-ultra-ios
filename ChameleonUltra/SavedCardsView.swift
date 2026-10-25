@@ -7,7 +7,6 @@ struct SavedCardsView: View {
     @State private var search = ""
     @State private var showImporter = false
     @State private var message: String?
-    @State private var pendingDelete: [CardSave]?
 
     var body: some View {
         List {
@@ -23,7 +22,8 @@ struct SavedCardsView: View {
                     }
                 }
                 .onDelete { indexSet in
-                    pendingDelete = indexSet.map { filtered[$0] }
+                    let targets = indexSet.map { filtered[$0] }
+                    targets.forEach { store.delete($0) }
                 }
             }
         }
@@ -32,7 +32,6 @@ struct SavedCardsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     showImporter = true
                 } label: {
                     Image(systemName: "square.and.arrow.up.on.square")
@@ -50,25 +49,10 @@ struct SavedCardsView: View {
             DocumentPicker(contentTypes: [.json]) { url in
                 if let data = try? Data(contentsOf: url) {
                     let count = store.importCards(from: data)
-                    message = count > 0 ? "✓ \(count) \(L10n.t("Imported"))" : L10n.t("No compatible cards found in file")
-                    if count > 0 { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                    message = count > 0 ? "Imported \(count) card(s)" : "No compatible cards found in file"
                 }
             }
         }
-        .alert(L10n.t("Confirm deletion"), isPresented: deleteDialogShown) {
-            Button(L10n.t("Delete"), role: .destructive) {
-                pendingDelete?.forEach { store.delete($0) }
-                pendingDelete = nil
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            }
-            Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
-        } message: {
-            Text(L10n.t("This cannot be undone."))
-        }
-    }
-
-    private var deleteDialogShown: Binding<Bool> {
-        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
     }
 
     private var filtered: [CardSave] {
@@ -109,8 +93,6 @@ struct CardDetailView: View {
     @State private var message: String?
     @State private var editableName: String = ""
     @State private var showApplySheet = false
-    @State private var applyingSlot: Int?
-    @State private var showDeleteConfirm = false
 
     private var blockSize: Int { card.isMifareClassic ? 16 : 4 }
 
@@ -140,66 +122,35 @@ struct CardDetailView: View {
             Section {
                 if app.isConnected {
                     Button {
-                        hapticFeedback()
                         showApplySheet = true
                     } label: {
-                        HStack {
-                            Label(L10n.t("Apply to device slot…"), systemImage: "square.grid.3x3")
-                            Spacer()
-                            if applyingSlot != nil { ProgressView() }
-                        }
+                        Label(L10n.t("Apply to device slot…"), systemImage: "square.grid.3x3")
                     }
-                    .buttonStyle(PressableButtonStyle())
                 } else {
                     Label("Connect a device to emulate this card", systemImage: "antenna.radiowaves.left.and.right.slash")
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Section(L10n.t("Export")) {
+            Section("Export") {
                 Button {
-                    hapticFeedback()
                     export(json: true)
                 } label: {
                     Label(L10n.t("Export as JSON"), systemImage: "curlybraces.square")
                 }
-                .buttonStyle(PressableButtonStyle())
-
                 Button {
-                    hapticFeedback()
                     export(json: false)
                 } label: {
                     Label(L10n.t("Export as binary dump"), systemImage: "doc.binary")
-                }
-                .buttonStyle(PressableButtonStyle())
-
-                if card.isMifareClassic && !card.dumpKeys.isEmpty {
-                    Menu {
-                        Button {
-                            exportDumpKeys(saveToDictionaries: true)
-                        } label: {
-                            Label(L10n.t("Save to dictionaries"), systemImage: "book")
-                        }
-                        Button {
-                            exportDumpKeys(saveToDictionaries: false)
-                        } label: {
-                            Label(L10n.t("Share as .dic"), systemImage: "square.and.arrow.up")
-                        }
-                    } label: {
-                        Label(L10n.t("Export keys from dump"), systemImage: "key.horizontal")
-                    }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
 
             Section(L10n.t("Danger zone")) {
                 Button(role: .destructive) {
-                    hapticFeedback(.medium)
-                    showDeleteConfirm = true
+                    store.delete(card)
                 } label: {
                     Label(L10n.t("Delete card"), systemImage: "trash")
                 }
-                .buttonStyle(PressableButtonStyle())
             }
 
             if let message {
@@ -215,61 +166,27 @@ struct CardDetailView: View {
             }
         }
         .sheet(isPresented: $showApplySheet) { applySheet }
-        .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
-            Button(L10n.t("Delete"), role: .destructive) {
-                store.delete(card)
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            }
-            Button(L10n.t("Cancel"), role: .cancel) {}
-        } message: {
-            Text("\(L10n.t("Delete this card?")) \(L10n.t("This cannot be undone."))")
-        }
     }
 
     private var applySheet: some View {
         NavigationStack {
             List(0..<8, id: \.self) { slot in
-                Button {
-                    apply(to: slot)
-                } label: {
-                    HStack {
-                        Text("\(L10n.t("Slot")) \(slot)  (\(app.slotTypes[slot].hf.displayName) / \(app.slotTypes[slot].lf.displayName))")
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if applyingSlot == slot {
-                            ProgressView()
-                        } else if let applying = applyingSlot, applying < 0, -applying - 1 == slot {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Button("Slot \(slot)  (\(app.slotTypes[slot].hf.displayName) / \(app.slotTypes[slot].lf.displayName))") {
+                    Task {
+                        do {
+                            try await app.applyCardToSlot(card, slot: slot)
+                            message = "Applied to slot \(slot)"
+                        } catch {
+                            message = error.localizedDescription
                         }
+                        showApplySheet = false
                     }
                 }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(applyingSlot != nil)
             }
             .navigationTitle(L10n.t("Choose slot"))
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium])
-    }
-
-    private func apply(to slot: Int) {
-        hapticFeedback()
-        applyingSlot = slot
-        Task {
-            do {
-                try await app.applyCardToSlot(card, slot: slot)
-                applyingSlot = -slot - 1   // done marker
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                message = L10n.tf("Applied to slot %d", slot)
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
-                showApplySheet = false
-            } catch {
-                message = error.localizedDescription
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
-                showApplySheet = false
-            }
-            applyingSlot = nil
-        }
     }
 
     private func saveName() {
@@ -294,24 +211,6 @@ struct CardDetailView: View {
             message = error.localizedDescription
         }
     }
-
-    private func exportDumpKeys(saveToDictionaries: Bool) {
-        let keys = card.dumpKeys
-        guard !keys.isEmpty else { return }
-        if saveToDictionaries {
-            var dictionary = KeyDictionary(name: "\(card.name) · \(L10n.t("Keys from dump"))")
-            dictionary.keys = keys.map { Array($0) }
-            dictionary.keyLength = 12
-            store.add(dictionary: dictionary)
-            message = "✓ \(keys.count) \(L10n.t("keys imported"))"
-        }
-        let text = keys.map { $0.hex.uppercased() }.joined(separator: "\n") + "\n"
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(card.name).dic")
-        try? text.data(using: .utf8)?.write(to: url)
-        shareURL = url
-        showShare = true
-    }
 }
 
 // MARK: - Dictionary manager
@@ -322,7 +221,6 @@ struct DictionaryManagerView: View {
     @State private var newName = ""
     @State private var showAdd = false
     @State private var showImporter = false
-    @State private var pendingDeleteDict: KeyDictionary?
 
     var body: some View {
         List {
@@ -333,29 +231,23 @@ struct DictionaryManagerView: View {
                     } label: {
                         VStack(alignment: .leading) {
                             Text(dict.name).font(.headline)
-                            Text("\(dict.keys.count) \(L10n.t("keys"))")
+                            Text("\(dict.keys.count) keys")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
                 .onDelete { indexSet in
-                    pendingDeleteDict = indexSet.map { store.dictionaries[$0] }.first
+                    indexSet.map { store.dictionaries[$0] }.forEach { store.delete(dictionary: $0) }
                 }
             }
         }
         .navigationTitle(L10n.t("Dictionaries"))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    hapticFeedback()
-                    showAdd = true
-                } label: { Image(systemName: "plus") }
+                Button { showAdd = true } label: { Image(systemName: "plus") }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    hapticFeedback()
-                    showImporter = true
-                } label: { Image(systemName: "square.and.arrow.down") }
+                Button { showImporter = true } label: { Image(systemName: "square.and.arrow.down") }
             }
         }
         .sheet(isPresented: $showAdd) {
@@ -372,7 +264,7 @@ struct DictionaryManagerView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(L10n.t("Cancel")) { showAdd = false }
+                        Button("Cancel") { showAdd = false }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.t("Add")) {
@@ -380,7 +272,6 @@ struct DictionaryManagerView: View {
                             store.add(dictionary: dict)
                             newText = ""; newName = ""
                             showAdd = false
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
                         }
                     }
                 }
@@ -393,34 +284,17 @@ struct DictionaryManagerView: View {
                     let dict = KeyDictionary.fromText(text, name: name)
                     guard !dict.keys.isEmpty else { return }
                     store.add(dictionary: dict)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
                 }
             }
         }
-        .alert(L10n.t("Confirm deletion"), isPresented: deleteDictShown) {
-            Button(L10n.t("Delete"), role: .destructive) {
-                if let dict = pendingDeleteDict { store.delete(dictionary: dict) }
-                pendingDeleteDict = nil
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            }
-            Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteDict = nil }
-        } message: {
-            Text("\(L10n.t("Delete this dictionary?")) \(L10n.t("This cannot be undone."))")
-        }
-    }
-
-    private var deleteDictShown: Binding<Bool> {
-        Binding(get: { pendingDeleteDict != nil }, set: { if !$0 { pendingDeleteDict = nil } })
     }
 }
 
 struct DictionaryDetailView: View {
     @EnvironmentObject var store: CardStore
-    @Environment(\.dismiss) private var dismiss
     let dictionary: KeyDictionary
     @State private var showShare = false
     @State private var shareURL: URL?
-    @State private var confirmDelete = false
 
     var body: some View {
         List(dictionary.keys, id: \.self) { key in
@@ -431,7 +305,6 @@ struct DictionaryDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     let text = dictionary.keyData.map { $0.hex.uppercased() }.joined(separator: "\n") + "\n"
                     let url = FileManager.default.temporaryDirectory
                         .appendingPathComponent("\(dictionary.name).dic")
@@ -442,27 +315,9 @@ struct DictionaryDetailView: View {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    hapticFeedback(.medium)
-                    confirmDelete = true
-                } label: {
-                    Image(systemName: "trash")
-                }
-            }
         }
         .sheet(isPresented: $showShare) {
             if let shareURL { ShareSheet(items: [shareURL]) }
-        }
-        .alert(L10n.t("Confirm deletion"), isPresented: $confirmDelete) {
-            Button(L10n.t("Delete"), role: .destructive) {
-                store.delete(dictionary: dictionary)
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
-                dismiss()
-            }
-            Button(L10n.t("Cancel"), role: .cancel) {}
-        } message: {
-            Text("\(L10n.t("Delete this dictionary?")) \(L10n.t("This cannot be undone."))")
         }
     }
 }

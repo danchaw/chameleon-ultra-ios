@@ -117,26 +117,33 @@ struct SlotManagerView: View {
                 }
             }
 
-            HStack {
-                Button(role: .destructive) {
+            HStack(spacing: 10) {
+                Button {
+                    hapticFeedback()
                     confirmReset = (slot, frequency)
                 } label: {
                     Label(L10n.t("Reset slot"), systemImage: "arrow.counterclockwise")
-                        .font(.subheadline)
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(Color.red.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.red)
                 }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .fixedSize()
+                .buttonStyle(PressableButtonStyle())
 
                 if app.activeSlot != slot {
                     Button {
+                        hapticFeedback()
                         Task { await app.activateSlot(slot) }
                     } label: {
                         Label(L10n.t("Activate"), systemImage: "bolt.fill")
-                            .font(.subheadline)
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Color.accentColor, in: Capsule())
+                            .foregroundStyle(.white)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .fixedSize()
+                    .buttonStyle(PressableButtonStyle())
                 }
                 Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }

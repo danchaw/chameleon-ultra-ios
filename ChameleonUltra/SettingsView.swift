@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// Settings page (port of `gui/page/settings.dart`, iOS-relevant subset).
 struct SettingsView: View {
@@ -12,31 +13,92 @@ struct SettingsView: View {
     @State private var showSettingsImporter = false
     @State private var showSettingsShare = false
     @State private var settingsURL: URL?
+    @State private var message: String?
 
-    static let settingsKeys = ["themeColor", "colorScheme", "appLanguage",
-                               "autoScan", "autoConnectFirst", "hapticsEnabled"]
+    static let appStringKeys = ["themeColor", "colorScheme", "appLanguage"]
+    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled"]
+    static let settingsMagic = "chameleon-ultra-ios-settings"
 
-    private func exportSettings() {
-        var dict: [String: String] = ["format": "chameleon-ultra-ios-settings", "version": "1"]
-        for key in Self.settingsKeys {
-            dict[key] = UserDefaults.standard.string(forKey: key) ?? ""
+    /// Exports app settings and — when a device is connected — the live
+    /// device settings too, in a dedicated `.cusettings` format.
+    private func exportSettings() async {
+        var appDict: [String: Any] = [:]
+        for key in Self.appStringKeys {
+            appDict[key] = UserDefaults.standard.string(forKey: key) ?? ""
         }
-        if let data = try? JSONSerialization.data(withJSONObject: dict) {
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("settings.json")
-            try? data.write(to: url, options: .atomic)
-            settingsURL = url
-            showSettingsShare = true
+        for key in Self.appBoolKeys {
+            appDict[key] = UserDefaults.standard.bool(forKey: key)
         }
+        var dict: [String: Any] = ["format": Self.settingsMagic, "version": 2, "app": appDict]
+
+        if app.isConnected, let c = app.communicator {
+            var device: [String: Any] = [:]
+            if let mode = try? await c.getAnimationMode() { device["animation"] = mode.rawValue }
+            if let wake = try? await c.getSleepTimeout() { device["wakeTime"] = wake }
+            if let threshold = try? await c.getLongPressThreshold() { device["longPressThreshold"] = threshold }
+            if let pairing = try? await c.isBLEPairEnabled() { device["pairing"] = pairing }
+            if let a = try? await c.getButtonConfig(.a, long: false) { device["aPress"] = a.rawValue }
+            if let b = try? await c.getButtonConfig(.b, long: false) { device["bPress"] = b.rawValue }
+            if let al = try? await c.getButtonConfig(.a, long: true) { device["aLongPress"] = al.rawValue }
+            if let bl = try? await c.getButtonConfig(.b, long: true) { device["bLongPress"] = bl.rawValue }
+            if !device.isEmpty { dict["device"] = device }
+        }
+
+        guard JSONSerialization.isValidJSONObject(dict),
+              let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) else { return }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chameleon-settings.cusettings")
+        try? data.write(to: url, options: .atomic)
+        settingsURL = url
+        showSettingsShare = true
     }
 
-    private func importSettings(from url: URL) {
+    /// Imports the dedicated format only; rejects any other file.
+    private func importSettings(from url: URL) async {
         guard let data = try? Data(contentsOf: url),
-              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: String] else { return }
-        for key in Self.settingsKeys {
-            if let value = dict[key], !value.isEmpty {
-                UserDefaults.standard.set(value, forKey: key)
+              let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              dict["format"] as? String == Self.settingsMagic else {
+            message = L10n.t("Invalid settings file")
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            return
+        }
+
+        if let appDict = dict["app"] as? [String: Any] {
+            if let value = appDict["themeColor"] as? String, !value.isEmpty { themeColor = value }
+            if let value = appDict["colorScheme"] as? String, !value.isEmpty { colorScheme = value }
+            if let value = appDict["appLanguage"] as? String, !value.isEmpty { appLanguage = value }
+            if let value = appDict["autoScan"] as? Bool { autoScan = value }
+            if let value = appDict["autoConnectFirst"] as? Bool { autoConnectFirst = value }
+            if let value = appDict["hapticsEnabled"] as? Bool {
+                UserDefaults.standard.set(value, forKey: "hapticsEnabled")
             }
         }
+
+        var appliedDevice = false
+        if let device = dict["device"] as? [String: Any], app.isConnected, let c = app.communicator {
+            if let raw = device["animation"] as? Int, let mode = AnimationSetting(rawValue: UInt8(raw)) {
+                try? await c.setAnimationMode(mode)
+            }
+            if let wake = device["wakeTime"] as? Int { try? await c.setSleepTimeout(wake) }
+            if let threshold = device["longPressThreshold"] as? Int { try? await c.setLongPressThreshold(threshold) }
+            if let pairing = device["pairing"] as? Bool { try? await c.setBLEPairEnabled(pairing) }
+            let buttonMap: [(String, ButtonType, Bool)] = [
+                ("aPress", .a, false), ("bPress", .b, false),
+                ("aLongPress", .a, true), ("bLongPress", .b, true),
+            ]
+            for (key, type, long) in buttonMap {
+                if let raw = device[key] as? Int, let mode = ButtonConfig(rawValue: UInt8(raw)) {
+                    try? await c.setButtonConfig(type, mode: mode, long: long)
+                }
+            }
+            appliedDevice = true
+        }
+
+        message = appliedDevice
+            ? "\(L10n.t("Settings imported")) · \(L10n.t("Device settings applied"))"
+            : (dict["device"] != nil
+                ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
+                : L10n.t("Settings imported"))
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
@@ -97,20 +159,29 @@ struct SettingsView: View {
             Section(L10n.t("Connection")) {
                 Toggle(L10n.t("Auto scan devices"), isOn: $autoScan)
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
+            }
+
+            Section(L10n.t("Settings management")) {
                 Button {
                     hapticFeedback()
-                    exportSettings()
+                    Task { await exportSettings() }
                 } label: {
                     Label(L10n.t("Export settings"), systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
                 Button {
                     hapticFeedback()
                     showSettingsImporter = true
                 } label: {
                     Label(L10n.t("Import settings"), systemImage: "square.and.arrow.down")
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(ListRowHighlightStyle())
+            } footer: {
+                Text("\(L10n.t("App settings")) + \(L10n.t("Device settings")) · .cusettings")
+            }
+
+            if let message {
+                Section { Text(message).foregroundStyle(.secondary).font(.footnote) }
             }
 
             Section(L10n.t("About")) {
@@ -134,8 +205,8 @@ struct SettingsView: View {
         }
         .navigationTitle(L10n.t("Settings"))
         .sheet(isPresented: $showSettingsImporter) {
-            DocumentPicker(contentTypes: [.json]) { url in
-                importSettings(from: url)
+            DocumentPicker(contentTypes: [UTType(filenameExtension: "cusettings") ?? .data, .json, .data]) { url in
+                Task { await importSettings(from: url) }
             }
         }
         .sheet(isPresented: $showSettingsShare) {

@@ -314,7 +314,6 @@ enum L10n {
         "Auto connect first device": "自动连接首个发现的设备",
         "Import settings": "导入设置",
         "Export settings": "导出设置",
-        "Settings imported": "设置已导入",
         "Invalid hex": "无效的十六进制数据",
         "Slot exported": "卡槽已导出",
         "Card updated": "卡片已更新",
@@ -322,6 +321,15 @@ enum L10n {
         "No dump data": "没有转储数据",
         "JSON": "JSON",
         "Binary": "二进制",
+
+        // settings management
+        "Settings management": "设置管理",
+        "Invalid settings file": "无效的设置文件",
+        "Settings exported": "设置已导出",
+        "Settings imported": "设置已导入",
+        "App settings": "应用设置",
+        "Device settings applied": "设备设置已应用",
+        "Device not connected — app settings only": "设备未连接——仅应用应用设置",
 
         // read card extras
         "Continuous scan": "连续扫描",

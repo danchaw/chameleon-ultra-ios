@@ -95,6 +95,11 @@ struct DeviceSettingsView: View {
     @State private var error: String?
     @State private var confirmFactoryReset = false
     @State private var confirmResetSettings = false
+    // button config (original: button_config)
+    @State private var aPress: ButtonConfig?
+    @State private var bPress: ButtonConfig?
+    @State private var aLongPress: ButtonConfig?
+    @State private var bLongPress: ButtonConfig?
 
     var body: some View {
         Form {
@@ -126,6 +131,20 @@ struct DeviceSettingsView: View {
                         pairing = newValue
                         Task { try? await app.communicator?.setBLEPairEnabled(newValue) }
                     }))
+            }
+            Section(L10n.t("Button config")) {
+                if let current = aPress {
+                    buttonPicker(L10n.t("A button"), L10n.t("Short press"), current, .a, long: false)
+                }
+                if let current = bPress {
+                    buttonPicker(L10n.t("B button"), L10n.t("Short press"), current, .b, long: false)
+                }
+                if let current = aLongPress {
+                    buttonPicker(L10n.t("A button"), L10n.t("Long press"), current, .a, long: true)
+                }
+                if let current = bLongPress {
+                    buttonPicker(L10n.t("B button"), L10n.t("Long press"), current, .b, long: true)
+                }
             }
             Section {
                 Button(role: .destructive) {
@@ -171,6 +190,33 @@ struct DeviceSettingsView: View {
             animation = try? await communicator.getAnimationMode()
             wakeTime = try? await communicator.getSleepTimeout()
             pairing = try? await communicator.isBLEPairEnabled()
+            aPress = try? await communicator.getButtonConfig(.a, long: false)
+            bPress = try? await communicator.getButtonConfig(.b, long: false)
+            aLongPress = try? await communicator.getButtonConfig(.a, long: true)
+            bLongPress = try? await communicator.getButtonConfig(.b, long: true)
+        }
+    }
+
+    @ViewBuilder
+    private func buttonPicker(_ button: String, _ kind: String, _ current: ButtonConfig,
+                              _ type: ButtonType, long: Bool) -> some View {
+        Picker("\(button) · \(kind)", selection: Binding(
+            get: { current },
+            set: { newValue in
+                switch (type, long) {
+                case (.a, false): aPress = newValue
+                case (.b, false): bPress = newValue
+                case (.a, true): aLongPress = newValue
+                case (.b, true): bLongPress = newValue
+                }
+                Task {
+                    try? await app.communicator?.setButtonConfig(type, mode: newValue, long: long)
+                    hapticFeedback()
+                }
+            })) {
+            ForEach(ButtonConfig.allCases) { mode in
+                Text(L10n.t(mode.displayName)).tag(mode)
+            }
         }
     }
 

@@ -387,7 +387,7 @@ final class ChameleonCommunicator {
         guard !keys.isEmpty else { return nil }
         var payload = Data([UInt8(block), keyType, UInt8(keys.count)])
         keys.forEach { payload.append($0) }
-        let resp = try await sendCmd(.mf1CheckKeysOnBlock, data: payload, timeout: TimeInterval(5 + Double(keys.count) / 32))
+        let resp = try await sendCmd(.mf1CheckKeysOnBlock, data: payload, timeout: TimeInterval(8 + Double(keys.count) / 16))
         guard resp.status == 0, resp.data.count >= 7 else { return nil }
         return resp.data.subdata(in: 1..<7)
     }

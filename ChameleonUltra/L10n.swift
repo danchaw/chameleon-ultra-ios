@@ -276,6 +276,29 @@ enum L10n {
         "Additional key dictionary": "附加密钥字典",
         "Skip default keys": "跳过默认密钥",
 
+        // read card extras
+        "Continuous scan": "连续扫描",
+        "Re-read tag": "重新读取",
+        "Save UID only": "仅保存 UID",
+        "Saved": "已保存",
+        "UID saved": "UID 已保存",
+        "Cards found": "发现的卡片",
+
+        // DFU entry (original: enter_dfu)
+        "Enter DFU mode": "进入 DFU 模式",
+
+        // button config (original: button_config/button_x/long_press)
+        "Button config": "按键配置",
+        "A button": "A 键",
+        "B button": "B 键",
+        "Short press": "短按",
+        "Long press": "长按",
+        "Disable": "禁用",
+        "Cycle slot forward": "切换下一卡槽",
+        "Cycle slot backward": "切换上一卡槽",
+        "Clone UID": "克隆 UID",
+        "Charge status": "显示电量",
+
         // firmware validation
         "Firmware package verified": "固件包校验通过",
         "Firmware package invalid": "固件包无效",

@@ -261,6 +261,17 @@ struct FlashingView: View {
                 Divider()
 
                 Button {
+                    hapticFeedback()
+                    rebootToDFU(zip: nil)
+                } label: {
+                    Label(L10n.t("Enter DFU mode"), systemImage: "exclamationmark.arrow.circlepath")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+                .disabled(busyPhase != .idle)
+
+                Button {
                     showPicker = true
                 } label: {
                     Label(L10n.t("Flash local firmware (.zip)…"), systemImage: "folder")
@@ -579,11 +590,13 @@ struct FlashingView: View {
         if app.connectionState == .dfuMode {
             flash(zip)
         } else {
-            rebootAndFlash(zip: zip)
+            rebootToDFU(zip: zip)
         }
     }
 
-    private func rebootAndFlash(zip: Data) {
+    /// Reboot the device into DFU mode and reconnect. `zip == nil` means the
+    /// user just wants to enter DFU (flashes only when firmware is staged).
+    private func rebootToDFU(zip: Data?) {
         pendingFirmware = zip
         busyPhase = .rebooting
         operationTask = Task {
@@ -597,7 +610,7 @@ struct FlashingView: View {
                     try Task.checkCancellation()
                     try await Task.sleep(nanoseconds: 1_000_000_000)
                     if let dfuDevice = app.ble.devices.first(where: { $0.isDFU }) {
-                        await app.connect(to: dfuDevice)   // → .dfuMode → onChange flashes
+                        await app.connect(to: dfuDevice)   // → .dfuMode → onChange flashes if staged
                         return
                     }
                 }

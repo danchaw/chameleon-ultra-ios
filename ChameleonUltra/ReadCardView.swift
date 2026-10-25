@@ -45,6 +45,12 @@ struct ReadCardView: View {
     @State private var selectedDictionaryID: UUID?
     @State private var skipDefaultDictionary = false
 
+    // continuous scan (hf14aScanKeep-style loop)
+    @State private var continuous = false
+    @State private var foundCards: [CardData] = []
+    @State private var savedUIDs: Set<String> = []
+    @State private var scanTask: Task<Void, Never>?
+
     private var communicator: ChameleonCommunicator? { app.communicator }
 
     var body: some View {
@@ -70,41 +76,144 @@ struct ReadCardView: View {
             .padding()
         }
         .navigationTitle(L10n.t("Read card"))
+        .onDisappear {
+            scanTask?.cancel()
+            scanTask = nil
+            continuous = false
+        }
         .sheet(isPresented: $showSaveSheet) { saveSheet }
         .sheet(isPresented: $showShare) {
             if let shareURL { ShareSheet(items: [shareURL]) }
         }
     }
 
-    // MARK: HF
+    private var readButtonTitle: String {
+        switch phase {
+        case .scanning: return L10n.t("Reading…")
+        case .idle: return L10n.t("Read tag")
+        default: return L10n.t("Re-read tag")
+        }
+    }
 
-    private var hfSection: some View {
-        VStack(spacing: 16) {
-            if phase == .idle || phase == .scanning {
-                GlassCard {
-                    VStack(spacing: 12) {
-                        Image(systemName: "creditcard.viewfinder")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.tint)
-                        Text(L10n.t("Place a HF tag on the Chameleon antenna"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button {
-                            Task { await readHF() }
-                        } label: {
-                            Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
-                                .frame(maxWidth: .infinity)
+    // MARK: Continuous scan
+
+    private var continuousScanCard: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(L10n.t("Continuous scan"), isOn: Binding(
+                    get: { continuous },
+                    set: { _ in toggleContinuous() }))
+                Text(L10n.t("Place a HF tag on the Chameleon antenna"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !foundCards.isEmpty {
+                    Divider()
+                    ForEach(Array(foundCards.enumerated()), id: \.offset) { _, found in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(found.uid.hexSpaced)
+                                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                Text("SAK \(String(format: "%02X", found.sak)) · ATQA \(found.atqa.hexSpaced)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if savedUIDs.contains(found.uid.hex) {
+                                Label(L10n.t("Saved"), systemImage: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            } else {
+                                Button {
+                                    saveUIDOnly(card: found, type: .unknown)
+                                } label: {
+                                    Text(L10n.t("Save UID only"))
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.accentColor.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                .buttonStyle(PressableButtonStyle())
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(phase == .scanning)
+                        .padding(.vertical, 2)
                     }
                 }
             }
+        }
+    }
 
-            if phase == .scanning {
-                GlassCard { HStack { ProgressView(); Text("Reading tag…").foregroundStyle(.secondary) } }
+    private func toggleContinuous() {
+        hapticFeedback()
+        if continuous {
+            continuous = false
+            scanTask?.cancel()
+            scanTask = nil
+        } else {
+            continuous = true
+            foundCards = []
+            savedUIDs = []
+            scanTask = Task {
+                do {
+                    if let communicator, try await !communicator.isReaderDeviceMode() {
+                        try await communicator.setReaderDeviceMode(true)
+                    }
+                    while !Task.isCancelled {
+                        if let found = try await communicator?.scan14443aTag(),
+                           !foundCards.contains(where: { $0.uid == found.uid }) {
+                            foundCards.append(found)
+                            hapticFeedback()
+                        }
+                        try await Task.sleep(nanoseconds: 800_000_000)
+                    }
+                } catch is CancellationError {
+                } catch {
+                    self.error = error.localizedDescription
+                }
+                await MainActor.run { continuous = false }
             }
+        }
+    }
+
+    /// Save just the anti-collision data (original: save_only_uid).
+    private func saveUIDOnly(card found: CardData, type: TagType) {
+        hapticFeedback()
+        store.add(CardSave(uid: found.uid.hex,
+                           name: "UID \(found.uid.hex)",
+                           tag: type,
+                           sak: Int(found.sak),
+                           atqa: Array(found.atqa),
+                           ats: Array(found.ats),
+                           data: []))
+        savedUIDs.insert(found.uid.hex)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private var hfSection: some View {
+        VStack(spacing: 16) {
+            // the read button is always available — reading can be repeated any time
+            GlassCard {
+                VStack(spacing: 12) {
+                    Image(systemName: "creditcard.viewfinder")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.tint)
+                    Text(L10n.t("Place a HF tag on the Chameleon antenna"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button {
+                        Task { await readHF() }
+                    } label: {
+                        Label(readButtonTitle, systemImage: "play.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(phase == .scanning || phase == .checkingKeys || phase == .dumping || continuous)
+                }
+            }
+
+            continuousScanCard
 
             if let card, phase != .idle, phase != .scanning {
                 GlassCard {
@@ -124,6 +233,17 @@ struct ReadCardView: View {
                         if !mfuVersion.isEmpty {
                             row("Version", mfuVersion.hexSpaced)
                         }
+
+                        Divider()
+
+                        Button {
+                            saveUIDOnly(card: card,
+                                        type: isMifareClassic ? tagType : (mfuTypeDetermined == .unknown ? .unknown : mfuTypeDetermined))
+                        } label: {
+                            Label(L10n.t("Save UID only"), systemImage: "person.crop.circle.badge.checkmark")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
                     }
                 }
             }
@@ -266,6 +386,10 @@ struct ReadCardView: View {
             if try await !communicator.isReaderDeviceMode() {
                 try await communicator.setReaderDeviceMode(true)
             }
+            // default to the first Mifare dictionary, like the original app
+            if selectedDictionaryID == nil, let first = mifareDictionaries.first {
+                selectedDictionaryID = first.id
+            }
             guard let found = try await communicator.scan14443aTag() else {
                 error = L10n.t("No tag found")
                 phase = .idle
@@ -305,6 +429,7 @@ struct ReadCardView: View {
         phase = .checkingKeys
         do {
             let dictionary = mifareDictionaries.first { $0.id == selectedDictionaryID }
+                ?? mifareDictionaries.first   // fall back to auto-select, original behavior
             try await recoveryModel.checkKeys(dictionary: dictionary,
                                               skipDefaultDictionary: skipDefaultDictionary)
             if autoDump {

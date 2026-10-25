@@ -31,6 +31,7 @@ enum L10n {
         "OK": "确定",
         "Cancel": "取消",
         "Close": "关闭",
+        "Clear": "清除",
         "Save": "保存",
         "Delete": "删除",
         "Retry": "重试",

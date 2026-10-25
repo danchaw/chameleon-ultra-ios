@@ -86,14 +86,15 @@ struct SlotManagerView: View {
                                 try? await app.refreshSlots()
                             }
                         } label: {
-                            Label(L10n.t("Clear nickname"), systemImage: "xmark")
+                            Label(L10n.t("Clear"), systemImage: "xmark")
                         }
                     }
                 } label: {
-                    // "无卡片" when nothing is loaded; tapping opens the card menu + clear
-                    Text(name.isEmpty ? L10n.t("No card") : name)
+                    // unconfigured slots always show "无卡片", never blank
+                    let showName = !name.isEmpty && type != .unknown
+                    Text(showName ? name : L10n.t("No card"))
                         .font(.subheadline)
-                        .foregroundStyle(name.isEmpty ? Color.secondary.opacity(0.6) : Color.secondary)
+                        .foregroundStyle(showName ? Color.secondary : Color.secondary.opacity(0.6))
                         .lineLimit(1)
                 }
                 Spacer()

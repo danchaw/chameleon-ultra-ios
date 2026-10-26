@@ -73,7 +73,9 @@ struct SlotsEntryView: View {
             Spacer(minLength: 0)
         }
         .padding(4)
-        .widgetBackground()
+        .containerBackground(for: .widget) {
+            Color.clear
+        }
     }
 }
 

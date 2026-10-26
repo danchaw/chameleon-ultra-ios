@@ -15,6 +15,12 @@ struct ChameleonUltraApp: App {
                 .tint(Color(hexString: themeColor))
                 .environment(\.themeAccent, Color(hexString: themeColor))
                 .preferredColorScheme(ColorSchemePreference.current)
+                // Widget deep link: chameleonultra://activate/N
+                .onOpenURL { url in
+                    guard url.scheme == "chameleonultra", url.host == "activate",
+                          let slot = Int(url.lastPathComponent), (0..<8).contains(slot) else { return }
+                    Task { await app.activateSlot(slot) }
+                }
                 // Any appearance/language change rebuilds the tree so every
                 // L10n string and tint refreshes immediately (no restart).
                 .id("\(themeColor)|\(colorScheme)|\(appLanguage)")

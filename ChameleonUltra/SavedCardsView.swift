@@ -141,6 +141,49 @@ struct CardDetailView: View {
     @State private var showSaveAsSheet = false
     @State private var saveAsName = ""
     @State private var saveAsJSON = true
+    @State private var showComparePicker = false
+    @State private var compareTarget: CardSave?
+
+    /// Same block size, not this card — those are the only comparable dumps.
+    private var compareCandidates: [CardSave] {
+        store.cards.filter { $0.id != card.id && ($0.isMifareClassic == card.isMifareClassic) }
+    }
+
+    private var compareCandidatesList: some View {
+        NavigationStack {
+            Group {
+                if compareCandidates.isEmpty {
+                    Label(L10n.t("No comparable cards"), systemImage: "tray")
+                        .foregroundStyle(.secondary)
+                } else {
+                    List(compareCandidates) { candidate in
+                        NavigationLink {
+                            DumpEditorView(
+                                title: "\(card.name) ↔ \(candidate.name)",
+                                blocks: card.data.isEmpty
+                                    ? Array(repeating: [UInt8](repeating: 0, count: blockSize), count: card.tagType.blockCount)
+                                    : card.data,
+                                blockSize: blockSize,
+                                compareName: candidate.name,
+                                compareTo: candidate.data.isEmpty
+                                    ? Array(repeating: [UInt8](repeating: 0, count: blockSize), count: candidate.tagType.blockCount)
+                                    : candidate.data)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(candidate.name).font(.headline)
+                                Text("\(candidate.displayType) · \(candidate.data.count) \(L10n.t("Blocks"))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L10n.t("Select a card to compare"))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .presentationDetents([.medium, .large])
+    }
 
     private var blockSize: Int { card.isMifareClassic ? 16 : 4 }
 
@@ -257,6 +300,15 @@ struct CardDetailView: View {
 
                 Button {
                     hapticFeedback()
+                    showComparePicker = true
+                } label: {
+                    AccentLabel(L10n.t("Compare dump…"), "square.split.2x1")
+                }
+                .buttonStyle(ListRowHighlightStyle())
+                .disabled(compareCandidates.isEmpty)
+
+                Button {
+                    hapticFeedback()
                     saveAsName = card.name
                     saveAsJSON = true
                     showSaveAsSheet = true
@@ -291,6 +343,7 @@ struct CardDetailView: View {
         .sheet(isPresented: $showApplySheet) { applySheet }
         .sheet(isPresented: $showEditSheet) { editSheet }
         .sheet(isPresented: $showSaveAsSheet) { saveAsSheet }
+        .sheet(isPresented: $showComparePicker) { compareCandidatesList }
         .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(card)

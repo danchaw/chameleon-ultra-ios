@@ -6,12 +6,42 @@
 	} ;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CUW0000000000000000000003A /* ChameleonWidget.appex in Embed Foundation Extensions */ = { isa = PBXBuildFile; fileRef = CUW0000000000000000000001A /* ChameleonWidget.appex */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CUW0000000000000000000004A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CU0000000000000000000007A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CU0000000000000000000004A;
+			remoteInfo = ChameleonUltra;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CUW0000000000000000000006A /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CUW0000000000000000000003A /* ChameleonWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		CU0000000000000000000001A /* ChameleonUltra.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChameleonUltra.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CUW0000000000000000000001A /* ChameleonWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChameleonWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CU0000000000000000000002A /* ChameleonUltra */ = {isa = PBXFileSystemSynchronizedRootGroup; path = ChameleonUltra; sourceTree = "<group>"; };
+		CUW0000000000000000000002A /* ChameleonWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; path = ChameleonWidget; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXGroup section */
@@ -19,7 +49,9 @@
 			isa = PBXGroup;
 			children = (
 				CU0000000000000000000002A /* ChameleonUltra */,
+				CUW0000000000000000000002A /* ChameleonWidget */,
 				CU0000000000000000000001A /* ChameleonUltra.app */,
+				CUW0000000000000000000001A /* ChameleonWidget.appex */,
 			);
 			sourceTree = "<group>";
 		};
@@ -32,10 +64,12 @@
 			buildPhases = (
 				CU0000000000000000000006A /* Sources */,
 				CU00000000000000000000E0A /* Resources */,
+				CUW0000000000000000000006A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CUW0000000000000000000005A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				CU0000000000000000000002A /* ChameleonUltra */,
@@ -46,6 +80,26 @@
 			productName = ChameleonUltra;
 			productReference = CU0000000000000000000001A /* ChameleonUltra.app */;
 			productType = "com.apple.product-type.application";
+		};
+		CUW0000000000000000000007A /* ChameleonWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CUW0000000000000000000009A /* Build configuration list for PBXNativeTarget "ChameleonWidget" */;
+			buildPhases = (
+				CUW0000000000000000000008A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CUW0000000000000000000002A /* ChameleonWidget */,
+			);
+			name = ChameleonWidget;
+			packageProductDependencies = (
+			);
+			productName = ChameleonWidget;
+			productReference = CUW0000000000000000000001A /* ChameleonWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -59,6 +113,33 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXSourcesBuildPhase section */
+		CU0000000000000000000006A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CUW0000000000000000000008A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CUW0000000000000000000005A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CU0000000000000000000004A /* ChameleonUltra */;
+			targetProxy = CUW0000000000000000000004A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXProject section */
 		CU0000000000000000000007A /* Project object */ = {
 			isa = PBXProject;
@@ -68,6 +149,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					CU0000000000000000000004A = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					CUW0000000000000000000007A = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -85,6 +169,7 @@
 			preferredProjectObjectVersion = 77;
 			targets = (
 				CU0000000000000000000004A /* ChameleonUltra */,
+				CUW0000000000000000000007A /* ChameleonWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -147,9 +232,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "IconDark IconLight";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ChameleonUltra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Chameleon Ultra";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Chameleon Ultra GUI connects to your Chameleon Ultra / Lite device over Bluetooth LE to read, write and emulate NFC/RFID tags.";
@@ -164,7 +250,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.20.0;
+				MARKETING_VERSION = 1.21.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -180,9 +266,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "IconDark IconLight";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ChameleonUltra/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Chameleon Ultra";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Chameleon Ultra GUI connects to your Chameleon Ultra / Lite device over Bluetooth LE to read, write and emulate NFC/RFID tags.";
@@ -197,12 +284,66 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.20.0;
+				MARKETING_VERSION = 1.21.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CUW000000000000000000000AA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 41;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ChameleonWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.21.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CUW000000000000000000000BA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 41;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ChameleonWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.21.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -214,6 +355,15 @@
 			buildConfigurations = (
 				CU00000000000000000000C0A /* Debug */,
 				CU00000000000000000000D0A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CUW0000000000000000000009A /* Build configuration list for PBXNativeTarget "ChameleonWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CUW000000000000000000000AA /* Debug */,
+				CUW000000000000000000000BA /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

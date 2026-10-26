@@ -25,7 +25,11 @@ struct DumpEditorView: View {
 
     let title: String
     let blockSize: Int
-    var onSave: ([[UInt8]]) -> Void
+    /// read-only compare mode: shows a block-by-block diff against `compareTo`
+    var readOnly: Bool = false
+    var compareTo: [[UInt8]]? = nil
+    var compareName: String = ""
+    var onSave: ([[UInt8]]) -> Void = { _ in }
 
     @State private var blocks: [[UInt8]]
     @State private var hexLines: [String]
@@ -42,35 +46,148 @@ struct DumpEditorView: View {
         _asciiLines = State(initialValue: blocks.map { DumpEditorView.asciiString($0) })
     }
 
+    /// Read-only compare entry: diff this dump against another card's dump.
+    init(title: String, blocks: [[UInt8]], blockSize: Int,
+         compareName: String, compareTo: [[UInt8]]) {
+        self.init(title: title, blocks: blocks, blockSize: blockSize, onSave: { _ in })
+        self.readOnly = true
+        self.compareTo = compareTo
+        self.compareName = compareName
+        _mode = State(initialValue: .compare)
+    }
+
     var body: some View {
         List {
-            Picker(L10n.t("View"), selection: $mode) {
-                ForEach(ViewMode.allCases) { m in
-                    Text(m.label).tag(m)
+            if readOnly, compareTo != nil {
+                compareSection
+            } else {
+                Picker(L10n.t("View"), selection: $mode) {
+                    ForEach(ViewMode.allCases) { m in
+                        Text(m.label).tag(m)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .listRowBackground(Color.clear)
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
 
-            if let error {
-                Section { Text(error).foregroundStyle(.red).font(.footnote) }
-            }
+                if let error {
+                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
+                }
 
-            switch mode {
-            case .hex: hexSections
-            case .ascii: asciiSections
-            case .acl: aclSection
-            case .value: valueSection
-            case .compare: valueSection
+                switch mode {
+                case .hex: hexSections
+                case .ascii: asciiSections
+                case .acl: aclSection
+                case .value: valueSection
+                case .compare: valueSection
+                }
             }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(L10n.t("Save")) { save() }
+            if !readOnly {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L10n.t("Save")) { save() }
+                }
             }
         }
+    }
+
+    // MARK: - Card-to-card diff (read only)
+
+    private func padded(_ block: [UInt8]) -> [UInt8] {
+        var b = block
+        while b.count < blockSize { b.append(0) }
+        return Array(b.prefix(blockSize))
+    }
+
+    private var compareStats: (differing: Int, total: Int, differingBytes: Int) {
+        guard let other = compareTo else { return (0, 0, 0) }
+        let count = max(blocks.count, other.count)
+        var differing = 0
+        var diffBytes = 0
+        for i in 0..<count {
+            let mine = padded(i < blocks.count ? blocks[i] : [])
+            let theirs = padded(i < other.count ? other[i] : [])
+            if mine != theirs {
+                differing += 1
+                diffBytes += (0..<blockSize).filter { mine[$0] != theirs[$0] }.count
+            }
+        }
+        return (differing, count, diffBytes)
+    }
+
+    private var compareSection: some View {
+        let stats = compareStats
+        let other = compareTo ?? []
+        return Group {
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.tf("%d of %d blocks differ", stats.differing, stats.total))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(stats.differing == 0 ? Color.green : Color.orange)
+                    Text(L10n.tf("%d bytes differ in total", stats.differingBytes))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+            Section {
+                ForEach(0..<max(blocks.count, other.count), id: \.self) { index in
+                    compareRow(index, other: other)
+                }
+            } header: {
+                Text(L10n.t("Compare with") + " " + compareName)
+            }
+        }
+    }
+
+    private func compareRow(_ index: Int, other: [[UInt8]]) -> some View {
+        let mine = padded(index < blocks.count ? blocks[index] : [])
+        let theirs = padded(index < other.count ? other[index] : [])
+        let isDiff = mine != theirs
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                Text(String(format: "%03d", index))
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 34, alignment: .trailing)
+                Text(isDiff ? L10n.t("Different") : L10n.t("Identical"))
+                    .font(.system(size: 8, weight: .bold))
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(isDiff ? Color.red.opacity(0.18) : Color.green.opacity(0.18), in: Capsule())
+                    .foregroundStyle(isDiff ? Color.red : Color.green)
+                Spacer(minLength: 0)
+            }
+            Text(diffPreview(mine, other: theirs, showDiff: isDiff))
+                .font(.system(size: 11, design: .monospaced))
+            Text(diffPreview(theirs, other: mine, showDiff: isDiff))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 3)
+        .padding(.horizontal, 4)
+        .background(isDiff ? Color.red.opacity(0.05) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Two colored hex lines (this dump / other dump); differing bytes red.
+    private func diffPreview(_ bytes: [UInt8], other: [UInt8], showDiff: Bool) -> AttributedString {
+        let mineP = padded(bytes)
+        let otherP = padded(other)
+        var out = AttributedString()
+        for i in 0..<blockSize {
+            if i > 0 {
+                var sep = AttributedString(i % 4 == 0 ? "  " : " ")
+                sep.foregroundColor = .secondary
+                out.append(sep)
+            }
+            var piece = AttributedString(String(format: "%02X", mineP[i]))
+            if showDiff {
+                piece.foregroundColor = mineP[i] != otherP[i] ? Color.red : Color.secondary
+            }
+            out.append(piece)
+        }
+        return out
     }
 
     // MARK: - Grouping (Mifare Classic: sectors; UL/NTAG: 4-page groups)

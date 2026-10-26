@@ -10,15 +10,13 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = "system"
     @AppStorage("autoScan") private var autoScan = false
     @AppStorage("autoConnectFirst") private var autoConnectFirst = false
-    @AppStorage("iconFollowsSystem") private var iconFollowsSystem: Bool = true
-    @AppStorage("iconFixedChoice") private var iconFixedChoice: String = "dark"
     @State private var showSettingsImporter = false
     @State private var showSettingsShare = false
     @State private var settingsURL: URL?
     @State private var message: String?
 
-    static let appStringKeys = ["themeColor", "colorScheme", "appLanguage", "iconFixedChoice"]
-    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled", "iconFollowsSystem"]
+    static let appStringKeys = ["themeColor", "colorScheme", "appLanguage"]
+    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled"]
     static let settingsMagic = "chameleon-ultra-ios-settings"
 
     /// Exports app settings and — when a device is connected — the live
@@ -102,7 +100,6 @@ struct SettingsView: View {
                 ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
                 : L10n.t("Settings imported"))
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        app.applyIconPreference()   // imported file may carry icon preferences
     }
 
     /// Shown in About; reads the real bundle version so it never drifts.
@@ -110,43 +107,6 @@ struct SettingsView: View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
         return "Chameleon Ultra GUI for iOS \(version) (\(build))"
-    }
-
-    @ViewBuilder
-    private func iconChoice(kind: String) -> some View {
-        let active = iconFollowsSystem
-            ? (kind == "dark" ? app.appThemeIsDark : !app.appThemeIsDark)
-            : (iconFixedChoice == kind)
-        Button {
-            hapticFeedback()
-            if iconFollowsSystem { iconFollowsSystem = false }   // manual pick wins
-            iconFixedChoice = kind
-            app.applyIconPreference()
-        } label: {
-            VStack(spacing: 5) {
-                Image(kind == "dark" ? "IconPreviewDark" : "IconPreviewLight")
-                    .resizable()
-                    .frame(width: 62, height: 62)
-                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15, style: .continuous)
-                            .stroke(active ? Color.accentColor : Color.clear, lineWidth: 2.5)
-                    )
-                    .overlay(alignment: .bottomTrailing) {
-                        if active {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(.white, Color.accentColor)
-                                .padding(3)
-                        }
-                    }
-                Text(L10n.t(kind == "dark" ? "Dark icon" : "Light icon"))
-                    .font(.caption2)
-                    .foregroundStyle(active ? Color.primary : Color.secondary)
-            }
-        }
-        .buttonStyle(.plain)
-        .opacity(active ? 1 : 0.75)
     }
 
     var body: some View {
@@ -184,16 +144,6 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                // tappable icon previews — choosing one turns off auto-follow
-                HStack(alignment: .top, spacing: 16) {
-                    iconChoice(kind: "dark")
-                    iconChoice(kind: "light")
-                    Spacer(minLength: 0)
-                }
-                Toggle(L10n.t("Icon follows app theme"), isOn: $iconFollowsSystem)
-                Text(L10n.t("Tap an icon to switch manually; the switch above makes it follow the app theme."))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
 
             if app.isConnected {
@@ -256,16 +206,6 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(L10n.t("Settings"))
-        .onAppear { app.applyIconPreference() }
-        .onChange(of: colorScheme) { _, _ in app.applyIconPreference() }
-        .onChange(of: iconFollowsSystem) { _, _ in
-            hapticFeedback()
-            app.applyIconPreference()
-        }
-        .onChange(of: iconFixedChoice) { _, _ in
-            hapticFeedback()
-            app.applyIconPreference()
-        }
         .sheet(isPresented: $showSettingsImporter) {
             DocumentPicker(contentTypes: [UTType(filenameExtension: "cusettings") ?? .data, .json, .data]) { url in
                 Task { await importSettings(from: url) }

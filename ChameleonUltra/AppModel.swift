@@ -283,49 +283,6 @@ final class AppModel: ObservableObject {
         try await refreshSlots()
     }
 
-    // MARK: - App icon preference
-
-    /// iconFollowsSystem = true  -> primary icon set (light/dark luminosity
-    /// variants, iOS switches automatically with the system appearance).
-    /// false -> force the chosen alternate icon.
-
-    /// The appearance the app UI currently resolves to (own theme preference,
-    /// falling back to the system style when set to "system").
-    var appThemeIsDark: Bool {
-        switch UserDefaults.standard.string(forKey: "colorScheme") ?? "system" {
-        case "light": return false
-        case "dark": return true
-        default: return UITraitCollection.current.userInterfaceStyle == .dark
-        }
-    }
-
-    /// iconFollowsSystem = true  -> icon automatically mirrors the APP's own
-    /// theme (light/dark), not just the system appearance.
-    /// false -> user picked a fixed icon (iconFixedChoice: dark|light).
-    func applyIconPreference() {
-        let defaults = UserDefaults.standard
-        let follows = defaults.object(forKey: "iconFollowsSystem") as? Bool ?? true
-        let target: String
-        if follows {
-            target = appThemeIsDark ? "IconDark" : "IconLight"
-        } else {
-            target = defaults.string(forKey: "iconFixedChoice") == "light" ? "IconLight" : "IconDark"
-        }
-        guard UIApplication.shared.supportsAlternateIcons else { return }
-        // skip when the requested icon is already on the home screen —
-        // re-calling setAlternateIconName pops the system dialog again
-        if defaults.string(forKey: "lastAppliedIcon") == target { return }
-        UIApplication.shared.setAlternateIconName(target) { [weak self] error in
-            if let error {
-                self?.appendLog("Icon switch failed: \(error.localizedDescription)")
-            } else {
-                Task { @MainActor in
-                    defaults.set(target, forKey: "lastAppliedIcon")
-                }
-            }
-        }
-    }
-
     func disconnect() {
         communicator = nil
         ble.disconnect()

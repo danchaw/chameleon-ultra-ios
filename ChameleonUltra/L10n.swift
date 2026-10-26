@@ -90,8 +90,8 @@ enum L10n {
         "Write mode": "写入模式",
         "Normal": "正常",
         "Denied": "拒绝",
-        "Deceive": "欺骗",
-        "Shadow": "影子",
+        "Deceive": "假应答（不写入）",
+        "Shadow": "影子写入（不保存）",
         "Changes are applied to the device immediately.": "更改会立即应用到设备。",
         "Loading…": "加载中…",
 
@@ -359,6 +359,7 @@ enum L10n {
         "App icon": "应用图标",
         "Checking %d keys (sector %d, key %@)": "正在检查 %d 个密钥（扇区 %d，密钥 %@）",
         "Checking found key on sector %d, key %@": "正在用已找到的密钥检查扇区 %d（密钥 %@）",
+        "Write mode explanation": "写入模式说明——正常：写入立即生效；拒绝：拒绝一切写入请求；假应答：向读写器返回写入成功但不实际写入；影子写入：接受写入但仅保存在内存中，设备重启或切换卡槽后数据恢复原样。",
         "Tap an icon to switch manually; the switch above makes it follow the app theme.": "点按图标可手动切换；打开下方开关后，图标将随应用主题深浅自动变化。",
         "Icon follows app theme": "图标随应用主题深浅自动变化",
         "Fixed icon": "固定图标",

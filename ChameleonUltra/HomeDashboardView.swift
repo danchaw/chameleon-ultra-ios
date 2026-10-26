@@ -157,9 +157,11 @@ struct EmulatorSettingsSheet: View {
                         Toggle(L10n.t("Use anti-collision data from block 0"), isOn: antiCollBinding)
                         Picker(L10n.t("Write mode"), selection: writeModeBinding) {
                             ForEach(MifareWriteMode.allCases) { mode in
-                                Text(mode.displayName).tag(mode)
+                                Text(L10n.t(mode.displayName)).tag(mode)
                             }
                         }
+                    } footer: {
+                        Text(L10n.t("Write mode explanation"))
                     }
                     Section {
                         Text(L10n.t("Changes are applied to the device immediately."))

@@ -60,7 +60,82 @@ final class AppModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         logLines.append("\(formatter.string(from: Date())) \(line)")
-        if logLines.count > 800 { logLines.removeFirst(logLines.count - 800) }
+        // keep the viewer responsive: once the buffer grows past the threshold,
+        // roll the oldest lines into a timestamped .log archive file
+        if logLines.count > Self.logArchiveThreshold {
+            let batch = Array(logLines.prefix(Self.logArchiveBatch))
+            logLines.removeFirst(batch.count)
+            writeLogArchive(batch)
+        }
+    }
+
+    // MARK: - Log archiving
+
+    static let logArchiveThreshold = 1500   // lines before rolling over
+    static let logArchiveBatch = 1000       // lines per archived file
+
+    struct LogArchive: Identifiable {
+        let url: URL
+        var id: URL { url }
+        var name: String { url.lastPathComponent }
+        var sizeBytes: Int { (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0 }
+        var modifiedAt: Date? { try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
+        var formattedSize: String { ByteCountFormatter.string(fromByteCount: Int64(sizeBytes), countStyle: .file) }
+        var formattedDate: String {
+            guard let modifiedAt else { return "—" }
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            return f.string(from: modifiedAt)
+        }
+    }
+
+    static var logArchiveDirectory: URL {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("LogArchives", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    @discardableResult
+    private func writeLogArchive(_ lines: [String]) -> URL? {
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyy-MM-dd-HHmmss"
+        let url = Self.logArchiveDirectory
+            .appendingPathComponent("protocol-log-\(stamp.string(from: Date()))-\(UUID().uuidString.prefix(4)).log")
+        let text = lines.joined(separator: "\n") + "\n"
+        guard let data = text.data(using: .utf8) else { return nil }
+        do {
+            try data.write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    /// Archive everything currently in memory immediately (manual button).
+    @discardableResult
+    func archiveLogNow() -> Bool {
+        guard !logLines.isEmpty else { return false }
+        let lines = logLines
+        logLines = []
+        return writeLogArchive(lines) != nil
+    }
+
+    func listLogArchives() -> [LogArchive] {
+        let items = (try? FileManager.default.contentsOfDirectory(
+            at: Self.logArchiveDirectory,
+            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey])) ?? []
+        return items.filter { $0.pathExtension == "log" }
+            .map { LogArchive(url: $0) }
+            .sorted { ($0.modifiedAt ?? .distantPast) > ($1.modifiedAt ?? .distantPast) }
+    }
+
+    func deleteLogArchive(_ archive: LogArchive) {
+        try? FileManager.default.removeItem(at: archive.url)
+    }
+
+    func deleteAllLogArchives() {
+        listLogArchives().forEach { try? FileManager.default.removeItem(at: $0.url) }
     }
 
     // MARK: - Connection

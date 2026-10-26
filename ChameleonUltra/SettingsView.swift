@@ -378,10 +378,17 @@ struct DeviceSettingsView: View {
 
 struct LogsView: View {
     @EnvironmentObject var app: AppModel
+    @State private var statusMessage: String?
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
+                if let statusMessage {
+                    Text("✓ " + statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .padding(.bottom, 6)
+                }
                 ForEach(Array(app.logLines.enumerated().reversed()), id: \.offset) { _, line in
                     Text(line)
                         .font(.system(size: 11, design: .monospaced))
@@ -401,6 +408,128 @@ struct LogsView: View {
                     Image(systemName: "doc.on.doc")
                 }
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    hapticFeedback()
+                    if app.archiveLogNow() {
+                        statusMessage = L10n.t("Archived")
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                } label: {
+                    Image(systemName: "archivebox")
+                }
+                .accessibilityLabel(L10n.t("Archive now"))
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    LogArchivesView()
+                } label: {
+                    Image(systemName: "folder")
+                }
+            }
         }
+    }
+}
+
+/// Browse, export and delete rolled-over .log archives (manual or automatic).
+struct LogArchivesView: View {
+    @EnvironmentObject var app: AppModel
+    @State private var archives: [AppModel.LogArchive] = []
+    @State private var pendingDelete: AppModel.LogArchive?
+    @State private var confirmDeleteAll = false
+    @State private var showShare = false
+    @State private var shareURL: URL?
+
+    var body: some View {
+        List {
+            if archives.isEmpty {
+                Section {
+                    Label(L10n.t("No archives"), systemImage: "tray")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section {
+                    ForEach(archives) { archive in
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(archive.name)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .lineLimit(1)
+                                    .foregroundStyle(.primary)
+                                Text("\(archive.formattedSize) · \(archive.formattedDate)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button {
+                                hapticFeedback()
+                                shareURL = archive.url
+                                showShare = true
+                            } label: {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            Button {
+                                hapticFeedback(.medium)
+                                pendingDelete = archive
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                        }
+                        .padding(.vertical, 2)
+                    }
+                } header: {
+                    Text(L10n.t("Log archives"))
+                } footer: {
+                    Button(role: .destructive) {
+                        hapticFeedback(.medium)
+                        confirmDeleteAll = true
+                    } label: {
+                        Text(L10n.t("Delete all archives?"))
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .navigationTitle(L10n.t("Log archives"))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { refresh() }
+        .refreshable { refresh() }
+        .sheet(isPresented: $showShare) {
+            if let shareURL { ShareSheet(items: [shareURL]) }
+        }
+        .alert(L10n.t("Delete archive?"), isPresented: deleteShown) {
+            Button(L10n.t("Delete"), role: .destructive) {
+                if let pendingDelete { app.deleteLogArchive(pendingDelete) }
+                pendingDelete = nil
+                refresh()
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+            Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
+        } message: {
+            Text(L10n.t("This cannot be undone."))
+        }
+        .alert(L10n.t("Delete all archives?"), isPresented: $confirmDeleteAll) {
+            Button(L10n.t("Delete all"), role: .destructive) {
+                app.deleteAllLogArchives()
+                refresh()
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
+            Button(L10n.t("Cancel"), role: .cancel) {}
+        } message: {
+            Text(L10n.t("This cannot be undone."))
+        }
+    }
+
+    private var deleteShown: Binding<Bool> {
+        Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } })
+    }
+
+    private func refresh() {
+        archives = app.listLogArchives()
     }
 }

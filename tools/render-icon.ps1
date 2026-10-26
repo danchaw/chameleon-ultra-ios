@@ -96,6 +96,14 @@ function Render-Icon($path, $bgTop, $bgBottom, $strokeTop, $strokeBottom, $chipC
   $bmp.Dispose()
 }
 
+# Alternate icons are shipped as CLASSIC bundle files (ChameleonUltra/IconDark-*.png
+# and IconLight-*.png, listed under CFBundleIcons>CFBundleAlternateIcons>CFBundleIconFiles
+# in Info.plist): actool does not reliably compile extra .appiconset folders into
+# Assets.car (IconLight ended up missing), and a bare 1024 single-size alternate
+# renders BLANK on the home screen. After regenerating the two masters below,
+# also regenerate the classic sizes:
+#   sizes (px): 20,40(20@2x),60(20@3x/60),58,87,80,120(40@3x/60@2x),180,76,152,167(83.5@2x)
+
 $outDir = Join-Path $PSScriptRoot '..\ChameleonUltra\Assets.xcassets\AppIcon.appiconset'
 $outDir = (Resolve-Path (Join-Path $PSScriptRoot '..\ChameleonUltra\Assets.xcassets\AppIcon.appiconset')).Path
 

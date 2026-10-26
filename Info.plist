@@ -46,14 +46,37 @@
 		<dict>
 			<key>IconDark</key>
 			<dict>
-				<key>CFBundleIconName</key>
-				<string>IconDark</string>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>IconDark-20</string>
+					<string>IconDark-29</string>
+					<string>IconDark-40</string>
+					<string>IconDark-60</string>
+					<string>IconDark-76</string>
+					<string>IconDark-83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
 			</dict>
 			<key>IconLight</key>
 			<dict>
-				<key>CFBundleIconName</key>
-				<string>IconLight</string>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>IconLight-20</string>
+					<string>IconLight-29</string>
+					<string>IconLight-40</string>
+					<string>IconLight-60</string>
+					<string>IconLight-76</string>
+					<string>IconLight-83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
 			</dict>
+		</dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
 		</dict>
 	</dict>
 	<key>CFBundleIcons~ipad</key>
@@ -62,14 +85,37 @@
 		<dict>
 			<key>IconDark</key>
 			<dict>
-				<key>CFBundleIconName</key>
-				<string>IconDark</string>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>IconDark-20</string>
+					<string>IconDark-29</string>
+					<string>IconDark-40</string>
+					<string>IconDark-60</string>
+					<string>IconDark-76</string>
+					<string>IconDark-83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
 			</dict>
 			<key>IconLight</key>
 			<dict>
-				<key>CFBundleIconName</key>
-				<string>IconLight</string>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>IconLight-20</string>
+					<string>IconLight-29</string>
+					<string>IconLight-40</string>
+					<string>IconLight-60</string>
+					<string>IconLight-76</string>
+					<string>IconLight-83.5</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
 			</dict>
+		</dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
 		</dict>
 	</dict>
 </dict>

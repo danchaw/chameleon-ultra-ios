@@ -357,7 +357,8 @@ enum L10n {
         "Delete all": "全部删除",
         // app icon management
         "App icon": "应用图标",
-        "Icon follows system": "图标随系统深浅变化",
+        "Tap an icon to switch manually; the switch above makes it follow the app theme.": "点按图标即可手动切换；开启上方开关后图标将跟随应用主题深浅自动变化。",
+        "Icon follows app theme": "图标随应用主题深浅自动变化",
         "Fixed icon": "固定图标",
         "Dark icon": "深色图标",
         "Light icon": "浅色图标",

@@ -291,20 +291,36 @@ final class AppModel: ObservableObject {
     private var lastIconTarget: String?
     private var iconTargetApplied = false
 
+    /// The appearance the app UI currently resolves to (own theme preference,
+    /// falling back to the system style when set to "system").
+    var appThemeIsDark: Bool {
+        switch UserDefaults.standard.string(forKey: "colorScheme") ?? "system" {
+        case "light": return false
+        case "dark": return true
+        default: return UITraitCollection.current.userInterfaceStyle == .dark
+        }
+    }
+
+    /// iconFollowsSystem = true  -> icon automatically mirrors the APP's own
+    /// theme (light/dark), not just the system appearance.
+    /// false -> user picked a fixed icon (iconFixedChoice: dark|light).
     func applyIconPreference() {
         let defaults = UserDefaults.standard
         let follows = defaults.object(forKey: "iconFollowsSystem") as? Bool ?? true
-        let target: String? = follows ? nil
-            : (defaults.string(forKey: "iconFixedChoice") == "light" ? "IconLight" : "IconDark")
+        let target: String
+        if follows {
+            target = appThemeIsDark ? "IconDark" : "IconLight"
+        } else {
+            target = defaults.string(forKey: "iconFixedChoice") == "light" ? "IconLight" : "IconDark"
+        }
         guard UIApplication.shared.supportsAlternateIcons else { return }
-        if iconTargetApplied, target == lastIconTarget { return }   // no-op re-apply guard
+        if iconTargetApplied, target == lastIconTarget { return }
         lastIconTarget = target
         UIApplication.shared.setAlternateIconName(target) { [weak self] error in
             if let error {
                 self?.appendLog("Icon switch failed: \(error.localizedDescription)")
             } else {
                 Task { @MainActor in self?.iconTargetApplied = true }
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
         }
     }

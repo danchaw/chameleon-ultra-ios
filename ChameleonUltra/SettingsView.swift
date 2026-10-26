@@ -112,6 +112,43 @@ struct SettingsView: View {
         return "Chameleon Ultra GUI for iOS \(version) (\(build))"
     }
 
+    @ViewBuilder
+    private func iconChoice(kind: String) -> some View {
+        let active = iconFollowsSystem
+            ? (kind == "dark" ? app.appThemeIsDark : !app.appThemeIsDark)
+            : (iconFixedChoice == kind)
+        Button {
+            hapticFeedback()
+            if iconFollowsSystem { iconFollowsSystem = false }   // manual pick wins
+            iconFixedChoice = kind
+            app.applyIconPreference()
+        } label: {
+            VStack(spacing: 5) {
+                Image(kind == "dark" ? "IconPreviewDark" : "IconPreviewLight")
+                    .resizable()
+                    .frame(width: 62, height: 62)
+                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            .stroke(active ? Color.accentColor : Color.clear, lineWidth: 2.5)
+                    )
+                    .overlay(alignment: .bottomTrailing) {
+                        if active {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundStyle(.white, Color.accentColor)
+                                .padding(3)
+                        }
+                    }
+                Text(L10n.t(kind == "dark" ? "Dark icon" : "Light icon"))
+                    .font(.caption2)
+                    .foregroundStyle(active ? Color.primary : Color.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .opacity(active ? 1 : 0.75)
+    }
+
     var body: some View {
         List {
             Section(L10n.t("Appearance")) {
@@ -150,17 +187,19 @@ struct SettingsView: View {
                 HStack {
                     Text(L10n.t("App icon"))
                     Spacer()
-                    Toggle(L10n.t("Icon follows system"), isOn: $iconFollowsSystem)
+                    Toggle(L10n.t("Icon follows app theme"), isOn: $iconFollowsSystem)
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
-                if !iconFollowsSystem {
-                    Picker(L10n.t("Fixed icon"), selection: $iconFixedChoice) {
-                        Text(L10n.t("Dark icon")).tag("dark")
-                        Text(L10n.t("Light icon")).tag("light")
-                    }
-                    .pickerStyle(.segmented)
+                // tappable icon previews — choosing one turns off auto-follow
+                HStack(alignment: .top, spacing: 16) {
+                    iconChoice(kind: "dark")
+                    iconChoice(kind: "light")
+                    Spacer(minLength: 0)
                 }
+                Text(L10n.t("Tap an icon to switch manually; the switch above makes it follow the app theme."))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             if app.isConnected {
@@ -224,6 +263,7 @@ struct SettingsView: View {
         }
         .navigationTitle(L10n.t("Settings"))
         .onAppear { app.applyIconPreference() }
+        .onChange(of: colorScheme) { _, _ in app.applyIconPreference() }
         .onChange(of: iconFollowsSystem) { _, _ in
             hapticFeedback()
             app.applyIconPreference()

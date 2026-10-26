@@ -644,10 +644,13 @@ struct FlashingView: View {
         Task { @MainActor in
             do {
                 let entries = try ZipArchive.extract(zip)
-                guard let appDat = entries.first(where: { $0.name == "application.dat" })?.data,
-                      let appBin = entries.first(where: { $0.name == "application.bin" })?.data else {
+                guard let rawDat = entries.first(where: { $0.name == "application.dat" })?.data,
+                      let rawBin = entries.first(where: { $0.name == "application.bin" })?.data else {
                     throw ChameleonError.invalidResponse("application.dat / application.bin not found in package")
                 }
+                // zip-extracted payloads are Data slices — normalize to zero-based
+                let appDat = Data(rawDat)
+                let appBin = Data(rawBin)
 
                 let dfu = DFUCommunicator(ble: app.ble)
                 logCancellable = dfu.$log.receive(on: DispatchQueue.main).sink { lines in

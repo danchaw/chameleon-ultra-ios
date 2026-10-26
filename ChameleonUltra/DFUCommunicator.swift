@@ -166,7 +166,8 @@ final class DFUCommunicator: ObservableObject {
 
     // MARK: - Streaming
 
-    private func sendFirmware(_ data: Data, crc startCrc: UInt32, offset startOffset: Int) async throws -> UInt32 {
+    private func sendFirmware(_ rawData: Data, crc startCrc: UInt32, offset startOffset: Int) async throws -> UInt32 {
+        let data = Data(rawData)   // zero-based guarantee for index math below
         var crc = startCrc
         var offset = startOffset
         let chunkSize = max(64, (mtu - 1) / 2 - 1)
@@ -195,8 +196,11 @@ final class DFUCommunicator: ObservableObject {
         return crc
     }
 
-    func flashFirmware(objectType: UInt8, firmware: Data,
+    func flashFirmware(objectType: UInt8, firmware rawFirmware: Data,
                        progress: @escaping (Double) -> Void) async throws {
+        // normalize: zip-extracted Data is a slice with a non-zero startIndex,
+        // and all index math below assumes a zero-based buffer
+        let firmware = Data(rawFirmware)
         mtu = await getMTU()
         try await setPRN()
         addLog("DFU started (object \(objectType), \(firmware.count) bytes, mtu \(mtu))")

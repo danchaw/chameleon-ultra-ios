@@ -1,7 +1,25 @@
 {
   "images" : [
     {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
       "filename" : "AppIcon1024.png",
+      "idiom" : "universal",
+      "platform" : "ios",
+      "size" : "1024x1024"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "light"
+        }
+      ],
+      "filename" : "AppIconLight1024.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

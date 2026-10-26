@@ -10,13 +10,15 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = "system"
     @AppStorage("autoScan") private var autoScan = false
     @AppStorage("autoConnectFirst") private var autoConnectFirst = false
+    @AppStorage("iconFollowsSystem") private var iconFollowsSystem: Bool = true
+    @AppStorage("iconFixedChoice") private var iconFixedChoice: String = "dark"
     @State private var showSettingsImporter = false
     @State private var showSettingsShare = false
     @State private var settingsURL: URL?
     @State private var message: String?
 
-    static let appStringKeys = ["themeColor", "colorScheme", "appLanguage"]
-    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled"]
+    static let appStringKeys = ["themeColor", "colorScheme", "appLanguage", "iconFixedChoice"]
+    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled", "iconFollowsSystem"]
     static let settingsMagic = "chameleon-ultra-ios-settings"
 
     /// Exports app settings and — when a device is connected — the live
@@ -100,6 +102,7 @@ struct SettingsView: View {
                 ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
                 : L10n.t("Settings imported"))
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        app.applyIconPreference()   // imported file may carry icon preferences
     }
 
     /// Shown in About; reads the real bundle version so it never drifts.
@@ -143,6 +146,20 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                }
+                HStack {
+                    Text(L10n.t("App icon"))
+                    Spacer()
+                    Toggle(L10n.t("Icon follows system"), isOn: $iconFollowsSystem)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                if !iconFollowsSystem {
+                    Picker(L10n.t("Fixed icon"), selection: $iconFixedChoice) {
+                        Text(L10n.t("Dark icon")).tag("dark")
+                        Text(L10n.t("Light icon")).tag("light")
+                    }
+                    .pickerStyle(.segmented)
                 }
             }
 
@@ -206,6 +223,15 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(L10n.t("Settings"))
+        .onAppear { app.applyIconPreference() }
+        .onChange(of: iconFollowsSystem) { _, _ in
+            hapticFeedback()
+            app.applyIconPreference()
+        }
+        .onChange(of: iconFixedChoice) { _, _ in
+            hapticFeedback()
+            app.applyIconPreference()
+        }
         .sheet(isPresented: $showSettingsImporter) {
             DocumentPicker(contentTypes: [UTType(filenameExtension: "cusettings") ?? .data, .json, .data]) { url in
                 Task { await importSettings(from: url) }

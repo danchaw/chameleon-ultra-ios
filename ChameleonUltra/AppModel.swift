@@ -283,6 +283,27 @@ final class AppModel: ObservableObject {
         try await refreshSlots()
     }
 
+    // MARK: - App icon preference
+
+    /// iconFollowsSystem = true  -> primary icon set (light/dark luminosity
+    /// variants, iOS switches automatically with the system appearance).
+    /// false -> force the chosen alternate icon.
+    func applyIconPreference() {
+        let defaults = UserDefaults.standard
+        let follows = defaults.object(forKey: "iconFollowsSystem") as? Bool ?? true
+        let target: String? = follows ? nil
+            : (defaults.string(forKey: "iconFixedChoice") == "light" ? "IconLight" : "IconDark")
+        guard UIApplication.shared.supportsAlternateIcons else { return }
+        guard UIApplication.shared.applicationIconName != target else { return }
+        UIApplication.shared.setAlternateIconName(target) { [weak self] error in
+            if let error {
+                self?.appendLog("Icon switch failed: \(error.localizedDescription)")
+            } else {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
+    }
+
     func disconnect() {
         communicator = nil
         ble.disconnect()

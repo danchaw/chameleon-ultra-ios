@@ -355,6 +355,12 @@ enum L10n {
         "Delete archive?": "删除该归档？",
         "Delete all archives?": "删除全部归档？",
         "Delete all": "全部删除",
+        // app icon management
+        "App icon": "应用图标",
+        "Icon follows system": "图标随系统深浅变化",
+        "Fixed icon": "固定图标",
+        "Dark icon": "深色图标",
+        "Light icon": "浅色图标",
         "App settings": "应用设置",
         "Device settings applied": "设备设置已应用",
         "Device not connected — app settings only": "设备未连接——仅应用应用设置",

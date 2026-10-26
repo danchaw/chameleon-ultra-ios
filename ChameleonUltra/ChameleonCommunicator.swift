@@ -24,7 +24,14 @@ final class ChameleonCommunicator {
     private var parser = ChameleonFrameParser()
     private let logger: (String) -> Void
 
-    private var pending: [UInt16: CheckedContinuation<ChameleonMessage, Error>] = [:]
+    private struct PendingRequest {
+        let generation: Int
+        let continuation: CheckedContinuation<ChameleonMessage, Error>
+        let watchdog: Task<Void, Never>
+    }
+
+    private var pending: [UInt16: PendingRequest] = [:]
+    private var generationCounter = 0
 
     // FIFO gate – one command in flight at a time (BLE is half duplex anyway)
     private var busy = false
@@ -43,8 +50,13 @@ final class ChameleonCommunicator {
         let messages = parser.feed([UInt8](data))
         for message in messages {
             logger("⇐ cmd=\(message.command) status=\(message.status) len=\(message.data.count)")
-            if let continuation = pending.removeValue(forKey: message.command) {
-                continuation.resume(returning: message)
+            if let entry = pending.removeValue(forKey: message.command) {
+                // Cancel this attempt's watchdog. Without this, a watchdog left
+                // behind by an already-answered request fires later and kills a
+                // FOLLOWING attempt of the same command — the "Timeout waiting
+                // for response (2015)" cascade seen in device logs.
+                entry.watchdog.cancel()
+                entry.continuation.resume(returning: message)
             }
         }
     }
@@ -106,42 +118,54 @@ final class ChameleonCommunicator {
 
     /// Registers the response continuation synchronously (on the main actor)
     /// BEFORE the frame goes out, then writes in a child task and arms a
-    /// timeout watchdog — race free by construction.
+    /// timeout watchdog tagged with a fresh generation number — the watchdog
+    /// can only ever kill the attempt that created it.
     private func awaitResponse(for cmd: ChameleonCommand, frame: Data, timeout: TimeInterval) async throws -> ChameleonMessage {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ChameleonMessage, Error>) in
             guard pending[cmd.rawValue] == nil else {
                 continuation.resume(throwing: ChameleonError.invalidResponse("duplicate command \(cmd.rawValue)"))
                 return
             }
-            pending[cmd.rawValue] = continuation
+            generationCounter += 1
+            let generation = generationCounter
+
+            // watchdog: sleeps, then fails only THIS generation
+            let watchdog = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                } catch {
+                    return                      // cancelled (answered) or task torn down — do nothing
+                }
+                self.timeoutPending(cmd, generation: generation)
+            }
+
+            pending[cmd.rawValue] = PendingRequest(generation: generation,
+                                                    continuation: continuation,
+                                                    watchdog: watchdog)
 
             Task { [weak self] in
                 guard let self else { return }
                 do {
                     try await self.ble.write(frame)
                 } catch {
-                    self.failPending(cmd, error: error)
+                    self.failPending(cmd, generation: generation, error: error)
                 }
             }
-
-            Task { [weak self] in
-                guard let self else { return }
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                self.timeoutPending(cmd)
-            }
         }
     }
 
-    private func timeoutPending(_ cmd: ChameleonCommand) {
-        if let continuation = pending.removeValue(forKey: cmd.rawValue) {
-            continuation.resume(throwing: ChameleonError.timeout("\(cmd.rawValue)"))
-        }
+    private func timeoutPending(_ cmd: ChameleonCommand, generation: Int) {
+        guard let entry = pending[cmd.rawValue], entry.generation == generation else { return }
+        pending.removeValue(forKey: cmd.rawValue)
+        entry.continuation.resume(throwing: ChameleonError.timeout("\(cmd.rawValue)"))
     }
 
-    private func failPending(_ cmd: ChameleonCommand, error: Error) {
-        if let continuation = pending.removeValue(forKey: cmd.rawValue) {
-            continuation.resume(throwing: error)
-        }
+    private func failPending(_ cmd: ChameleonCommand, generation: Int, error: Error) {
+        guard let entry = pending[cmd.rawValue], entry.generation == generation else { return }
+        pending.removeValue(forKey: cmd.rawValue)
+        entry.watchdog.cancel()
+        entry.continuation.resume(throwing: error)
     }
 
     // MARK: - Device commands (ported 1:1)

@@ -162,13 +162,13 @@ struct EmulatorSettingsSheet: View {
                         }
                     }
                     Section {
-                        Text("Changes are applied to the device immediately.")
+                        Text(L10n.t("Changes are applied to the device immediately."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 } else {
                     Section {
-                        HStack { ProgressView(); Text("Loading…").foregroundStyle(.secondary) }
+                        HStack { ProgressView(); Text(L10n.t("Loading…")).foregroundStyle(.secondary) }
                     }
                 }
                 if let error {

@@ -123,7 +123,7 @@ struct DumpEditorView: View {
                     Spacer(minLength: 0)
                 }
                 // trailer byte segments
-                Text("Trailer bytes:")
+                Text(L10n.t("Trailer bytes"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 0) {
@@ -133,14 +133,14 @@ struct DumpEditorView: View {
                     byteSwatch(.blue, L10n.t("Key B"))
                 }
                 // value block byte segments
-                Text("Value block bytes:")
+                Text(L10n.t("Value block bytes"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 0) {
                     byteSwatch(.green, L10n.t("Value"))
                     byteSwatch(.teal, L10n.t("Address"))
                 }
-                Text("The colored line under each field is a live preview; the field itself stays plain while editing.")
+                Text(L10n.t("preview note"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

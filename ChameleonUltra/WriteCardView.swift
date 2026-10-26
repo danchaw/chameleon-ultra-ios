@@ -45,7 +45,7 @@ struct WriteCardView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Picker("Mode", selection: $mode) {
+                    Picker(L10n.t("Mode"), selection: $mode) {
                         ForEach(WriteMode.allCases) { Text(L10n.t($0.rawValue)).tag($0) }
                     }
                     .pickerStyle(.segmented)
@@ -86,7 +86,7 @@ struct WriteCardView: View {
                         Text(L10n.t("No saved Mifare Classic cards. Read one first."))
                             .font(.footnote).foregroundStyle(.secondary)
                     } else {
-                        Picker("Card", selection: $selectedCard) {
+                        Picker(L10n.t("Card"), selection: $selectedCard) {
                             ForEach(store.cards.filter { $0.isMifareClassic }) { card in
                                 Text("\(card.name) (\(card.displayType))").tag(card as CardSave?)
                             }
@@ -149,7 +149,7 @@ struct WriteCardView: View {
                 }
                 progress = Double(index + 1) / Double(blockCount)
             }
-            message = "Dump written (\(blockCount) blocks)"
+            message = L10n.tf("Dump written (%d blocks)", blockCount)
         } catch {
             self.error = error.localizedDescription
         }
@@ -232,7 +232,7 @@ struct WriteCardView: View {
                 throw ChameleonError.invalidResponse("Write not acknowledged")
             }
             progress = 1
-            message = "UID written: \(uid.hexSpaced)"
+            message = L10n.tf("UID written: %@", uid.hexSpaced)
         } catch {
             self.error = error.localizedDescription
         }
@@ -244,12 +244,12 @@ struct WriteCardView: View {
     private var lfCloneSection: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Clone LF card to T55xx").font(.headline)
+                Text(L10n.t("Clone LF card to T55xx")).font(.headline)
                 if store.cards.filter({ $0.tagType.frequency == .lf }).isEmpty {
                     Text(L10n.t("No saved LF cards. Read one first."))
                         .font(.footnote).foregroundStyle(.secondary)
                 } else {
-                    Picker("Card", selection: $selectedCard) {
+                    Picker(L10n.t("Card"), selection: $selectedCard) {
                         ForEach(store.cards.filter { $0.tagType.frequency == .lf }) { card in
                             Text("\(card.name) (\(card.tagType.displayName))").tag(card as CardSave?)
                         }
@@ -279,7 +279,7 @@ struct WriteCardView: View {
             let uid = card.uidData
             try await communicator.writeEM410XtoT55XX(uid: uid, newKey: Data(repeating: 0, count: 4), oldKeys: [])
             progress = 1
-            message = "T55xx written with \(card.tagType.displayName)"
+            message = L10n.tf("T55xx written with %@", card.tagType.displayName)
         } catch {
             self.error = error.localizedDescription
         }

@@ -305,7 +305,7 @@ final class CardStore: ObservableObject {
                 atqa = first.count >= 8 ? [first[7], first[6]] : []
             }
         }
-        return CardSave(uid: uid, name: "Imported dump", tag: type, sak: sak, atqa: atqa, data: blocks)
+        return CardSave(uid: uid, name: L10n.t("Imported dump"), tag: type, sak: sak, atqa: atqa, data: blocks)
     }
 
     private static func type(byDumpSize size: Int) -> TagType? {

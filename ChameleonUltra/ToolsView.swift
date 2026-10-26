@@ -35,7 +35,7 @@ struct ToolsView: View {
                 }
             }
             Section {
-                Label("Mifare Classic Gen4 config is not available in this build.",
+                Label(L10n.t("Mifare Classic Gen4 config is not available in this build."),
                       systemImage: "info.circle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -84,7 +84,7 @@ struct SniffingView: View {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Captured data (\(result.count) bytes)").font(.headline)
+                                Text("\(L10n.t("Captured data")) (\(result.count))").font(.headline)
                                 Spacer()
                                 Button {
                                     UIPasteboard.general.string = result.hexSpaced
@@ -93,7 +93,7 @@ struct SniffingView: View {
                                 }
                             }
                             if result.isEmpty {
-                                Text("Nothing captured.").foregroundStyle(.secondary)
+                                Text(L10n.t("Nothing captured.")).foregroundStyle(.secondary)
                             } else {
                                 Text(result.hexSpaced)
                                     .font(.system(size: 11, design: .monospaced))
@@ -147,7 +147,7 @@ struct T55XXPasswordCleanerView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.characters)
             } footer: {
-                Text("Resets a password-protected T55xx tag to factory defaults by writing the default configuration to page 0 with the given old password. Leave 00000000 for tags without a password.")
+                Text(L10n.t("t55xx cleaner description"))
             }
             Section {
                 Button {
@@ -181,7 +181,7 @@ struct T55XXPasswordCleanerView: View {
             }
             // default T55xx configuration word + reset
             try await communicator.writeT55XX(block: 0, word: Data([0x00, 0x00, 0x80, 0x40]), password: old.allSatisfy({ $0 == 0 }) ? nil : old)
-            message = "Reset command sent"
+            message = L10n.t("Reset command sent")
         } catch {
             self.error = error.localizedDescription
         }

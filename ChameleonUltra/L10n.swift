@@ -125,7 +125,6 @@ enum L10n {
         "Connect a Chameleon device first (Home tab).": "请先在首页连接 Chameleon 设备。",
 
         // saved cards
-        "Card": "卡片",
         "Type": "标签类型",
         "Blocks": "块数",
         "Export as JSON": "导出为 JSON",
@@ -283,9 +282,23 @@ enum L10n {
         "Pages": "页",
         "GPB": "GPB 选通字节",
         "Access bits": "访问控制位",
+        "Trailer bytes": "扇区尾块字节：",
+        "Value block bytes": "数值块字节：",
+        "preview note": "编辑框下方彩色行为实时预览（跟随输入刷新）；编辑框本身保持纯文本。",
+        "Not Mifare Classic": "非 Mifare Classic",
+        "Imported dump": "导入的转储",
+        "Frequency": "频段",
+        "HF 13.56 MHz": "高频 13.56 MHz",
+        "LF 125 kHz": "低频 125 kHz",
+        "Mode": "模式",
+        "Card": "卡片",
+        "Dump written (%d blocks)": "转储写入完成（%d 块）",
+        "UID written: %@": "UID 已写入：%@",
+        "T55xx written with %@": "T55xx 已写入 %@",
+        "t55xx cleaner description": "使用旧密码向第 0 页写入默认配置，把带密码保护的 T55xx 标签恢复为出厂状态。无密码标签请保持 00000000。",
 
         // v1.9.0
-"Block": "块",
+        "Block": "块",
         "Card actions": "卡片操作",
         // dump editor views
         "View": "视图",

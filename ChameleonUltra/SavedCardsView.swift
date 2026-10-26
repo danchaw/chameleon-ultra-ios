@@ -181,7 +181,7 @@ struct CardDetailView: View {
                     }
                     .buttonStyle(ListRowHighlightStyle())
                 } else {
-                    Label("Connect a device to emulate this card", systemImage: "antenna.radiowaves.left.and.right.slash")
+                    Label(L10n.t("Connect a device to emulate this card"), systemImage: "antenna.radiowaves.left.and.right.slash")
                         .foregroundStyle(.secondary)
                 }
             }

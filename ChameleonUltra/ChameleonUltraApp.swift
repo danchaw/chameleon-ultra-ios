@@ -5,6 +5,7 @@ struct ChameleonUltraApp: App {
     @StateObject private var app = AppModel.shared
     @AppStorage("themeColor") private var themeColor: String = "orange"
     @AppStorage("appLanguage") private var appLanguage: String = "system"
+    @AppStorage("colorScheme") private var colorScheme: String = "system"
 
     var body: some Scene {
         WindowGroup {
@@ -14,6 +15,9 @@ struct ChameleonUltraApp: App {
                 .tint(Color(hexString: themeColor))
                 .environment(\.themeAccent, Color(hexString: themeColor))
                 .preferredColorScheme(ColorSchemePreference.current)
+                // Any appearance/language change rebuilds the tree so every
+                // L10n string and tint refreshes immediately (no restart).
+                .id("\(themeColor)|\(colorScheme)|\(appLanguage)")
         }
     }
 }

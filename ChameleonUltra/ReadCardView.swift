@@ -66,9 +66,9 @@ struct ReadCardView: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Picker("Frequency", selection: $frequency) {
-                        Text("HF 13.56 MHz").tag(TagFrequency.hf)
-                        Text("LF 125 kHz").tag(TagFrequency.lf)
+                    Picker(L10n.t("Frequency"), selection: $frequency) {
+                        Text(L10n.t("HF 13.56 MHz")).tag(TagFrequency.hf)
+                        Text(L10n.t("LF 125 kHz")).tag(TagFrequency.lf)
                     }
                     .pickerStyle(.segmented)
 
@@ -230,7 +230,7 @@ struct ReadCardView: View {
                         row("ATS", card.ats.isEmpty ? "—" : card.ats.hexSpaced)
                         row("Type", isMifareClassic
                             ? tagType.displayName + (isEV1 ? " EV1" : "")
-                            : (mfuTypeDetermined == .unknown ? "Not Mifare Classic" : mfuTypeDetermined.displayName))
+                            : (mfuTypeDetermined == .unknown ? L10n.t("Not Mifare Classic") : mfuTypeDetermined.displayName))
                         if isMifareClassic {
                             row("PRNG", ntLevel.rawValue)
                         }
@@ -349,7 +349,7 @@ struct ReadCardView: View {
             if !mfuPages.isEmpty && !isMifareClassic {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Dump (\(mfuPages.count) pages)")
+                        Text("\(L10n.t("Dump")) (\(mfuPages.count) \(L10n.t("pages")))")
                             .font(.headline)
                         HexDumpView(blocks: mfuPages, blockSize: 4)
                         if phase == .done {

@@ -152,6 +152,7 @@ final class MifareClassicRecovery: ObservableObject {
             let totalChunks = chunks.count
 
             for chunk in chunks {
+                try Task.checkCancellation()
                 foundKey = try await communicator.mf1AuthMultipleKeys(
                     block: MifareClassic.sectorTrailerBlock(sector: sector),
                     keyType: UInt8(0x60 + keyType),
@@ -197,6 +198,7 @@ final class MifareClassicRecovery: ObservableObject {
 
     private func recheckKey(_ key: Data, startingSector: Int) async throws {
         for sector in startingSector..<sectorCount {
+            try Task.checkCancellation()
             for keyType in 0..<2 where mark(sector: sector, keyType: keyType) == .none {
                 let keyName = keyType == 0 ? "A" : "B"
                 state = "Checking found key on sector \(sector), key \(keyName)"
@@ -226,6 +228,7 @@ final class MifareClassicRecovery: ObservableObject {
         }
 
         for sector in 0..<sectorCount {
+            try Task.checkCancellation()
             for keyType in 0..<2 {
                 _ = try await checkKeysOnSector(keyList, keyType: keyType, sector: sector)
             }
@@ -246,6 +249,7 @@ final class MifareClassicRecovery: ObservableObject {
         let totalBlocks = isEV1 && mifareClassicType == .m1k ? 72 : mifareClassicType.blockCount
 
         for sector in 0..<sectorCount {
+            try Task.checkCancellation()
             for block in 0..<MifareClassic.blockCountInSector(sector: sector) {
                 let absoluteBlock = block + MifareClassic.firstBlockOfSector(sector: sector)
                 var blockData = Data()

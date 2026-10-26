@@ -193,6 +193,7 @@ struct T55XXPasswordCleanerView: View {
 
 struct DictionaryDownloadView: View {
     @EnvironmentObject var store: CardStore
+    @Environment(\.themeAccent) private var themeAccent
 
     /// name / url pairs identical to `dictionary_download.dart`
     private let sources: [(name: String, urlString: String)] = [
@@ -251,8 +252,8 @@ struct DictionaryDownloadView: View {
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule())
-                        .foregroundStyle(Color.accentColor)
+                        .background(themeAccent.opacity(0.15), in: Capsule())
+                        .foregroundStyle(themeAccent)
                 }
                 .buttonStyle(PressableButtonStyle())
             }

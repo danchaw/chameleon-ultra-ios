@@ -13,10 +13,12 @@ enum HFReadPhase: Equatable {
 struct ReadCardView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var store: CardStore
+    @Environment(\.themeAccent) private var themeAccent
 
     @State private var frequency: TagFrequency = .hf
     @State private var phase: HFReadPhase = .idle
     @State private var error: String?
+    @State private var checkTask: Task<Void, Never>?
 
     // HF state
     @State private var card: CardData?
@@ -79,6 +81,8 @@ struct ReadCardView: View {
         .onDisappear {
             scanTask?.cancel()
             scanTask = nil
+            checkTask?.cancel()
+            checkTask = nil
             continuous = false
         }
         .sheet(isPresented: $showSaveSheet) { saveSheet }
@@ -131,8 +135,8 @@ struct ReadCardView: View {
                                         .font(.caption.weight(.medium))
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
-                                        .background(Color.accentColor.opacity(0.15), in: Capsule())
-                                        .foregroundStyle(Color.accentColor)
+                                        .background(themeAccent.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(themeAccent)
                                 }
                                 .buttonStyle(PressableButtonStyle())
                             }
@@ -284,13 +288,27 @@ struct ReadCardView: View {
                             .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
 
                             Button {
-                                Task { await checkKeys(autoDump: true) }
+                                checkTask = Task { await checkKeys(autoDump: true) }
                             } label: {
                                 Label(L10n.t("Check keys & dump"), systemImage: "key.fill")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
                             .disabled(phase == .checkingKeys)
+                        }
+
+                        if phase == .checkingKeys || phase == .dumping {
+                            Button {
+                                hapticFeedback(.medium)
+                                checkTask?.cancel()
+                                checkTask = nil
+                            } label: {
+                                Label(L10n.t("Stop"), systemImage: "stop.circle.fill")
+                                    .font(.subheadline.weight(.medium))
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(themeAccent)
                         }
 
                         if phase == .dumping {
@@ -437,6 +455,11 @@ struct ReadCardView: View {
                 try await recoveryModel.dumpData()
             }
             phase = .done
+        } catch is CancellationError {
+            // user pressed Stop — keep whatever was already found
+            recoveryModel.state = ""
+            recoveryModel.keyCheckProgress = nil
+            phase = recoveryModel.allKeysExist || recoveryModel.checkMarks.contains(.found) ? .done : .cardFound
         } catch {
             self.error = error.localizedDescription
             phase = .cardFound

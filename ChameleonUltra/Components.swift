@@ -47,6 +47,7 @@ struct ListRowHighlightStyle: ButtonStyle {
 
         var body: some View {
             configuration.label
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .foregroundStyle(configuration.isPressed ? accent : Color.primary)
                 .background(configuration.isPressed ? accent.opacity(0.18) : Color.clear,
@@ -262,6 +263,7 @@ struct ErrorBanner: View {
 // MARK: - Slot picker (horizontal)
 
 struct SlotChanger: View {
+    @Environment(\.themeAccent) private var themeAccent
     @EnvironmentObject var app: AppModel
     @State private var animating = false
 
@@ -292,7 +294,7 @@ struct SlotChanger: View {
                         .padding(.vertical, 8)
                         .background(
                             app.activeSlot == slot
-                                ? AnyShapeStyle(Color.accentColor.opacity(0.25))
+                                ? AnyShapeStyle(themeAccent.opacity(0.25))
                                 : AnyShapeStyle(Color(.systemBackground).opacity(0.5))
                         )
                     }

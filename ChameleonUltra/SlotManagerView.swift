@@ -4,6 +4,7 @@ import SwiftUI
 struct SlotManagerView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var store: CardStore
+    @Environment(\.themeAccent) private var themeAccent
     @State private var error: String?
     @State private var busySlot: Int?
     @State private var confirmReset: (Int, TagFrequency)?
@@ -80,7 +81,7 @@ struct SlotManagerView: View {
                         }
                     }
                     if !name.isEmpty {
-                        Button(role: .destructive) {
+                        Button {
                             Task {
                                 try? await app.communicator?.deleteSlotTagNick(slot, frequency: frequency)
                                 try? await app.refreshSlots()
@@ -88,6 +89,7 @@ struct SlotManagerView: View {
                         } label: {
                             Label(L10n.t("Clear"), systemImage: "xmark")
                         }
+                        .tint(themeAccent)
                     }
                 } label: {
                     // unconfigured slots always show "无卡片", never blank
@@ -140,8 +142,8 @@ struct SlotManagerView: View {
                         .font(.subheadline.weight(.medium))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
-                        .background(Color.red.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.red)
+                        .background(themeAccent.opacity(0.15), in: Capsule())
+                        .foregroundStyle(themeAccent)
                 }
                 .buttonStyle(PressableButtonStyle())
 
@@ -154,7 +156,7 @@ struct SlotManagerView: View {
                             .font(.subheadline.weight(.medium))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
-                            .background(Color.accentColor, in: Capsule())
+                            .background(themeAccent, in: Capsule())
                             .foregroundStyle(.white)
                     }
                     .buttonStyle(PressableButtonStyle())

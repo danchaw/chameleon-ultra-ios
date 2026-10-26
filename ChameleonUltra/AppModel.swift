@@ -288,8 +288,6 @@ final class AppModel: ObservableObject {
     /// iconFollowsSystem = true  -> primary icon set (light/dark luminosity
     /// variants, iOS switches automatically with the system appearance).
     /// false -> force the chosen alternate icon.
-    private var lastIconTarget: String?
-    private var iconTargetApplied = false
 
     /// The appearance the app UI currently resolves to (own theme preference,
     /// falling back to the system style when set to "system").
@@ -314,13 +312,16 @@ final class AppModel: ObservableObject {
             target = defaults.string(forKey: "iconFixedChoice") == "light" ? "IconLight" : "IconDark"
         }
         guard UIApplication.shared.supportsAlternateIcons else { return }
-        if iconTargetApplied, target == lastIconTarget { return }
-        lastIconTarget = target
+        // skip when the requested icon is already on the home screen —
+        // re-calling setAlternateIconName pops the system dialog again
+        if defaults.string(forKey: "lastAppliedIcon") == target { return }
         UIApplication.shared.setAlternateIconName(target) { [weak self] error in
             if let error {
                 self?.appendLog("Icon switch failed: \(error.localizedDescription)")
             } else {
-                Task { @MainActor in self?.iconTargetApplied = true }
+                Task { @MainActor in
+                    defaults.set(target, forKey: "lastAppliedIcon")
+                }
             }
         }
     }

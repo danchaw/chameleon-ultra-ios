@@ -99,11 +99,13 @@ function Render-Icon($path, $bgTop, $bgBottom, $strokeTop, $strokeBottom, $chipC
 $outDir = Join-Path $PSScriptRoot '..\ChameleonUltra\Assets.xcassets\AppIcon.appiconset'
 $outDir = (Resolve-Path (Join-Path $PSScriptRoot '..\ChameleonUltra\Assets.xcassets\AppIcon.appiconset')).Path
 
-# Dark variant (as agreed)
+# Dark variant (also serves as the "Any" default slot; iOS requires an
+# appearance-free entry — AppIcon1024.png = Any, AppIconDark1024.png = Dark)
 Render-Icon (Join-Path $outDir 'AppIcon1024.png') `
   ([System.Drawing.Color]::FromArgb(255, 17, 24, 39)) ([System.Drawing.Color]::FromArgb(255, 3, 7, 18)) `
   ([System.Drawing.Color]::FromArgb(255, 16, 185, 129)) ([System.Drawing.Color]::FromArgb(255, 6, 182, 212)) `
   ([System.Drawing.Color]::FromArgb(255, 16, 185, 129)) ([System.Drawing.Color]::FromArgb(255, 3, 7, 18)) 205 153
+Copy-Item (Join-Path $outDir 'AppIcon1024.png') (Join-Path $outDir 'AppIconDark1024.png') -Force
 
 # Light variant
 Render-Icon (Join-Path $outDir 'AppIconLight1024.png') `

@@ -48,6 +48,7 @@ foreach ($p in $pairs) {
     $bmp.Dispose()
   }
   $img.Dispose()
-  ($contents -creplace 'NAME', $p.name) | Set-Content -Path ($dir + '\Contents.json') -Encoding UTF8
+  # ascii (not UTF8) — Set-Content -Encoding UTF8 emits a BOM that actool's JSON parser rejects
+  ($contents -creplace 'NAME', $p.name) | Set-Content -Path ($dir + '\Contents.json') -Encoding ascii
   Write-Output ($p.name + ' set done')
 }

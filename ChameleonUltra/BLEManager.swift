@@ -220,14 +220,28 @@ final class BLEManager: NSObject, ObservableObject {
         var offset = 0
         while offset < payload.count {
             if !peripheral.canSendWriteWithoutResponse {
+                // Wait for the ready callback, but never hang forever:
+                // a missed callback would stall the whole transfer.
                 await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
                     readyToSendContinuation = continuation
+                    Task { [weak self] in
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+                        if let pending = self?.readyToSendContinuation {
+                            self?.readyToSendContinuation = nil
+                            pending.resume()
+                        }
+                    }
                 }
                 continue
             }
             let end = min(offset + 20, payload.count)
             peripheral.writeValue(payload.subdata(in: offset..<end), for: dfuData, type: .withoutResponse)
             offset = end
+            // Per-packet pacing: without this the bursts overflow the
+            // device RX queue and DFU reports "offset mismatch" (~60 B lost).
+            if offset < payload.count {
+                try? await Task.sleep(nanoseconds: 8_000_000)
+            }
         }
     }
 

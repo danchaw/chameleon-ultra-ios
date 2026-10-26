@@ -40,95 +40,16 @@
 	<string>Chameleon Ultra GUI connects to your Chameleon Ultra / Lite device over Bluetooth LE to read, write and emulate NFC/RFID tags.</string>
 	<key>NSAccentColorName</key>
 	<string>AccentColor</string>
-	<key>CFBundleIcons</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
+	<key>CFBundleURLTypes</key>
+	<array>
 		<dict>
-			<key>CFBundleIconFiles</key>
+			<key>CFBundleURLName</key>
+			<string>com.chameleonultragui.ios</string>
+			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>AppIcon</string>
+				<string>chameleonultra</string>
 			</array>
-			<key>CFBundleIconName</key>
-			<string>AppIcon</string>
-			<key>UIPrerenderedIcon</key>
-			<true/>
 		</dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>IconDark</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconDark-20</string>
-					<string>IconDark-29</string>
-					<string>IconDark-40</string>
-					<string>IconDark-60</string>
-					<string>IconDark-76</string>
-					<string>IconDark-83.5</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<true/>
-			</dict>
-			<key>IconLight</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconLight-20</string>
-					<string>IconLight-29</string>
-					<string>IconLight-40</string>
-					<string>IconLight-60</string>
-					<string>IconLight-76</string>
-					<string>IconLight-83.5</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
-	<key>CFBundleIcons~ipad</key>
-	<dict>
-		<key>CFBundlePrimaryIcon</key>
-		<dict>
-			<key>CFBundleIconFiles</key>
-			<array>
-				<string>AppIcon</string>
-			</array>
-			<key>CFBundleIconName</key>
-			<string>AppIcon</string>
-			<key>UIPrerenderedIcon</key>
-			<true/>
-		</dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>IconDark</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconDark-20</string>
-					<string>IconDark-29</string>
-					<string>IconDark-40</string>
-					<string>IconDark-60</string>
-					<string>IconDark-76</string>
-					<string>IconDark-83.5</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<true/>
-			</dict>
-			<key>IconLight</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconLight-20</string>
-					<string>IconLight-29</string>
-					<string>IconLight-40</string>
-					<string>IconLight-60</string>
-					<string>IconLight-76</string>
-					<string>IconLight-83.5</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
+	</array>
 </dict>
 </plist>

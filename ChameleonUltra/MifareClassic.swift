@@ -144,7 +144,7 @@ final class MifareClassicRecovery: ObservableObject {
 
     private func checkKeysOnSector(_ keys: [Data], keyType: Int, sector: Int) async throws -> Bool {
         let keyName = keyType == 0 ? "A" : "B"
-        state = "Checking \(keys.count) keys (sector \(sector), key \(keyName))"
+        state = L10n.tf("Checking %d keys (sector %d, key %@)", keys.count, sector, keyName)
         var foundKey: Data?
         keyCheckProgress = nil
 
@@ -206,7 +206,7 @@ final class MifareClassicRecovery: ObservableObject {
             try Task.checkCancellation()
             for keyType in 0..<2 where mark(sector: sector, keyType: keyType) == .none {
                 let keyName = keyType == 0 ? "A" : "B"
-                state = "Checking found key on sector \(sector), key \(keyName)"
+                state = L10n.tf("Checking found key on sector %d, key %@", sector, keyName)
                 setMark(.checking, sector: sector, keyType: keyType)
                 if try await communicator.mf1Auth(block: MifareClassic.sectorTrailerBlock(sector: sector),
                                                   keyType: UInt8(0x60 + keyType), key: key) {

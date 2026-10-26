@@ -184,19 +184,13 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                HStack {
-                    Text(L10n.t("App icon"))
-                    Spacer()
-                    Toggle(L10n.t("Icon follows app theme"), isOn: $iconFollowsSystem)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                }
                 // tappable icon previews — choosing one turns off auto-follow
                 HStack(alignment: .top, spacing: 16) {
                     iconChoice(kind: "dark")
                     iconChoice(kind: "light")
                     Spacer(minLength: 0)
                 }
+                Toggle(L10n.t("Icon follows app theme"), isOn: $iconFollowsSystem)
                 Text(L10n.t("Tap an icon to switch manually; the switch above makes it follow the app theme."))
                     .font(.caption2)
                     .foregroundStyle(.secondary)

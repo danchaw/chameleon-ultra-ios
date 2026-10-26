@@ -72,10 +72,7 @@ struct FlashingView: View {
                     GlassCard {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(L10n.t("Downloading firmware…")).font(.headline)
-                            ProgressView(value: downloadProgress)
-                            Text("\(Int(downloadProgress * 100))%")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
+                            SegmentedProgress(progress: downloadProgress, count: 18)
                         }
                     }
                 }
@@ -310,8 +307,9 @@ struct FlashingView: View {
                         .buttonStyle(.borderedProminent)
                     }
                 } else {
-                    ProgressView(value: app.dfuProgress ?? 0)
-                    Text("\(L10n.t("Flashing…")) \(Int((app.dfuProgress ?? 0) * 100))% — \(L10n.t("keep the app in the foreground"))")
+                    SegmentedProgress(progress: app.dfuProgress ?? 0)
+                        .padding(.top, 4)
+                    Text("\(L10n.t("Flashing…")) — \(L10n.t("keep the app in the foreground"))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

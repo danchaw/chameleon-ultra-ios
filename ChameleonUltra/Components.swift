@@ -86,6 +86,57 @@ struct DeviceImageView: View {
     }
 }
 
+// MARK: - Segmented progress bar (design A: blocks + right percentage)
+
+/// LED-style segmented progress: filled blocks in the theme color, empty
+/// blocks as outlined slots, the leading filled block softly pulsing while
+/// progress is running. Percentage shown right-aligned in monospaced digits.
+struct SegmentedProgress: View {
+    let progress: Double          // 0...1
+    var count: Int = 22
+    @Environment(\.themeAccent) private var accent
+    @State private var pulse = false
+
+    private var filled: Int {
+        max(0, min(count, Int((Swift.min(max(progress, 0), 1) * Double(count)).rounded(.down))))
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            GeometryReader { geo in
+                let spacing: CGFloat = 3
+                let blockWidth = max(3, (geo.size.width - CGFloat(count - 1) * spacing) / CGFloat(count))
+                HStack(spacing: spacing) {
+                    ForEach(0..<count, id: \.self) { i in
+                        let isFilled = i < filled
+                        let isHead = i == filled - 1 && progress > 0 && progress < 1
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(isFilled ? accent : Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                    .stroke(isFilled ? Color.clear
+                                                      : Color.secondary.opacity(0.30), lineWidth: 1)
+                            )
+                            .opacity(isHead ? (pulse ? 0.55 : 1) : 1)
+                            .frame(width: blockWidth, height: geo.size.height)
+                    }
+                }
+            }
+            .frame(height: 16)
+
+            Text("\(Int((Swift.min(max(progress, 0), 1) * 100).rounded()))%")
+                .font(.subheadline.bold().monospacedDigit())
+                .foregroundStyle(accent)
+        }
+        .animation(pulse ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : .default,
+                   value: pulse)
+        .onAppear { pulse = progress > 0 && progress < 1 }
+        .onChange(of: progress) { _, newValue in
+            pulse = newValue > 0 && newValue < 1
+        }
+    }
+}
+
 // MARK: - Liquid-glass style card
 
 struct GlassCard<Content: View>: View {

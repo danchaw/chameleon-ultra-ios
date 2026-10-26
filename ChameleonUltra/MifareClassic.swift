@@ -48,6 +48,11 @@ enum MifareClassic {
         sector < 32 ? 4 : 16
     }
 
+    /// Original mfClassicGetSectorByBlock.
+    static func sectorByBlock(_ block: Int) -> Int {
+        block < 128 ? block / 4 : 32 + (block - 128) / 16
+    }
+
     /// Build a block 0 from UID/SAK/ATQA (reference: proxmark magic_cards_notes).
     static func patchFirstBlock(_ original: Data, uid: Data, sak: UInt8, atqa: Data, vanitySak: Bool) -> Data {
         var block0 = original.count >= 16 ? original : Data(repeating: 0, count: 16)

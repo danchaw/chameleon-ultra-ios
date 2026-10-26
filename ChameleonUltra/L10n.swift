@@ -277,6 +277,12 @@ enum L10n {
         // key check options (original: additional_key_dict)
         "Additional key dictionary": "附加密钥字典",
         "Skip default keys": "跳过默认密钥",
+        "Sector": "扇区",
+        "Trailer": "扇区尾块",
+        "Legend": "图例",
+        "Pages": "页",
+        "GPB": "GPB 选通字节",
+        "Access bits": "访问控制位",
 
         // v1.9.0
 "Block": "块",

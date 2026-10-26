@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Hex dump editor with color-coded block kinds and multiple views
-/// (HEX / ASCII / ACL / Value / Compare) — port of the original
-/// `dump_editor` + `dump_highlighter`, simplified.
+/// Hex dump editor: sector-grouped blocks, byte-level color coding with an
+/// explanatory legend, plus ASCII / ACL / Value / Compare views
+/// (port of the original `dump_editor` + `dump_highlighter`, simplified).
 struct DumpEditorView: View {
 
     enum ViewMode: String, CaseIterable, Identifiable {
@@ -57,8 +57,8 @@ struct DumpEditorView: View {
             }
 
             switch mode {
-            case .hex: hexSection
-            case .ascii: asciiSection
+            case .hex: hexSections
+            case .ascii: asciiSections
             case .acl: aclSection
             case .value: valueSection
             case .compare: valueSection
@@ -73,22 +73,96 @@ struct DumpEditorView: View {
         }
     }
 
-    // MARK: - HEX (editable, color coded)
+    // MARK: - Grouping (Mifare Classic: sectors; UL/NTAG: 4-page groups)
 
-    private var hexSection: some View {
-        Section {
-            // legend
-            HStack(spacing: 10) {
-                legendDot(.blue, L10n.t("Manufacturer"))
-                legendDot(.green, L10n.t("Value block"))
-                legendDot(.purple, L10n.t("Trailer"))
+    private var groups: [(header: String, indices: [Int])] {
+        var result: [(String, [Int])] = []
+        if blockSize == 16 {
+            var sector = 0
+            var start = 0
+            while start < blocks.count {
+                let count = min(MifareClassic.blockCountInSector(sector: sector), blocks.count - start)
+                result.append(("\(L10n.t("Sector")) \(sector)", Array(start..<(start + count))))
+                start += count
+                sector += 1
             }
-            .font(.caption2)
-            .listRowBackground(Color.clear)
+        } else {
+            var start = 0
+            while start < blocks.count {
+                let end = min(start + 3, blocks.count - 1)
+                result.append(("\(L10n.t("Pages")) \(start)–\(end)", Array(start...end)))
+                start += 4
+            }
+        }
+        return result
+    }
 
-            ForEach(blocks.indices, id: \.self) { index in
-                hexRow(index)
+    // MARK: - HEX (grouped, byte-colored, editable)
+
+    private var hexSections: some View {
+        Group {
+            legendSection
+            ForEach(groups.indices, id: \.self) { g in
+                Section(groups[g].header) {
+                    ForEach(groups[g].indices, id: \.self) { index in
+                        hexRow(index)
+                    }
+                }
             }
+        }
+    }
+
+    private var legendSection: some View {
+        Section(L10n.t("Legend")) {
+            VStack(alignment: .leading, spacing: 10) {
+                // block-kind row colors
+                HStack(spacing: 12) {
+                    blockSwatch(.blue, L10n.t("Manufacturer"))
+                    blockSwatch(.green, L10n.t("Value block"))
+                    blockSwatch(.purple, L10n.t("Trailer"))
+                    Spacer(minLength: 0)
+                }
+                // trailer byte segments
+                Text("Trailer bytes:")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 0) {
+                    byteSwatch(.red, L10n.t("Key A"))
+                    byteSwatch(.purple, L10n.t("Access bits"))
+                    byteSwatch(.gray, L10n.t("GPB"))
+                    byteSwatch(.blue, L10n.t("Key B"))
+                }
+                // value block byte segments
+                Text("Value block bytes:")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 0) {
+                    byteSwatch(.green, L10n.t("Value"))
+                    byteSwatch(.teal, L10n.t("Address"))
+                }
+                Text("The colored line under each field is a live preview; the field itself stays plain while editing.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func blockSwatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(color.opacity(0.30))
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(color, lineWidth: 1))
+                .frame(width: 14, height: 14)
+            Text(label).font(.caption2)
+        }
+    }
+
+    private func byteSwatch(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 3) {
+            Rectangle().fill(color).frame(width: 10, height: 10)
+            Text(label).font(.system(size: 9))
+            Spacer(minLength: 6)
         }
     }
 
@@ -102,37 +176,19 @@ struct DumpEditorView: View {
                     .frame(width: 34, alignment: .trailing)
                 kindBadge(kind)
                 Spacer(minLength: 0)
-                if kind == .trailer {
-                    trailerSegments
-                }
             }
-            TextField("", text: $hexLines[index])
+            // read-only colored byte preview of the current content
+            Text(previewText(index, kind: kind))
                 .font(.system(size: 12, design: .monospaced))
+                .fixedSize(horizontal: false, vertical: true)
+            TextField("", text: $hexLines[index])
+                .font(.system(size: 11, design: .monospaced))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.characters)
                 .padding(6)
-                .background(rowTint(kind).opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+                .background(rowTint(kind), in: RoundedRectangle(cornerRadius: 6))
         }
         .padding(.vertical, 2)
-    }
-
-    /// KeyA | access | GPB | KeyB proportions inside a trailer row.
-    private var trailerSegments: some View {
-        HStack(spacing: 2) {
-            Capsule().fill(Color.red.opacity(0.65)).frame(width: 18)
-            Text(L10n.t("Key A")).font(.system(size: 7)).foregroundStyle(.red)
-            Capsule().fill(Color.purple.opacity(0.65)).frame(width: 12)
-            Text(L10n.t("ACB")).font(.system(size: 7)).foregroundStyle(.purple)
-            Capsule().fill(Color.blue.opacity(0.65)).frame(width: 18)
-            Text(L10n.t("Key B")).font(.system(size: 7)).foregroundStyle(.blue)
-        }
-    }
-
-    private func legendDot(_ color: Color, _ text: String) -> some View {
-        HStack(spacing: 3) {
-            Circle().fill(color).frame(width: 7, height: 7)
-            Text(text)
-        }
     }
 
     @ViewBuilder
@@ -160,32 +216,76 @@ struct DumpEditorView: View {
 
     private func rowTint(_ kind: BlockKind) -> Color {
         switch kind {
-        case .manufacturer: return .blue
-        case .value: return .green
-        case .trailer: return .purple
-        case .data: return .secondary.opacity(0.1)
+        case .manufacturer: return .blue.opacity(0.10)
+        case .value: return .green.opacity(0.10)
+        case .trailer: return .purple.opacity(0.10)
+        case .data: return Color(.tertiarySystemFill)
         }
     }
 
-    // MARK: - ASCII (editable)
+    /// Live colored hex preview. Reflects the CURRENT text in the edit field,
+    /// so the coloring follows the user's typing (once the field is valid hex).
+    private func previewText(_ index: Int, kind: BlockKind) -> AttributedString {
+        let clean = hexLines[index].replacingOccurrences(of: " ", with: "")
+        let bytes: [UInt8]
+        if clean.count == blockSize * 2, clean.allSatisfy(\.isHexDigit) {
+            bytes = Array(Data(hex: clean))
+        } else {
+            bytes = blocks[index]
+        }
+        var out = AttributedString()
+        for i in 0..<blockSize {
+            if i > 0 {
+                var sep = AttributedString(i % 4 == 0 ? "  " : " ")
+                sep.foregroundColor = .secondary
+                out.append(sep)
+            }
+            let byte = i < bytes.count ? bytes[i] : 0
+            var piece = AttributedString(String(format: "%02X", byte))
+            piece.foregroundColor = byteColor(byte: i, kind: kind)
+            out.append(piece)
+        }
+        return out
+    }
 
-    private var asciiSection: some View {
-        Section {
-            ForEach(blocks.indices, id: \.self) { index in
-                HStack(spacing: 8) {
-                    Text(String(format: "%03d", index))
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 34, alignment: .trailing)
-                    TextField("", text: $asciiLines[index])
-                        .font(.system(size: 13, design: .monospaced))
-                        .autocorrectionDisabled()
+    private func byteColor(byte: Int, kind: BlockKind) -> Color {
+        switch kind {
+        case .manufacturer:
+            return .blue
+        case .trailer:
+            if byte < 6 { return .red }                     // Key A
+            if byte < 9 { return .purple }                  // access bits C1-C3
+            if byte == 9 { return .gray }                   // GPB
+            return .blue                                    // Key B
+        case .value:
+            if byte < 12 { return .green }                  // value / inverse / duplicate
+            return .teal                                    // address + guards
+        case .data:
+            return .primary
+        }
+    }
+
+    // MARK: - ASCII (grouped, editable)
+
+    private var asciiSections: some View {
+        ForEach(groups.indices, id: \.self) { g in
+            Section(groups[g].header) {
+                ForEach(groups[g].indices, id: \.self) { index in
+                    HStack(spacing: 8) {
+                        Text(String(format: "%03d", index))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 34, alignment: .trailing)
+                        TextField("", text: $asciiLines[index])
+                            .font(.system(size: 13, design: .monospaced))
+                            .autocorrectionDisabled()
+                    }
                 }
             }
         }
     }
 
-    // MARK: - ACL (access conditions, read only)
+    // MARK: - ACL (per sector)
 
     private var aclSection: some View {
         Section {
@@ -196,7 +296,7 @@ struct DumpEditorView: View {
             ForEach(trailers, id: \.self) { index in
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text("\(L10n.t("Block")) \(index)")
+                        Text("\(L10n.t("Sector")) \(MifareClassic.sectorByBlock(index))")
                             .font(.caption.weight(.semibold))
                         Spacer()
                         Text(String(format: "%02X %02X %02X", blocks[index][6], blocks[index][7], blocks[index][8]))
@@ -230,7 +330,7 @@ struct DumpEditorView: View {
                 let addr = b[12]
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
-                        Text("\(L10n.t("Block")) \(index)")
+                        Text("\(L10n.t("Block")) \(index) · \(L10n.t("Sector")) \(MifareClassic.sectorByBlock(index))")
                             .font(.caption.weight(.semibold))
                         Spacer()
                         Text("\(L10n.t("Value")): \(value)   \(L10n.t("Address")): \(addr)")
@@ -256,7 +356,6 @@ struct DumpEditorView: View {
     // MARK: - Save
 
     private func save() {
-        // HEX lines are the source of truth when edited
         var newBlocks: [[UInt8]] = []
         for (index, line) in hexLines.enumerated() {
             let clean = line.replacingOccurrences(of: " ", with: "")
@@ -280,17 +379,19 @@ struct DumpEditorView: View {
 
     func blockKind(_ index: Int) -> BlockKind {
         if index == 0 { return .manufacturer }
-        if trailerIndices().contains(index) { return .trailer }
+        if trailerSet.contains(index) { return .trailer }
         if isValueBlock(blocks[index]) { return .value }
         return .data
     }
 
+    private var trailerSet: Set<Int> { Set(trailerIndices()) }
 
     private func trailerIndices() -> [Int] {
+        guard blockSize == 16 else { return [] }
         var trailers: [Int] = []
         var sector = 0
         while true {
-            let trailer = sector < 32 ? sector * 4 + 3 : 32 * 4 + (sector - 32) * 16 + 15
+            let trailer = MifareClassic.sectorTrailerBlock(sector: sector)
             if trailer >= blocks.count { break }
             trailers.append(trailer)
             sector += 1

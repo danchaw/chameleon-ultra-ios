@@ -150,7 +150,7 @@ struct EmulatorSettingsSheet: View {
         NavigationStack {
             List {
                 if settings != nil {
-                    Section(L10n.t("Mifare Classic emulator")) {
+                    Section {
                         Toggle(L10n.t("Key detection (mfkey32)"), isOn: detectionBinding)
                         Toggle(L10n.t("Gen1a mode"), isOn: gen1aBinding)
                         Toggle(L10n.t("Gen2 mode"), isOn: gen2Binding)
@@ -160,6 +160,8 @@ struct EmulatorSettingsSheet: View {
                                 Text(L10n.t(mode.displayName)).tag(mode)
                             }
                         }
+                    } header: {
+                        Text(L10n.t("Mifare Classic emulator"))
                     } footer: {
                         Text(L10n.t("Write mode explanation"))
                     }

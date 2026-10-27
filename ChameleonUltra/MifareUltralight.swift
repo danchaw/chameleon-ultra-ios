@@ -25,10 +25,6 @@ enum MifareUltralight {
         return try await communicator.send14ARaw(Data([0x60]), options: options)
     }
 
-    static func isUlc(via communicator: ChameleonCommunicator) async -> Bool {
-        guard let resp = try? await communicator.send14ARaw(Data([0x1A, 0x00])) else { return false }
-        return resp.count >= 9 && resp.first == 0xAF
-    }
 
     /// Read the full dump: returns 4-byte pages.
     static func readDump(via communicator: ChameleonCommunicator, type: TagType) async throws -> [[UInt8]] {
@@ -53,28 +49,5 @@ enum MifareUltralight {
             pages = Array(pages[0..<pageCount])
         }
         return pages
-    }
-
-    /// WRITE page command (0xA2) – standard for UL EV1 / NTAG.
-    @discardableResult
-    static func writePage(via communicator: ChameleonCommunicator, page: Int, data: Data) async throws -> Bool {
-        var options = ChameleonCommunicator.Raw14AOptions()
-        options.appendCrc = true
-        options.respTimeoutMs = 200
-        guard data.count == 4 else { return false }
-        let resp = try await communicator.send14ARaw(Data([0xA2, UInt8(page)]) + data, options: options)
-        return !resp.isEmpty && resp.first == 0x0A
-    }
-
-    /// Build the first 3 pages (12 bytes) from a 7-byte UID.
-    static func firstPages(uid: Data) -> [[UInt8]] {
-        guard uid.count == 7 else { return [] }
-        let bcc1 = 0x88 ^ uid[uid.startIndex] ^ uid[uid.startIndex + 1] ^ uid[uid.startIndex + 2]
-        let bcc2 = uid[uid.startIndex + 3] ^ uid[uid.startIndex + 4] ^ uid[uid.startIndex + 5] ^ uid[uid.startIndex + 6]
-        return [
-            [uid[uid.startIndex], uid[uid.startIndex + 1], uid[uid.startIndex + 2], bcc1],
-            [uid[uid.startIndex + 3], uid[uid.startIndex + 4], uid[uid.startIndex + 5], uid[uid.startIndex + 6]],
-            [bcc2, 0x48, 0x00, 0x00],
-        ]
     }
 }

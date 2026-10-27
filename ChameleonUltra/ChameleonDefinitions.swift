@@ -451,15 +451,6 @@ struct DeviceSettings {
     var wakeTimeSeconds: Int? = nil
 }
 
-struct DetectionResult {
-    var block: Int
-    var type: Int
-    var isNested: Bool
-    var uid: UInt32
-    var nt: UInt32
-    var nr: UInt32
-    var ar: UInt32
-}
 
 // MARK: - LF cards
 

@@ -42,7 +42,6 @@ extension Data {
     }
 }
 
-func hexToData(_ hex: String) -> Data { Data(hex: hex) }
 
 extension UInt16 {
     var bytesBE: [UInt8] { [UInt8(self >> 8), UInt8(self & 0xFF)] }

@@ -28,9 +28,7 @@ enum L10n {
     // swiftlint:disable:next function_body_length
     private static let zhTable: [String: String] = [
         // common (original: ok/cancel/close/save/delete/…)
-        "OK": "确定",
         "Cancel": "取消",
-        "Close": "关闭",
         "Clear": "清除",
         "Save": "保存",
         "Delete": "删除",
@@ -39,11 +37,7 @@ enum L10n {
         "Deselect all": "取消全选",
         "Retry": "重试",
         "Done": "完成",
-        "Yes": "是",
-        "No": "否",
         "Unknown": "未知",
-        "Search": "搜索",
-        "Copy": "复制",
         "name, UID or type": "名称、UID 或类型",
 
         // tabs & titles (original: home/read_card/saved_cards/write_card/settings/tools/…)
@@ -103,10 +97,8 @@ enum L10n {
         "LF": "低频",
         "Tag type": "标签类型",
         "Not set": "未设置",
-        "Load saved card…": "载入已保存卡片…",
         "Reset slot": "重置卡槽",
         "Activate": "激活",
-        "Deactivate": "停用",
         "active": "激活",
         "Save slot names to flash": "将卡槽名称保存到闪存",
 
@@ -114,7 +106,6 @@ enum L10n {
         "Place a HF tag on the Chameleon antenna": "将 HF 标签贴近 Chameleon 天线",
         "Place a LF tag on the Chameleon antenna": "将 LF 标签贴近 Chameleon 天线",
         "Read tag": "读取标签",
-        "Reading tag…": "正在读取标签…",
         "No tag found": "未找到卡片。尝试在卡片上移动 Chameleon",
         "No LF tag found": "未找到 LF 卡片",
         "Check keys & dump": "检查密钥并转储",
@@ -124,7 +115,6 @@ enum L10n {
         "Dump": "转储",
         "pages": "页",
         "Info": "信息",
-        "Checking keys": "正在校验密钥",
         "Connect a Chameleon device first (Home tab).": "请先在首页连接 Chameleon 设备。",
 
         // saved cards
@@ -185,7 +175,6 @@ enum L10n {
         "Accent color": "主题色",
         "Language": "语言",
         "Device": "设备",
-        "Firmware update (DFU)": "固件更新 (DFU)",
         "About": "关于",
         "License": "许可证",
         "Original project (Flutter)": "原项目 (Flutter)",
@@ -233,9 +222,6 @@ enum L10n {
 
         // dictionary download (original: dictionary_download)
         "Dictionary download": "字典下载",
-        "Mifare Classic keys (proxmark3)": "Mifare Classic 密钥 (proxmark3)",
-        "T55xx passwords (proxmark3)": "T55xx 密码 (proxmark3)",
-        "Mifare Ultralight C keys (proxmark3)": "Mifare Ultralight C 密钥 (proxmark3)",
         "Download": "下载",
         "Downloaded": "已下载",
         "Download failed": "下载失败",
@@ -261,12 +247,8 @@ enum L10n {
         "This clears the slot data on the device.": "这将清除设备上该卡槽的数据。",
 
         // apply feedback
-        "Applying…": "正在应用…",
-        "Applied to slot": "已应用到卡槽",
         "Applied to slot %d": "已应用到卡槽 %d",
-        "Applied": "已应用",
         "Export": "导出",
-        "Imported %d": "已导入 %d",
         "Imported": "已导入",
         "No compatible cards found in file": "文件中没有兼容的卡片",
 
@@ -310,21 +292,15 @@ enum L10n {
         "Value": "数值",
         "Compare": "对比",
         "Key B": "密钥 B",
-        "ACB": "访问位",
         "Value block": "数值块",
         "Manufacturer": "厂商块",
         "Address": "地址",
-        "Valid": "有效",
-        "Invalid": "无效",
         "No value blocks": "未发现数值块",
         "Factory default": "出厂默认",
         "Open access": "开放访问",
-        "Load card…": "载入卡片…",
-        "Clear nickname": "清除昵称",
 
         "Long press threshold": "长按阈值",
         "ms": "毫秒",
-        "Export slot data": "导出卡槽数据",
         "Save to file": "保存到文件",
         "Export to new card": "导出到新卡片",
         "Update saved card…": "更新已保存的卡片…",
@@ -346,9 +322,7 @@ enum L10n {
         "Import settings": "导入设置",
         "Export settings": "导出设置",
         "Invalid hex": "无效的十六进制数据",
-        "Slot exported": "卡槽已导出",
         "Card updated": "卡片已更新",
-        "Select card…": "选择卡片…",
         "No dump data": "没有转储数据",
         "JSON": "JSON",
         "Binary": "二进制",
@@ -356,7 +330,6 @@ enum L10n {
         // settings management
         "Settings management": "设置管理",
         "Invalid settings file": "无效的设置文件",
-        "Settings exported": "设置已导出",
         "Settings imported": "设置已导入",
         "Archive now": "立即归档",
         "Archived": "已归档",
@@ -387,8 +360,6 @@ enum L10n {
         "Re-read tag": "重新读取",
         "Save UID only": "仅保存 UID",
         "Saved": "已保存",
-        "UID saved": "UID 已保存",
-        "Cards found": "发现的卡片",
 
         // DFU entry (original: enter_dfu)
         "Enter DFU mode": "进入 DFU 模式",
@@ -422,15 +393,12 @@ enum L10n {
         "Package isn't signed": "固件包未签名",
         "Firmware hash mismatch — wrong or damaged file": "固件哈希不匹配——文件错误或已损坏",
         "Manifest app size does not match bin size": "清单应用尺寸与 bin 实际大小不符",
-        "Firmware verification failed — nothing was flashed.": "固件校验失败——未进行任何刷入。",
         "Flash this firmware": "刷入此固件",
         "Force flash (unsafe)": "强制刷入（危险）",
         "Confirm firmware flash": "确认刷入固件",
         "Flashing the wrong firmware can permanently brick your Chameleon. Continue?": "刷入错误的固件可能使您的 Chameleon 永久变砖。确定继续吗？",
         "This package FAILED verification. Force flashing will very likely damage your device. Really continue?": "该固件包未通过校验，强制刷入极有可能损坏您的设备。真的要继续吗？",
         "Flash": "刷入",
-        "Download and flash": "下载固件",
-        "Re-flash": "重新刷入",
         "Timed out waiting for the DFU device. Power-cycle the Chameleon and try again.": "等待 DFU 设备超时。请重启 Chameleon 后重试。",
         "Done! Firmware updated — the device is rebooting.": "完成！固件已更新——设备正在重启。",
         "Sending init packet…": "正在发送 init packet…",

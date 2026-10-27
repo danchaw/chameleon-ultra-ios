@@ -215,12 +215,6 @@ final class ChameleonCommunicator {
         try await sendCmd(.setActiveSlot, data: Data([UInt8(slot)]))
     }
 
-    /// The firmware has no explicit "deactivate" command — disabling both
-    /// frequencies of the slot is the equivalent (the slot stops emulating).
-    func deactivateSlot(_ slot: Int) async throws {
-        try await enableSlot(slot, frequency: .hf, status: false)
-        try await enableSlot(slot, frequency: .lf, status: false)
-    }
 
     func getActiveSlot() async throws -> Int {
         Int(try await sendCmd(.getActiveSlot).data.first ?? 0)
@@ -242,10 +236,6 @@ final class ChameleonCommunicator {
         try await sendCmd(.setSlotTagNick, data: Data([UInt8(index), frequency.rawValue]) + Data(name.utf8))
     }
 
-    func getSlotTagName(_ index: Int, frequency: TagFrequency) async throws -> String {
-        let data = try await sendCmd(.getSlotTagNick, data: Data([UInt8(index), frequency.rawValue])).data
-        return String(data: data, encoding: .utf8) ?? ""
-    }
 
     func getSlotTagNames() async throws -> [SlotNames] {
         let data = try await sendCmd(.getAllSlotNicks).data
@@ -336,13 +326,7 @@ final class ChameleonCommunicator {
         try await sendCmd(.setSleepTimeout, data: Data([UInt8(seconds)]))
     }
 
-    func getBLEConnectionKey() async throws -> String {
-        String(data: try await sendCmd(.bleGetConnectKey).data, encoding: .utf8) ?? ""
-    }
 
-    func setBLEConnectKey(_ key: String) async throws {
-        try await sendCmd(.bleSetConnectKey, data: Data(key.utf8))
-    }
 
     func isBLEPairEnabled() async throws -> Bool {
         try await sendCmd(.bleGetPairEnable).data.first == 1
@@ -352,13 +336,7 @@ final class ChameleonCommunicator {
         try await sendCmd(.bleSetPairEnable, data: Data([status ? 1 : 0]))
     }
 
-    func clearBLEBoundedDevices() async throws {
-        try await sendCmd(.bleClearBondedDevices, skipReceive: true)
-    }
 
-    func saveSettings() async throws {
-        try await sendCmd(.saveSettings)
-    }
 
     func resetSettings() async throws {
         try await sendCmd(.resetSettings)
@@ -469,32 +447,7 @@ final class ChameleonCommunicator {
         return Self.parseCardData(data) ?? CardData(uid: Data(), sak: 0, atqa: Data(), ats: Data())
     }
 
-    func getMf1DetectionCount() async throws -> Int {
-        let data = try await sendCmd(.mf1GetDetectionCount).data
-        guard data.count >= 4 else { return 0 }
-        return Int(Int32(bitPattern: data.readU32(at: 0)))
-    }
 
-    func getMf1DetectionResults(count: Int) async throws -> [DetectionResult] {
-        var results: [DetectionResult] = []
-        while results.count < count {
-            let resp = try await sendCmd(.mf1GetDetectionResult,
-                                         data: Data(UInt32(results.count).bytesBE)).data
-            guard !resp.isEmpty else { break }
-            var pos = 0
-            while pos + 18 <= resp.count {
-                results.append(DetectionResult(block: Int(resp[resp.startIndex + pos]),
-                                               type: 0x60 + (Int(resp[resp.startIndex + pos + 1]) & 0x01),
-                                               isNested: ((resp[resp.startIndex + pos + 1] >> 1) & 0x01) == 0x01,
-                                               uid: resp.readU32(at: pos + 2),
-                                               nt: resp.readU32(at: pos + 6),
-                                               nr: resp.readU32(at: pos + 10),
-                                               ar: resp.readU32(at: pos + 14)))
-                pos += 18
-            }
-        }
-        return results
-    }
 
     // MARK: - 14A raw
 
@@ -567,9 +520,6 @@ final class ChameleonCommunicator {
         try await sendCmd(.mf1SetDetectionEnable, data: Data([enabled ? 1 : 0]))
     }
 
-    func isMf1DetectionMode() async throws -> Bool {
-        try await sendCmd(.mf1GetDetectionStatus).data.first == 1
-    }
 
     // MARK: - LF
 
@@ -673,9 +623,6 @@ final class ChameleonCommunicator {
         }
     }
 
-    func writeLFToT55XX(command: ChameleonCommand, uid: Data, newKey: Data, oldKeys: [Data]) async throws {
-        try await sendCmd(command, data: uid + newKey + newKey + oldKeys.reduce(Data(), +))
-    }
 
     func writeT55XX(block: Int, word: Data, password: Data? = nil, page1: Bool = false) async throws {
         let pwd = password ?? Data(repeating: 0, count: 4)
@@ -700,17 +647,8 @@ final class ChameleonCommunicator {
         throw ChameleonError.invalidResponse("HF sniff failed with status \(resp.status)")
     }
 
-    // MARK: - Mifare Ultralight C
 
-    func mf0UlcAuth(key: Data) async throws -> Bool {
-        try await sendCmd(.mf0UlcAuth, data: key).status == 0
-    }
 
-    func mf0UlcReadPages(key: Data, page: Int, count: Int) async throws -> Data {
-        try await sendCmd(.mf0UlcRead, data: key + Data([UInt8(page), UInt8(count)])).data
-    }
 
-    func mf0UlcWritePage(key: Data, page: Int, data: Data) async throws -> Bool {
-        try await sendCmd(.mf0UlcWrite, data: key + Data([UInt8(page)]) + data).status == 0
-    }
+
 }

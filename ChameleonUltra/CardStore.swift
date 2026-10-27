@@ -95,17 +95,6 @@ struct CardSave: Identifiable, Codable, Equatable, Hashable {
         if let folderId { try c.encode(folderId, forKey: .folderId) }
     }
 
-    static func fromBinaryDump(_ dump: Data, uid: String, sak: Int, atqa: [UInt8],
-                               name: String, tag: TagType) -> CardSave {
-        let blockSize = tag.isMifareClassic ? 16 : 4
-        var blocks: [[UInt8]] = []
-        var offset = 0
-        while offset + blockSize <= dump.count {
-            blocks.append(Array(dump[offset..<offset + blockSize]))
-            offset += blockSize
-        }
-        return CardSave(uid: uid, name: name, tag: tag, sak: sak, atqa: atqa, data: blocks)
-    }
 }
 
 /// Key dictionary, JSON-compatible with the original app.

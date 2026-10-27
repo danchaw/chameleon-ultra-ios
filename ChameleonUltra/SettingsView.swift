@@ -170,6 +170,12 @@ struct SettingsView: View {
                 } label: {
                     AccentLabel(L10n.t("Manage regions"), "map")
                 }
+                Button {
+                    app.geofence.requestAlwaysAuthorization()
+                } label: {
+                    AccentLabel(L10n.t("Allow background triggers"), "lock.badge.clock")
+                }
+                .buttonStyle(.plain)
                 Text(app.geofence.statusText)
                     .font(.footnote)
                     .foregroundStyle(.secondary)

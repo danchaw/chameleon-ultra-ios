@@ -36,6 +36,7 @@ enum L10n {
         "Geofence": "电子围栏",
         "Enable geofence": "启用电子围栏",
         "Manage regions": "管理区域",
+        "Allow background triggers": "允许后台触发（锁屏生效）",
         "Location services are off": "定位服务未开启",
         "Location permission denied": "定位权限被拒绝",
         "Requesting location permission…": "正在请求定位权限…",

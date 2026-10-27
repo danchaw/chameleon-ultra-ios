@@ -85,6 +85,17 @@ final class GeofenceManager: NSObject, ObservableObject {
         pendingConfirm.insert(region.id)
         manager.startUpdatingLocation()
     }
+
+    /// Ask for "Always" so fence events wake the app while the phone is
+    /// locked (iOS shows a second confirmation in Settings).
+    func requestAlwaysAuthorization() {
+        manager.requestAlwaysAuthorization()
+    }
+
+    /// True when the user has granted Always (locked-screen fence triggers).
+    var hasAlwaysAccess: Bool {
+        manager.authorizationStatus == .authorizedAlways
+    }
 }
 
 // CLLocationManager delivers callbacks on the thread that created it —

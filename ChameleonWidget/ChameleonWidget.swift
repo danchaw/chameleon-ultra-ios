@@ -1,9 +1,12 @@
 import WidgetKit
 import SwiftUI
+import ActivityKit
 
 // Slot quick-switch widget: 8 tappable slots. Each slot is a Link that
 // opens the app via URL scheme (chameleonultra://activate/N) — the app
-// then activates that slot over its existing BLE connection.
+// then activates that slot over its existing BLE connection. Slot aliases
+// come from the Live Activity's content state when present (works without
+// App Group), falling back to the App Group snapshot.
 
 struct SlotsEntry: TimelineEntry {
     let date: Date
@@ -25,10 +28,17 @@ struct SlotsProvider: TimelineProvider {
     }
 
     private func read() -> SlotsEntry {
-        // newest snapshot first — aliases belong to the last device used
-        let snaps = WidgetStore.snapshots().first
         var entry = SlotsEntry(date: Date())
-        if let aliases = snaps?.slotAliases, aliases.count == 8 {
+        // Live Activity is the preferred alias source: ActivityKit delivers
+        // it to this extension without an App Group, so it works even when
+        // the sideload tool strips shared-container entitlements.
+        if let aliases = Activity<ChameleonActivityAttributes>.activities.first?.contentState.slotAliases,
+           aliases.count == 8 {
+            entry.aliases = aliases
+            return entry
+        }
+        // fallback: App Group snapshot of the last device used
+        if let aliases = WidgetStore.snapshots().first?.slotAliases, aliases.count == 8 {
             entry.aliases = aliases
         }
         return entry
@@ -122,6 +132,6 @@ struct SlotSwitcherWidget: Widget {
 struct ChameleonWidgetBundle: WidgetBundle {
     var body: some Widget {
         SlotSwitcherWidget()
-        DeviceStatusWidget()
+        ChameleonLiveActivity()
     }
 }

@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
 import Combine
+import ActivityKit
+import WidgetKit
 
 /// Central application state – connection lifecycle, device status, slot info.
 @MainActor
@@ -91,6 +93,66 @@ final class AppModel: ObservableObject {
         }
         entry.updatedAt = Date()
         DeviceSnapshot.upsert(entry)
+        syncLiveActivity()
+    }
+
+    // MARK: - Live Activity (lock screen / Dynamic Island status card)
+    //
+    // ActivityKit carries this state to the system UI WITHOUT an App Group
+    // entitlement, so it survives aggressive re-signing that strips shared
+    // containers. The SlotSwitcher widget also reads the alias array from the
+    // live activity for the same reason.
+
+    private var liveActivity: Activity<ChameleonActivityAttributes>?
+
+    private func makeActivityState(connected: Bool) -> ChameleonActivityAttributes.ContentState {
+        var slotName = ""
+        if activeSlot >= 0, activeSlot < slotNames.count {
+            let names = slotNames[activeSlot]
+            slotName = names.hf.isEmpty ? names.lf : names.hf
+        }
+        return .init(deviceName: displayDeviceName,
+                     connected: connected,
+                     batteryPercent: battery?.percent,
+                     batteryMillivolts: battery?.voltage,
+                     activeSlot: activeSlot,
+                     slotName: slotName,
+                     slotAliases: slotAliases,
+                     updatedAt: Date())
+    }
+
+    private func syncLiveActivity() {
+        if isConnected {
+            let state = makeActivityState(connected: true)
+            if let activity = liveActivity {
+                Task { try? await activity.update(.init(state: state, sticky: false)) }
+                return
+            }
+            // adopt an activity left over from an earlier app run
+            if let existing = Activity<ChameleonActivityAttributes>.activities.first {
+                liveActivity = existing
+                Task { try? await existing.update(.init(state: state, sticky: false)) }
+                return
+            }
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            let attributes = ChameleonActivityAttributes(deviceName: displayDeviceName,
+                                                         deviceTypeName: deviceType.displayName)
+            Task {
+                guard let activity = try? await Activity.request(
+                    attributes: attributes,
+                    content: .init(state: state, sticky: false),
+                    dismissalPolicy: .default) else { return }
+                liveActivity = activity
+                // slot widget reads aliases from the live activity — refresh now
+                // that it exists
+                WidgetCenter.shared.reloadTimelines(ofKind: "SlotSwitcher")
+            }
+        } else if let activity = liveActivity {
+            liveActivity = nil
+            let finalState = makeActivityState(connected: false)
+            Task { try? await activity.end(.init(state: finalState, sticky: false),
+                                           dismissalPolicy: .default) }
+        }
     }
 
     // MARK: - Device registry (user-editable names, shared with the widget)
@@ -109,8 +171,6 @@ final class AppModel: ObservableObject {
         if let data = try? JSONEncoder().encode(records) {
             UserDefaults.standard.set(data, forKey: Self.registryKey)
         }
-        // mirror so the widget configuration picker can list every named device
-        DeviceSnapshot.publishRegistry(records)
     }
 
     /// Remember the currently connected device (advertised name + address).

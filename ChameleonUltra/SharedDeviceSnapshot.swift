@@ -6,7 +6,7 @@ import WidgetKit
 /// just-disconnected) device on every relevant state change; the widget reads
 /// all known devices so each widget instance can pin one of them.
 /// NOTE: the widget target compiles its own mirror of this codec
-/// (ChameleonWidget/DeviceStatusWidget.swift) — keep the two in sync.
+/// (ChameleonWidget/ChameleonLiveActivity.swift) — keep the two in sync.
 /// If the App Group entitlement is stripped during re-signing (free Apple ID
 /// profiles), `UserDefaults(suiteName:)` silently never shares: renames still
 /// persist in standard defaults, widgets just show the offline placeholder.
@@ -42,7 +42,6 @@ struct DeviceRecord: Codable, Equatable {
 enum DeviceSnapshot {
     static let suiteName = "group.com.chameleonultragui.ios"
     static let devicesKey = "device.snapshots.v1"
-    static let registryKey = "device.registry.v1"
     static let maxDevices = 16
 
     static var shared: UserDefaults? { UserDefaults(suiteName: suiteName) }
@@ -60,7 +59,6 @@ enum DeviceSnapshot {
         if let data = try? JSONEncoder().encode(list) {
             defaults.set(data, forKey: devicesKey)
         }
-        WidgetCenter.shared.reloadTimelines(ofKind: "DeviceStatus")
         WidgetCenter.shared.reloadTimelines(ofKind: "SlotSwitcher")
     }
 
@@ -70,17 +68,4 @@ enum DeviceSnapshot {
         return list
     }
 
-    static func publishRegistry(_ records: [DeviceRecord]) {
-        guard let defaults = shared,
-              let data = try? JSONEncoder().encode(records) else { return }
-        defaults.set(data, forKey: registryKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: "DeviceStatus")
-        WidgetCenter.shared.reloadTimelines(ofKind: "SlotSwitcher")
-    }
-
-    static func readRegistry() -> [DeviceRecord] {
-        guard let data = shared?.data(forKey: registryKey),
-              let list = try? JSONDecoder().decode([DeviceRecord].self, from: data) else { return [] }
-        return list
-    }
 }

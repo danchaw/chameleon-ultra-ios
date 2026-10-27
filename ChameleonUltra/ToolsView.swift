@@ -255,7 +255,7 @@ struct DictionaryDownloadView: View {
                         .background(themeAccent.opacity(0.15), in: Capsule())
                         .foregroundStyle(themeAccent)
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(.plain)
             }
         }
         .padding(.vertical, 2)

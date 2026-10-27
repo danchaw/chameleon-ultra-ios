@@ -32,7 +32,7 @@ struct SavedCardsView: View {
                                 cardRow(card)
                             }
                         }
-                        .buttonStyle(ListRowHighlightStyle())
+                        .buttonStyle(.plain)
                     } else {
                     NavigationLink {
                         CardDetailView(card: card)
@@ -291,7 +291,7 @@ struct CardDetailView: View {
                             if applyingSlot != nil { ProgressView() }
                         }
                     }
-                    .buttonStyle(ListRowHighlightStyle())
+                    .buttonStyle(.plain)
                 } else {
                     Label(L10n.t("Connect a device to emulate this card"), systemImage: "antenna.radiowaves.left.and.right.slash")
                         .foregroundStyle(.secondary)
@@ -304,14 +304,14 @@ struct CardDetailView: View {
                 } label: {
                     AccentLabel(L10n.t("Export as JSON"), "curlybraces.square")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
 
                 Button {
                     export(json: false)
                 } label: {
                     AccentLabel(L10n.t("Export as binary dump"), "doc.zipper")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
 
                 if card.isMifareClassic && !card.dumpKeys.isEmpty {
                     Menu {
@@ -328,7 +328,7 @@ struct CardDetailView: View {
                     } label: {
                         AccentLabel(L10n.t("Export keys from dump"), "key.horizontal")
                     }
-                    .buttonStyle(ListRowHighlightStyle())
+                    .buttonStyle(.plain)
                 }
             }
 
@@ -340,14 +340,14 @@ struct CardDetailView: View {
                 } label: {
                     AccentLabel(L10n.t("Edit card"), "pencil")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
 
                 Button {
                     duplicateCard()
                 } label: {
                     AccentLabel(L10n.t("Duplicate card"), "plus.square.on.square")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
 
                 NavigationLink {
                     DumpEditorView(title: card.name,
@@ -367,7 +367,7 @@ struct CardDetailView: View {
                 } label: {
                     AccentLabel(L10n.t("Compare dump…"), "square.split.2x1")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
                 .disabled(compareCandidates.isEmpty)
 
                 Button {
@@ -377,7 +377,7 @@ struct CardDetailView: View {
                 } label: {
                     AccentLabel(L10n.t("Save as…"), "wand.and.stars")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
             }
 
             Section(L10n.t("Danger zone")) {
@@ -386,7 +386,7 @@ struct CardDetailView: View {
                 } label: {
                     AccentLabel(L10n.t("Delete card"), "trash")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
             }
 
             if let message {
@@ -432,7 +432,7 @@ struct CardDetailView: View {
                         }
                     }
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
                 .disabled(applyingSlot != nil)
             }
             .navigationTitle(L10n.t("Choose slot"))
@@ -611,7 +611,7 @@ struct DictionaryManagerView: View {
                                 }
                             }
                         }
-                        .buttonStyle(ListRowHighlightStyle())
+                        .buttonStyle(.plain)
                     } else {
                     NavigationLink {
                         DictionaryDetailView(dictionary: dict)

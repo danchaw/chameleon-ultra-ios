@@ -183,7 +183,7 @@ struct SlotManagerView: View {
                         .background(themeAccent.opacity(0.15), in: Capsule())
                         .foregroundStyle(themeAccent)
                 }
-                .buttonStyle(PressableButtonStyle())
+                .buttonStyle(.plain)
 
                 if app.activeSlot != slot {
                     Button {
@@ -196,7 +196,7 @@ struct SlotManagerView: View {
                             .background(themeAccent, in: Capsule())
                             .foregroundStyle(.white)
                     }
-                    .buttonStyle(PressableButtonStyle())
+                    .buttonStyle(.plain)
                 }
                 Spacer(minLength: 0)
                 if busySlot == slot { ProgressView() }

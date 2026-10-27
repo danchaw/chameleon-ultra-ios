@@ -54,10 +54,9 @@ jobs:
           # Sign embedded extensions first, then the app itself. Entitlements carry the
           # App Group so the device-status widget can read the shared snapshot.
           if [ -d "$APP/PlugIns" ]; then
-            find "$APP/PlugIns" -name "*.appex" -exec codesign -f -s - --entitlements ChameleonWidget.entitlements --generate-entitlement-der {} \;
+            find "$APP/PlugIns" -name "*.appex" -exec codesign -f -s - --generate-entitlement-der {} \;
           fi
-          codesign -f -s - --entitlements ChameleonUltra.entitlements --generate-entitlement-der "$APP" || true
-          codesign -d --entitlements - "$APP" 2>&1 | head -20 || true
+          codesign -f -s - --generate-entitlement-der "$APP" || true
           mkdir -p Payload
           cp -R "$APP" Payload/
           zip -qry ChameleonUltra.ipa Payload

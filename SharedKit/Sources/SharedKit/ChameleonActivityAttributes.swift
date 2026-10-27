@@ -20,7 +20,6 @@ public struct ChameleonActivityAttributes: ActivityAttributes {
         public var batteryMillivolts: Int?
         public var activeSlot: Int
         public var slotName: String
-        public var slotAliases: [String]
         public var updatedAt: Date
 
         public init(deviceName: String = "",
@@ -29,7 +28,6 @@ public struct ChameleonActivityAttributes: ActivityAttributes {
                     batteryMillivolts: Int?,
                     activeSlot: Int,
                     slotName: String = "",
-                    slotAliases: [String] = [],
                     updatedAt: Date = Date()) {
             self.deviceName = deviceName
             self.connected = connected
@@ -37,19 +35,12 @@ public struct ChameleonActivityAttributes: ActivityAttributes {
             self.batteryMillivolts = batteryMillivolts
             self.activeSlot = activeSlot
             self.slotName = slotName
-            self.slotAliases = slotAliases
             self.updatedAt = updatedAt
         }
 
-        /// "N · 别名" for a slot, number always preserved.
-        public static func slotLabel(aliases: [String], slot: Int, fallback: String = "") -> String {
-            let alias = (slot >= 0 && slot < aliases.count && !aliases[slot].isEmpty)
-                ? aliases[slot] : fallback
-            return alias.isEmpty ? "\(slot)" : "\(slot) · \(alias)"
-        }
-
+        /// "N · 名称" for a slot, number always preserved.
         public var activeSlotLabel: String {
-            Self.slotLabel(aliases: slotAliases, slot: activeSlot, fallback: slotName)
+            slotName.isEmpty ? "\(activeSlot)" : "\(activeSlot) · \(slotName)"
         }
 
         public var voltageText: String? {

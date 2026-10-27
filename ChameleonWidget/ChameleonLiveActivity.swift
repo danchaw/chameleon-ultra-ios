@@ -7,25 +7,6 @@ import SharedKit
 // comes from SharedKit — the SAME module the app uses, so ActivityKit can
 // match the activity across the two processes.
 
-// MARK: - Adaptive alias text
-//
-// Short aliases show as-is. Longer ones shrink down to 60% instead of
-// truncating. (A real marquee scroll is not possible inside Live Activity /
-// widget views — Apple only allows static layouts there.)
-
-struct FitText: View {
-    let text: String
-    var size: CGFloat = 12
-    var weight: Font.Weight = .regular
-
-    var body: some View {
-        Text(text)
-            .font(.system(size: size, weight: weight))
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-    }
-}
-
 // MARK: - Lock screen card
 
 struct ChameleonLiveActivityView: View {
@@ -107,15 +88,7 @@ struct ChameleonIslandCompactTrailing: View {
     let state: ChameleonActivityAttributes.ContentState
 
     var body: some View {
-        // compact space is tiny: short aliases ride along (auto-shrunk),
-        // otherwise just the slot number
-        let alias = (state.activeSlot >= 0 && state.activeSlot < state.slotAliases.count)
-            ? state.slotAliases[state.activeSlot] : ""
-        if !alias.isEmpty && alias.count <= 4 {
-            FitText(text: alias, size: 10)
-        } else {
-            Text("S\(state.activeSlot)").font(.caption2.bold()).monospacedDigit()
-        }
+        Text("S\(state.activeSlot)").font(.caption2.bold()).monospacedDigit()
     }
 }
 

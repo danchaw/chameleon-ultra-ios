@@ -2,7 +2,6 @@ import Foundation
 import SwiftUI
 import Combine
 import ActivityKit
-import WidgetKit
 import SharedKit
 
 /// Central application state – connection lifecycle, device status, slot info.
@@ -71,42 +70,25 @@ final class AppModel: ObservableObject {
                    battery.percent > 0 || battery.voltage > 0 {
                     // ignore transient 0/0 readings from the fuel gauge
                     self.battery = battery
-                    self.publishWidgetSnapshot()
+                    self.updateLiveActivity()
                 }
             }
         }
     }
 
-    /// Push the latest device state into the App Group container so the
-    /// home-screen widgets can show battery / voltage / active slot.
-    func publishWidgetSnapshot() {
-        var entry = DeviceSnapshotEntry()
-        entry.address = deviceKey
-        guard !entry.address.isEmpty else { return }
-        entry.name = deviceNickname.isEmpty ? deviceName : deviceNickname
-        entry.connected = isConnected
-        entry.batteryPercent = battery?.percent
-        entry.batteryMillivolts = battery?.voltage
-        entry.deviceTypeName = deviceType == .ultra ? "Ultra" : "Lite"
-        entry.activeSlot = activeSlot
-        entry.slotAliases = slotAliases
-        if activeSlot >= 0, activeSlot < slotNames.count {
-            let names = slotNames[activeSlot]
-            entry.slotName = names.hf.isEmpty ? names.lf : names.hf
-        }
-        entry.updatedAt = Date()
-        DeviceSnapshot.upsert(entry)
-        syncLiveActivity()
-    }
-
     // MARK: - Live Activity (lock screen / Dynamic Island status card)
     //
-    // ActivityKit carries this state to the system UI WITHOUT an App Group
-    // entitlement, so it survives aggressive re-signing that strips shared
-    // containers. The SlotSwitcher widget also reads the alias array from the
-    // live activity for the same reason.
+    // ActivityKit carries device state to the system UI WITHOUT any shared
+    // container or entitlement, so it works even when the sideload tool
+    // strips App Groups. Home-screen widgets stay purely interactive (slot
+    // links) — no app data flows into them.
 
     private var liveActivity: Activity<ChameleonActivityAttributes>?
+
+    /// Keep the live activity in sync with the current device state.
+    func updateLiveActivity() {
+        syncLiveActivity()
+    }
 
     private func makeActivityState(connected: Bool) -> ChameleonActivityAttributes.ContentState {
         var slotName = ""
@@ -120,7 +102,6 @@ final class AppModel: ObservableObject {
                      batteryMillivolts: battery?.voltage,
                      activeSlot: activeSlot,
                      slotName: slotName,
-                     slotAliases: slotAliases,
                      updatedAt: Date())
     }
 
@@ -147,7 +128,6 @@ final class AppModel: ObservableObject {
                 liveActivity = activity
                 // slot widget reads aliases from the live activity — refresh now
                 // that it exists
-                WidgetCenter.shared.reloadTimelines(ofKind: "SlotSwitcher")
             }
         } else if let activity = liveActivity {
             liveActivity = nil
@@ -157,11 +137,20 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: - Device registry (user-editable names, shared with the widget)
+    // MARK: - Device registry (user-editable names)
 
     /// Stable identity for a device: BLE address once known, else the
     /// advertised name (some firmwares report no address until handshake).
     var deviceKey: String { bleAddress.isEmpty ? deviceName : bleAddress }
+
+    /// User-renamed device registry entry (standard defaults, key
+    /// `deviceRegistry`, per BLE address).
+    struct DeviceRecord: Codable, Equatable {
+        var address: String
+        var nickname: String = ""
+        var defaultName: String = ""
+        var displayName: String { nickname.isEmpty ? defaultName : nickname }
+    }
 
     func loadRegistry() -> [DeviceRecord] {
         guard let data = UserDefaults.standard.data(forKey: Self.registryKey),
@@ -201,7 +190,7 @@ final class AppModel: ObservableObject {
         saveRegistry(records)
         deviceNickname = name
         objectWillChange.send()
-        publishWidgetSnapshot()
+        updateLiveActivity()
     }
 
     /// Name to show for a scanned device: nickname when the user has set one.
@@ -234,7 +223,7 @@ final class AppModel: ObservableObject {
         all[deviceKey] = list
         UserDefaults.standard.set(all, forKey: Self.slotAliasesStoreKey)
         slotAliases = list
-        publishWidgetSnapshot()
+        updateLiveActivity()
     }
 
     func appendLog(_ line: String) {
@@ -380,7 +369,7 @@ final class AppModel: ObservableObject {
             if cancelRequested { ble.disconnect(); connectionState = .disconnected; return }
             connectionState = .connected
             showDeviceList = false
-            publishWidgetSnapshot()
+            updateLiveActivity()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
             if cancelRequested { return }
@@ -412,7 +401,7 @@ final class AppModel: ObservableObject {
         if let types = try? await communicator.getSlotTagTypes() { slotTypes = types }
         if let enabled = try? await communicator.getEnabledSlots() { slotEnabled = enabled }
         if let names = try? await communicator.getSlotTagNames() { slotNames = names }
-        publishWidgetSnapshot()
+        updateLiveActivity()
     }
 
     func activateSlot(_ index: Int) async {
@@ -420,7 +409,7 @@ final class AppModel: ObservableObject {
         do {
             try await communicator.activateSlot(index)
             activeSlot = index
-            publishWidgetSnapshot()
+            updateLiveActivity()
         } catch {
             lastError = error.localizedDescription
         }
@@ -563,6 +552,6 @@ final class AppModel: ObservableObject {
         connectionState = .disconnected
         showDeviceList = false
         dfuProgress = nil
-        publishWidgetSnapshot()
+        updateLiveActivity()
     }
 }

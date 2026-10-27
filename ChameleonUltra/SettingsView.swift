@@ -162,13 +162,13 @@ struct SettingsView: View {
                 } label: {
                     AccentLabel(L10n.t("Export settings"), "square.and.arrow.up")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
                 Button {
                     showSettingsImporter = true
                 } label: {
                     AccentLabel(L10n.t("Import settings"), "square.and.arrow.down")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
             } header: {
                 Text(L10n.t("Settings management"))
             } footer: {
@@ -194,7 +194,7 @@ struct SettingsView: View {
                 } label: {
                     AccentLabel(L10n.t("Original project (Flutter)"), "safari")
                 }
-                .buttonStyle(ListRowHighlightStyle())
+                .buttonStyle(.plain)
             }
 
             Section {
@@ -460,14 +460,14 @@ struct LogArchivesView: View {
                             } label: {
                                 Image(systemName: "square.and.arrow.up")
                             }
-                            .buttonStyle(PressableButtonStyle())
+                            .buttonStyle(.plain)
                             Button {
                                 pendingDelete = archive
                             } label: {
                                 Image(systemName: "trash")
                                     .foregroundStyle(.red)
                             }
-                            .buttonStyle(PressableButtonStyle())
+                            .buttonStyle(.plain)
                         }
                         .padding(.vertical, 2)
                     }

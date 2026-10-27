@@ -2,36 +2,6 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-// MARK: - Press feedback
-
-/// Capsule/icon buttons: dim + slight scale while pressed, and a short
-/// afterglow on release so a quick tap is clearly visible (the plain
-/// press-only effect was too fast to notice).
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        PressableBody(configuration: configuration)
-    }
-
-    private struct PressableBody: View {
-        let configuration: Configuration
-        @State private var releaseGlow = false
-
-        var body: some View {
-            configuration.label
-                .opacity(configuration.isPressed ? 0.6 : (releaseGlow ? 0.8 : 1))
-                .scaleEffect(configuration.isPressed ? 0.97 : 1)
-                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-                .onChange(of: configuration.isPressed) { _, pressed in
-                    guard !pressed else { return }
-                    releaseGlow = true
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 130_000_000)
-                        withAnimation(.easeOut(duration: 0.16)) { releaseGlow = false }
-                    }
-                }
-        }
-    }
-}
 
 /// Label whose icon follows the app theme accent color.
 struct AccentLabel: View {
@@ -51,39 +21,6 @@ struct AccentLabel: View {
     }
 }
 
-/// System-gray row highlight: the fill spans the FULL row width and the
-/// row's own height, inset slightly so its rounded corners sit cleanly
-/// inside the list card (no bleed past card edges like the old rectangle).
-/// A short afterglow on release makes quick taps clearly visible.
-struct ListRowHighlightStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        ListRowHighlightBody(configuration: configuration)
-    }
-
-    private struct ListRowHighlightBody: View {
-        let configuration: Configuration
-        @State private var releaseGlow = false
-
-        var body: some View {
-            configuration.label
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .background(
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(Color(uiColor: .systemGray4).opacity(0.55))
-                        .opacity(configuration.isPressed ? 1 : (releaseGlow ? 0.85 : 0))
-                )
-                .onChange(of: configuration.isPressed) { _, pressed in
-                    guard !pressed else { return }
-                    releaseGlow = true
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 150_000_000)
-                        withAnimation(.easeOut(duration: 0.18)) { releaseGlow = false }
-                    }
-                }
-        }
-    }
-}
 
 private struct ThemeAccentKey: EnvironmentKey {
     static let defaultValue: Color = .accentColor
@@ -369,7 +306,7 @@ struct SlotChanger: View {
                         .background(
                             app.activeSlot == slot
                                 ? AnyShapeStyle(themeAccent.opacity(0.25))
-                                : AnyShapeStyle(Color(.systemBackground).opacity(0.5))
+                                : AnyShapeStyle(Color(.systemBackground).opacity(0.5)),                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                         )
                     }
                     .buttonStyle(.plain)

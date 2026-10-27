@@ -332,7 +332,7 @@ struct FlashingView: View {
                         Label(L10n.t("Clear all"), systemImage: "trash")
                             .font(.footnote)
                     }
-                    .buttonStyle(PressableButtonStyle())
+                    .buttonStyle(.plain)
                     .alert(L10n.t("Clear all downloaded firmware?"), isPresented: $confirmClearFirmware) {
                         Button(L10n.t("Clear all"), role: .destructive) {
                             app.firmwareStore.deleteAll()
@@ -368,10 +368,10 @@ struct FlashingView: View {
                             } label: {
                                 Image(systemName: "trash")
                             }
-                            .buttonStyle(PressableButtonStyle())
+                            .buttonStyle(.plain)
                         }
                     }
-                    .buttonStyle(PressableButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
             .alert(L10n.t("Delete firmware package?"), isPresented: deleteFirmwareShown) {

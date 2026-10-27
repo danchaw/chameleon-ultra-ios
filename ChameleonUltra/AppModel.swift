@@ -125,13 +125,13 @@ final class AppModel: ObservableObject {
         if isConnected {
             let state = makeActivityState(connected: true)
             if let activity = liveActivity {
-                Task { try? await activity.update(.init(state: state, sticky: false)) }
+                Task { try? await activity.update(.init(state: state, staleDate: nil)) }
                 return
             }
             // adopt an activity left over from an earlier app run
             if let existing = Activity<ChameleonActivityAttributes>.activities.first {
                 liveActivity = existing
-                Task { try? await existing.update(.init(state: state, sticky: false)) }
+                Task { try? await existing.update(.init(state: state, staleDate: nil)) }
                 return
             }
             guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
@@ -140,7 +140,7 @@ final class AppModel: ObservableObject {
             Task {
                 guard let activity = try? await Activity.request(
                     attributes: attributes,
-                    content: .init(state: state, sticky: false),
+                    content: .init(state: state, staleDate: nil),
                     dismissalPolicy: .default) else { return }
                 liveActivity = activity
                 // slot widget reads aliases from the live activity — refresh now
@@ -150,7 +150,7 @@ final class AppModel: ObservableObject {
         } else if let activity = liveActivity {
             liveActivity = nil
             let finalState = makeActivityState(connected: false)
-            Task { try? await activity.end(.init(state: finalState, sticky: false),
+            Task { try? await activity.end(.init(state: finalState, staleDate: nil),
                                            dismissalPolicy: .default) }
         }
     }

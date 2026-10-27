@@ -35,6 +35,14 @@ final class GeofenceManager: NSObject, ObservableObject {
         }
     }
 
+    /// Stop every currently monitored region.
+    private func stopAllMonitoring() {
+        for region in manager.monitoredRegions {
+            manager.stopMonitoring(for: region)
+        }
+        registered.removeAll()
+    }
+
     /// Rebuild all region monitoring from the store. Call after any settings
     /// change or region edit.
     func refreshMonitoring() {
@@ -49,15 +57,13 @@ final class GeofenceManager: NSObject, ObservableObject {
             return
         case .denied, .restricted:
             statusText = L10n.t("Location permission denied")
-            manager.stopMonitoring()
-            registered.removeAll()
+            stopAllMonitoring()
             return
         default:
             break
         }
 
-        manager.stopMonitoring()
-        registered.removeAll()
+        stopAllMonitoring()
         guard UserDefaults.standard.bool(forKey: Self.enabledKey) else {
             statusText = L10n.t("Fence monitoring off")
             return

@@ -333,16 +333,9 @@ struct SlotChanger: View {
                             animating = false
                         }
                     } label: {
-                        VStack(spacing: 2) {
-                            // slot number is always kept visible; alias sits under it
+                        VStack(spacing: 3) {
                             Text("\(slot)")
                                 .font(.headline)
-                            if !app.slotAliases[slot].isEmpty {
-                                Text(app.slotAliases[slot])
-                                    .font(.system(size: 8))
-                                    .lineLimit(1)
-                                    .foregroundStyle(.secondary)
-                            }
                             HStack(spacing: 3) {
                                 Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 5, height: 5)
                                 Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 5, height: 5)
@@ -359,6 +352,18 @@ struct SlotChanger: View {
                     .buttonStyle(.plain)
                 }
             }
+            // alias column: one label per slot, same widths as the blocks above
+            HStack(spacing: 8) {
+                ForEach(0..<8, id: \.self) { slot in
+                    Text(app.slotAliases[slot])
+                        .font(.system(size: 8))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(app.activeSlot == slot ? themeAccent : .secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.top, -2)
         }
     }
 }

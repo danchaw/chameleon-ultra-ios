@@ -82,6 +82,10 @@ enum WidgetStore {
 // MARK: - AppIntent configuration (device picker)
 
 struct ChameleonDeviceEntity: AppEntity {
+    /// Virtual entry meaning "show the most recently connected device".
+    static let autoID = "auto"
+    static let auto = ChameleonDeviceEntity(id: autoID, title: "Auto (last connected)")
+
     let id: String
     let title: String
 
@@ -95,14 +99,26 @@ struct ChameleonDeviceEntity: AppEntity {
 
 struct ChameleonDeviceQuery: EntityQuery {
     func entities(for identifiers: [String]) async throws -> [ChameleonDeviceEntity] {
-        let known = WidgetStore.knownDevices()
-        return identifiers.compactMap { id in
-            known.first { $0.address == id }.map { ChameleonDeviceEntity(id: $0.address, title: $0.title) }
+        // never drop unknown ids: returning fewer entities than requested
+        // makes the widget-editor picker fail to resolve and close itself
+        identifiers.map { id in
+            if id == ChameleonDeviceEntity.autoID { return .auto }
+            if let known = WidgetStore.knownDevices().first(where: { $0.address == id }) {
+                return ChameleonDeviceEntity(id: id, title: known.title)
+            }
+            return ChameleonDeviceEntity(id: id, title: id)
         }
     }
 
     func suggestedEntities() async throws -> [ChameleonDeviceEntity] {
-        WidgetStore.knownDevices().map { ChameleonDeviceEntity(id: $0.address, title: $0.title) }
+        // never empty: the editor menu would close instantly with no options
+        [ChameleonDeviceEntity.auto] + WidgetStore.knownDevices().map {
+            ChameleonDeviceEntity(id: $0.address, title: $0.title)
+        }
+    }
+
+    func defaultResult() async -> ChameleonDeviceEntity? {
+        .auto
     }
 }
 
@@ -140,7 +156,7 @@ struct DeviceStatusProvider: AppIntentTimelineProvider {
         let snaps = WidgetStore.snapshots()
         let info: WidgetDeviceSnapshot?
         let title: String
-        if let pinned = configuration.device {
+        if let pinned = configuration.device, pinned.id != ChameleonDeviceEntity.autoID {
             info = snaps.first { $0.address == pinned.id }
             title = pinned.title
         } else {
@@ -183,7 +199,7 @@ struct DeviceStatusEntryView: View {
     }
 
     private var detailLine: String {
-        guard let info = entry.info else { return "Never connected" }
+        guard let info = entry.info else { return "Open app & connect first" }
         if info.connected {
             var line = "Slot \(info.slotDisplay)"
             if let mv = info.batteryMillivolts {

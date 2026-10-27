@@ -97,6 +97,16 @@ struct SettingsView: View {
                 : L10n.t("Settings imported"))
     }
 
+    /// About-page diagnostic for the home-screen widgets.
+    private var widgetSharingStatus: String {
+        let hasContainer = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: DeviceSnapshot.suiteName) != nil
+        let count = DeviceSnapshot.readDevices().count
+        if !hasContainer { return L10n.t("Blocked by re-signing") }
+        if count == 0 { return L10n.t("Ready · no snapshot yet") }
+        return "\(L10n.t("Active")) · \(count)"
+    }
+
     /// Shown in About; reads the real bundle version so it never drifts.
     private var appVersionString: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -182,6 +192,9 @@ struct SettingsView: View {
             Section(L10n.t("About")) {
                 LabeledContent("App", value: appVersionString)
                 LabeledContent(L10n.t("License"), value: "GPL-3.0")
+                // tells the user whether the App Group survived the sideload
+                // tool's re-signing, and whether snapshots have been published
+                LabeledContent(L10n.t("Widget sharing"), value: widgetSharingStatus)
                 NavigationLink {
                     LogsView()
                 } label: {

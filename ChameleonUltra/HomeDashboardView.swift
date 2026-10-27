@@ -13,6 +13,7 @@ struct HomeDashboardView: View {
             VStack(spacing: 16) {
                 deviceCard
                 GlassCard { SlotChanger() }
+                GlassCard { autoCycleCard }
                 quickActions
             }
             .padding()
@@ -52,6 +53,35 @@ struct HomeDashboardView: View {
         }
         .onAppear { refresh() }
         .onDisappear { refreshTask?.cancel() }
+    }
+
+    /// Auto card cycle: push every saved card into the active slot at a
+    /// fixed interval — the door reader picks whichever matches.
+    private var autoCycleCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(L10n.t("Auto card cycle"), isOn: Binding(
+                get: { app.autoCycleEnabled },
+                set: { app.setAutoCycle($0) }
+            ))
+            if app.autoCycleEnabled {
+                Picker(L10n.t("Interval"), selection: Binding(
+                    get: {
+                        let i = UserDefaults.standard.integer(forKey: AutoPoll.intervalKey)
+                        return i >= 3 ? i : 5
+                    },
+                    set: { UserDefaults.standard.set($0, forKey: AutoPoll.intervalKey) }
+                )) {
+                    Text("3 s").tag(3)
+                    Text("5 s").tag(5)
+                    Text("10 s").tag(10)
+                    Text("30 s").tag(30)
+                }
+                Text(app.cycleStatus.isEmpty ? L10n.t("Idle") : "\(L10n.t("Cycling")) · \(app.cycleStatus)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
     }
 
     private var deviceCard: some View {

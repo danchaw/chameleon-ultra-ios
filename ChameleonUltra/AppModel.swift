@@ -46,6 +46,8 @@ final class AppModel: ObservableObject {
     let ble = BLEManager()
     let store = CardStore()
     let firmwareStore = FirmwareStore()
+    /// Electronic fence: entering a bound region pushes its card to the device.
+    let geofence = GeofenceManager()
     private(set) var communicator: ChameleonCommunicator?
     private var cancellables: [AnyCancellable] = []
 
@@ -74,6 +76,11 @@ final class AppModel: ObservableObject {
                 }
             }
         }
+        // electronic fence: enter region -> load bound card
+        geofence.onRegionEnter = { [weak self] regionId in
+            self?.handleRegionEnter(regionId)
+        }
+        geofence.refreshMonitoring()
     }
 
     // MARK: - Live Activity (lock screen / Dynamic Island status card)
@@ -135,6 +142,77 @@ final class AppModel: ObservableObject {
             Task { try? await activity.end(.init(state: finalState, staleDate: nil),
                                            dismissalPolicy: .default) }
         }
+    }
+
+    // MARK: - Electronic fence (region enter -> load bound card)
+
+    private func handleRegionEnter(_ regionId: UUID) {
+        guard isConnected, let communicator else {
+            appendLog("电子围栏：进入区域，但设备未连接")
+            return
+        }
+        guard let region = GeoRegionStore.load().first(where: { $0.id == regionId }),
+              let card = store.cards.first(where: { $0.id == region.cardId }) else { return }
+        Task { @MainActor in
+            do {
+                try await applyCardToSlot(card, slot: activeSlot)
+                try? await refreshSlots()
+                appendLog("电子围栏：已载入「\(card.name)」（\(region.name)）")
+            } catch {
+                appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
+            }
+        }
+    }
+
+    // MARK: - Auto card cycle (push every saved card at an interval)
+
+    /// Reads the door-reader game: instead of picking a card by hand, the app
+    /// pushes each saved card into the active slot one after another — the
+    /// reader picks whichever matches and opens.
+    @Published var autoCycleEnabled: Bool = UserDefaults.standard.bool(forKey: AutoPoll.enabledKey)
+    @Published var cycleStatus: String = ""
+    private var cycleTask: Task<Void, Never>?
+
+    func setAutoCycle(_ on: Bool) {
+        autoCycleEnabled = on
+        UserDefaults.standard.set(on, forKey: AutoPoll.enabledKey)
+        if on { startCardCycle() } else { stopCardCycle() }
+    }
+
+    func startCardCycle() {
+        guard cycleTask == nil else { return }
+        guard isConnected else { return }
+        cycleTask = Task { @MainActor in
+            appendLog("Auto card cycle started")
+            while !Task.isCancelled {
+                // follow the current active slot so manual switches still work
+                let slot = activeSlot
+                let cards = store.cards
+                guard isConnected, !cards.isEmpty else {
+                    cycleStatus = L10n.t("Waiting for device/cards")
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    continue
+                }
+                for card in cards {
+                    guard !Task.isCancelled, isConnected else { break }
+                    do {
+                        try await applyCardToSlot(card, slot: slot)
+                        cycleStatus = card.name
+                    } catch is CancellationError {
+                        break
+                    } catch {
+                        cycleStatus = "\(card.name): \(error.localizedDescription)"
+                    }
+                    try? await Task.sleep(nanoseconds: UInt64(AutoPoll.intervalSeconds) * 1_000_000_000)
+                }
+            }
+        }
+    }
+
+    func stopCardCycle() {
+        cycleTask?.cancel()
+        cycleTask = nil
+        cycleStatus = ""
     }
 
     // MARK: - Device registry (user-editable names)
@@ -370,6 +448,8 @@ final class AppModel: ObservableObject {
             connectionState = .connected
             showDeviceList = false
             updateLiveActivity()
+            // auto cycle picks up where it left off on a fresh connection
+            if autoCycleEnabled { startCardCycle() }
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
             if cancelRequested { return }
@@ -553,5 +633,6 @@ final class AppModel: ObservableObject {
         showDeviceList = false
         dfuProgress = nil
         updateLiveActivity()
+        stopCardCycle()
     }
 }

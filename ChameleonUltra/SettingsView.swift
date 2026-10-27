@@ -156,6 +156,25 @@ struct SettingsView: View {
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
             }
 
+            // Electronic fence: entering a mapped region auto-loads its card
+            Section(L10n.t("Geofence")) {
+                Toggle(L10n.t("Enable geofence"), isOn: Binding(
+                    get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
+                    set: {
+                        UserDefaults.standard.set($0, forKey: GeofenceManager.enabledKey)
+                        app.geofence.refreshMonitoring()
+                    }
+                ))
+                NavigationLink {
+                    GeoRegionsView()
+                } label: {
+                    AccentLabel(L10n.t("Manage regions"), "map")
+                }
+                Text(app.geofence.statusText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Button {
                     Task { await exportSettings() }

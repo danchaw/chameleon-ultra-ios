@@ -124,7 +124,7 @@ struct DeviceStatusEntry: TimelineEntry {
     var title: String
 }
 
-struct DeviceStatusProvider: IntentTimelineProvider {
+struct DeviceStatusProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DeviceStatusEntry {
         var snap = WidgetDeviceSnapshot()
         snap.connected = true; snap.batteryPercent = 78; snap.batteryMillivolts = 3910
@@ -151,11 +151,11 @@ struct DeviceStatusProvider: IntentTimelineProvider {
         return DeviceStatusEntry(date: Date(), info: info, title: title)
     }
 
-    func getSnapshot(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (DeviceStatusEntry) -> Void) {
+    func snapshot(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (DeviceStatusEntry) -> Void) {
         completion(resolve(for: configuration))
     }
 
-    func getTimeline(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (Timeline<DeviceStatusEntry>) -> Void) {
+    func timeline(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (Timeline<DeviceStatusEntry>) -> Void) {
         // Battery is polled every 30 s while connected; the app also reloads
         // this timeline explicitly on connect / disconnect / slot & rename.
         let next = Date().addingTimeInterval(15 * 60)

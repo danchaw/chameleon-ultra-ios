@@ -1,17 +1,18 @@
 import SwiftUI
 import UIKit
+import AudioToolbox
 import UniformTypeIdentifiers
 
 // MARK: - Press feedback
 
-/// Button style that visibly reacts to presses (opacity + slight scale),
-/// so taps in plain lists never feel dead. Pair with `hapticFeedback()`
-/// inside the action for a tactile response.
+/// Press feedback, chosen design A: theme-colour highlight + a subtle
+/// scale-down. The style itself stays silent — haptics and tap sounds are
+/// fired from the action via `hapticFeedback()`, both user-switchable.
 struct PressableButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.5 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
@@ -52,6 +53,7 @@ struct ListRowHighlightStyle: ButtonStyle {
                 .foregroundStyle(configuration.isPressed ? accent : Color.primary)
                 .background(configuration.isPressed ? accent.opacity(0.18) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 10))
+                .scaleEffect(configuration.isPressed ? 0.98 : 1)
                 .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
         }
     }
@@ -68,9 +70,35 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - Tap feedback (haptics + sound, both switchable in Settings)
+
+/// Preference keys shared with the Settings toggles and settings export.
+/// Defaults: haptics on, tap sound off (matches the original app's feel).
+enum FeedbackPrefs {
+    static let hapticsKey = "hapticsEnabled"
+    static let soundKey = "tapSoundEnabled"
+    static var hapticsOn: Bool { UserDefaults.standard.object(forKey: hapticsKey) as? Bool ?? true }
+    static var soundOn: Bool { UserDefaults.standard.object(forKey: soundKey) as? Bool ?? false }
+}
+
 @MainActor
 func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
-    UIImpactFeedbackGenerator(style: style).impactOccurred()
+    if FeedbackPrefs.hapticsOn {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+    if FeedbackPrefs.soundOn {
+        AudioServicesPlaySystemSound(1104) // subtle UI tick
+    }
+}
+
+@MainActor
+func notifyFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+    if FeedbackPrefs.hapticsOn {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+    if FeedbackPrefs.soundOn {
+        AudioServicesPlaySystemSound(1104)
+    }
 }
 
 // MARK: - Device photo (official product images from the original project)

@@ -64,7 +64,7 @@ struct WriteCardView: View {
         .overlay {
             if writing {
                 VStack(spacing: 12) {
-                    ProgressView(value: progress)
+                    SegmentedProgress(progress: progress, count: 14)
                         .frame(width: 200)
                     Text("\(L10n.t("Writing…")) \(Int(progress * 100))%")
                         .font(.footnote)

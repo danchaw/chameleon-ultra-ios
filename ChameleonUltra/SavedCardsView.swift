@@ -74,7 +74,7 @@ struct SavedCardsView: View {
                 if let data = try? Data(contentsOf: url) {
                     let count = store.importCards(from: data)
                     message = count > 0 ? "✓ \(count) \(L10n.t("Imported"))" : L10n.t("No compatible cards found in file")
-                    if count > 0 { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                    if count > 0 { notifyFeedback(.success) }
                 }
             }
         }
@@ -82,7 +82,7 @@ struct SavedCardsView: View {
             Button(L10n.t("Delete"), role: .destructive) {
                 pendingDelete?.forEach { store.delete($0) }
                 pendingDelete = nil
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
         } message: {
@@ -292,7 +292,7 @@ struct CardDetailView: View {
                                    blockSize: blockSize) { newBlocks in
                         card.data = newBlocks
                         store.update(card)
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        notifyFeedback(.success)
                     }
                 } label: {
                     AccentLabel(L10n.t("Dump editor"), "square.and.pencil")
@@ -347,7 +347,7 @@ struct CardDetailView: View {
         .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(card)
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
@@ -388,13 +388,13 @@ struct CardDetailView: View {
             do {
                 try await app.applyCardToSlot(card, slot: slot)
                 applyingSlot = -slot - 1   // done marker
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                notifyFeedback(.success)
                 message = L10n.tf("Applied to slot %d", slot)
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 showApplySheet = false
             } catch {
                 message = error.localizedDescription
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                notifyFeedback(.error)
                 showApplySheet = false
             }
             applyingSlot = nil
@@ -412,7 +412,7 @@ struct CardDetailView: View {
         copy.name = card.name + " 副本"
         store.add(copy)
         message = L10n.t("Card updated")
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notifyFeedback(.success)
     }
 
     private var editSheet: some View {
@@ -437,7 +437,7 @@ struct CardDetailView: View {
                         if !uid.isEmpty { card.uid = uid }
                         store.update(card)
                         showEditSheet = false
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        notifyFeedback(.success)
                     }
                 }
             }
@@ -590,20 +590,20 @@ struct DictionaryManagerView: View {
                             store.add(dictionary: dict)
                             newText = ""; newName = ""
                             showAdd = false
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            notifyFeedback(.success)
                         }
                     }
                 }
             }
         }
         .sheet(isPresented: $showImporter) {
-            DocumentPicker(contentTypes: [.plainText, .json]) { url in
+            DocumentPicker(contentTypes: [.plainText, .json, UTType(filenameExtension: "dic") ?? .data, UTType(filenameExtension: "txt") ?? .data, .data]) { url in
                 if let text = try? String(contentsOf: url, encoding: .utf8) {
                     let name = url.deletingPathExtension().lastPathComponent
                     let dict = KeyDictionary.fromText(text, name: name)
                     guard !dict.keys.isEmpty else { return }
                     store.add(dictionary: dict)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    notifyFeedback(.success)
                 }
             }
         }
@@ -611,7 +611,7 @@ struct DictionaryManagerView: View {
             Button(L10n.t("Delete"), role: .destructive) {
                 if let dict = pendingDeleteDict { store.delete(dictionary: dict) }
                 pendingDeleteDict = nil
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteDict = nil }
         } message: {
@@ -667,7 +667,7 @@ struct DictionaryDetailView: View {
         .alert(L10n.t("Confirm deletion"), isPresented: $confirmDelete) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(dictionary: dictionary)
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
                 dismiss()
             }
             Button(L10n.t("Cancel"), role: .cancel) {}

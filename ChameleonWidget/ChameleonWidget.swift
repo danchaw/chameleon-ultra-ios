@@ -94,5 +94,6 @@ struct SlotSwitcherWidget: Widget {
 struct ChameleonWidgetBundle: WidgetBundle {
     var body: some Widget {
         SlotSwitcherWidget()
+        DeviceStatusWidget()
     }
 }

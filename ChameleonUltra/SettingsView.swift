@@ -10,13 +10,15 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = "system"
     @AppStorage("autoScan") private var autoScan = false
     @AppStorage("autoConnectFirst") private var autoConnectFirst = false
+    @AppStorage(FeedbackPrefs.hapticsKey) private var hapticsEnabled = true
+    @AppStorage(FeedbackPrefs.soundKey) private var tapSoundEnabled = false
     @State private var showSettingsImporter = false
     @State private var showSettingsShare = false
     @State private var settingsURL: URL?
     @State private var message: String?
 
     static let appStringKeys = ["themeColor", "colorScheme", "appLanguage"]
-    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled"]
+    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled", "tapSoundEnabled"]
     static let settingsMagic = "chameleon-ultra-ios-settings"
 
     /// Exports app settings and — when a device is connected — the live
@@ -59,7 +61,7 @@ struct SettingsView: View {
               let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               dict["format"] as? String == Self.settingsMagic else {
             message = L10n.t("Invalid settings file")
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            notifyFeedback(.error)
             return
         }
 
@@ -69,9 +71,8 @@ struct SettingsView: View {
             if let value = appDict["appLanguage"] as? String, !value.isEmpty { appLanguage = value }
             if let value = appDict["autoScan"] as? Bool { autoScan = value }
             if let value = appDict["autoConnectFirst"] as? Bool { autoConnectFirst = value }
-            if let value = appDict["hapticsEnabled"] as? Bool {
-                UserDefaults.standard.set(value, forKey: "hapticsEnabled")
-            }
+            if let value = appDict["hapticsEnabled"] as? Bool { hapticsEnabled = value }
+            if let value = appDict["tapSoundEnabled"] as? Bool { tapSoundEnabled = value }
         }
 
         var appliedDevice = false
@@ -99,7 +100,7 @@ struct SettingsView: View {
             : (dict["device"] != nil
                 ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
                 : L10n.t("Settings imported"))
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notifyFeedback(.success)
     }
 
     /// Shown in About; reads the real bundle version so it never drifts.
@@ -161,6 +162,11 @@ struct SettingsView: View {
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
             }
 
+            Section(L10n.t("Feedback")) {
+                Toggle(L10n.t("Haptic feedback"), isOn: $hapticsEnabled)
+                Toggle(L10n.t("Tap sound feedback"), isOn: $tapSoundEnabled)
+            }
+
             Section {
                 Button {
                     hapticFeedback()
@@ -194,9 +200,15 @@ struct SettingsView: View {
                 } label: {
                     AccentLabel(L10n.t("Protocol log"), "doc.text.magnifyingglass")
                 }
-                Link(destination: URL(string: "https://github.com/GameTec-live/ChameleonUltraGUI")!) {
+                // Button + open URL, not Link: Link would tint the text with
+                // the accent colour; only the icon should follow the theme.
+                Button {
+                    hapticFeedback()
+                    UIApplication.shared.open(URL(string: "https://github.com/GameTec-live/ChameleonUltraGUI")!)
+                } label: {
                     AccentLabel(L10n.t("Original project (Flutter)"), "safari")
                 }
+                .buttonStyle(ListRowHighlightStyle())
             }
 
             Section {
@@ -324,7 +336,7 @@ struct DeviceSettingsView: View {
         .alert(L10n.t("Factory reset?"), isPresented: $confirmFactoryReset) {
             Button(L10n.t("Factory reset (erases everything)"), role: .destructive) {
                 Task { try? await app.communicator?.factoryReset() }
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
@@ -413,7 +425,7 @@ struct LogsView: View {
                     hapticFeedback()
                     if app.archiveLogNow() {
                         statusMessage = L10n.t("Archived")
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        notifyFeedback(.success)
                     }
                 } label: {
                     Image(systemName: "archivebox")
@@ -507,7 +519,7 @@ struct LogArchivesView: View {
                 if let pendingDelete { app.deleteLogArchive(pendingDelete) }
                 pendingDelete = nil
                 refresh()
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
         } message: {
@@ -517,7 +529,7 @@ struct LogArchivesView: View {
             Button(L10n.t("Delete all"), role: .destructive) {
                 app.deleteAllLogArchives()
                 refresh()
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {

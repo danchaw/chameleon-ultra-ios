@@ -191,7 +191,7 @@ struct ReadCardView: View {
                            ats: Array(found.ats),
                            data: []))
         savedUIDs.insert(found.uid.hex)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notifyFeedback(.success)
     }
 
     private var hfSection: some View {
@@ -255,18 +255,12 @@ struct ReadCardView: View {
             if let recoveryModel {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text(L10n.t("Key recovery"))
-                                .font(.headline)
-                            Spacer()
-                            if let progress = recoveryModel.keyCheckProgress {
-                                Text("\(Int(progress * 100))%")
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                        // SegmentedProgress carries its own right-aligned
+                        // percentage, so no separate caption here.
+                        Text(L10n.t("Key recovery"))
+                            .font(.headline)
                         if let progress = recoveryModel.keyCheckProgress {
-                            ProgressView(value: progress)
+                            SegmentedProgress(progress: progress, count: 14)
                         }
                         if !recoveryModel.state.isEmpty {
                             Text(recoveryModel.state).font(.footnote).foregroundStyle(.secondary)
@@ -312,7 +306,7 @@ struct ReadCardView: View {
                         }
 
                         if phase == .dumping {
-                            HStack { ProgressView(value: recoveryModel.dumpProgress); Text(L10n.t("Dumping…")) }
+                            HStack { SegmentedProgress(progress: recoveryModel.dumpProgress, count: 14); Text(L10n.t("Dumping…")) }
                         }
 
                         if phase == .done {

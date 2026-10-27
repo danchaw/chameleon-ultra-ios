@@ -342,7 +342,7 @@ struct FlashingView: View {
                                 stagedFirmware = nil
                                 validation = nil
                             }
-                            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                            notifyFeedback(.warning)
                         }
                         Button(L10n.t("Cancel"), role: .cancel) {}
                     } message: {
@@ -388,7 +388,7 @@ struct FlashingView: View {
                         }
                     }
                     pendingDeleteFirmware = nil
-                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    notifyFeedback(.warning)
                 }
                 Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteFirmware = nil }
             } message: {

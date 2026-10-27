@@ -281,7 +281,7 @@ struct DictionaryDownloadView: View {
                 }
                 store.add(dictionary: dictionary)
                 results[index] = "✓ \(dictionary.keys.count) \(L10n.t("keys imported"))"
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                notifyFeedback(.success)
             } catch {
                 results[index] = "✗ " + L10n.t("Download failed")
             }

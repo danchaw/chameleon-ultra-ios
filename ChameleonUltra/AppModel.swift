@@ -51,9 +51,28 @@ final class AppModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard let self, self.isConnected else { continue }
-                if let battery = try? await self.communicator?.getBatteryCharge() { self.battery = battery }
+                if let battery = try? await self.communicator?.getBatteryCharge() {
+                    self.battery = battery
+                    self.publishWidgetSnapshot()
+                }
             }
         }
+    }
+
+    /// Push the latest device state into the App Group container so the
+    /// home-screen widgets can show battery / voltage / active slot.
+    func publishWidgetSnapshot() {
+        var state = DeviceSnapshot.State()
+        state.connected = isConnected
+        state.batteryPercent = battery?.percent
+        state.batteryMillivolts = battery?.voltage
+        state.deviceTypeName = deviceType == .ultra ? "Ultra" : "Lite"
+        state.activeSlot = activeSlot
+        if activeSlot >= 0, activeSlot < slotNames.count {
+            let names = slotNames[activeSlot]
+            state.slotName = names.hf.isEmpty ? names.lf : names.hf
+        }
+        DeviceSnapshot.publish(state)
     }
 
     func appendLog(_ line: String) {
@@ -192,6 +211,7 @@ final class AppModel: ObservableObject {
             try await refreshSlots()
             if cancelRequested { ble.disconnect(); connectionState = .disconnected; return }
             connectionState = .connected
+            publishWidgetSnapshot()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
             if cancelRequested { return }
@@ -208,6 +228,7 @@ final class AppModel: ObservableObject {
         if let types = try? await communicator.getSlotTagTypes() { slotTypes = types }
         if let enabled = try? await communicator.getEnabledSlots() { slotEnabled = enabled }
         if let names = try? await communicator.getSlotTagNames() { slotNames = names }
+        publishWidgetSnapshot()
     }
 
     func activateSlot(_ index: Int) async {
@@ -215,6 +236,7 @@ final class AppModel: ObservableObject {
         do {
             try await communicator.activateSlot(index)
             activeSlot = index
+            publishWidgetSnapshot()
         } catch {
             lastError = error.localizedDescription
         }
@@ -356,5 +378,6 @@ final class AppModel: ObservableObject {
         }
         connectionState = .disconnected
         dfuProgress = nil
+        publishWidgetSnapshot()
     }
 }

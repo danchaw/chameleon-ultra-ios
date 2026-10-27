@@ -80,7 +80,7 @@ struct SlotManagerView: View {
                             applyCard(card, to: slot)
                         }
                     }
-                    if !name.isEmpty {
+                    if !name.isEmpty && type != .unknown {
                         Button {
                             Task {
                                 try? await app.communicator?.deleteSlotTagNick(slot, frequency: frequency)
@@ -219,13 +219,13 @@ struct SlotManagerView: View {
                     showExport = true
                 case .newCard:
                     store.add(card)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    notifyFeedback(.success)
                 case .updateCard(let existing):
                     card.id = existing.id
                     card.name = existing.name
                     card.color = existing.color
                     store.update(card)
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    notifyFeedback(.success)
                 }
             } catch {
                 self.error = error.localizedDescription

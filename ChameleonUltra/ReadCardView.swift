@@ -149,7 +149,6 @@ struct ReadCardView: View {
     }
 
     private func toggleContinuous() {
-        hapticFeedback()
         if continuous {
             continuous = false
             scanTask?.cancel()
@@ -167,7 +166,6 @@ struct ReadCardView: View {
                         if let found = try await communicator?.scan14443aTag(),
                            !foundCards.contains(where: { $0.uid == found.uid }) {
                             foundCards.append(found)
-                            hapticFeedback()
                         }
                         try await Task.sleep(nanoseconds: 800_000_000)
                     }
@@ -182,7 +180,6 @@ struct ReadCardView: View {
 
     /// Save just the anti-collision data (original: save_only_uid).
     private func saveUIDOnly(card found: CardData, type: TagType) {
-        hapticFeedback()
         store.add(CardSave(uid: found.uid.hex,
                            name: "UID \(found.uid.hex)",
                            tag: type,
@@ -191,7 +188,6 @@ struct ReadCardView: View {
                            ats: Array(found.ats),
                            data: []))
         savedUIDs.insert(found.uid.hex)
-        notifyFeedback(.success)
     }
 
     private var hfSection: some View {
@@ -293,7 +289,6 @@ struct ReadCardView: View {
 
                         if phase == .checkingKeys || phase == .dumping {
                             Button {
-                                hapticFeedback(.medium)
                                 checkTask?.cancel()
                                 checkTask = nil
                             } label: {
@@ -611,7 +606,6 @@ struct ReadCardView: View {
             error = L10n.t("No keys found yet")
             return
         }
-        hapticFeedback()
 
         if !shareOnly {
             var dictionary = KeyDictionary(name: "\(card?.uid.hex.uppercased() ?? "Card") · \(L10n.t("Keys from dump"))")

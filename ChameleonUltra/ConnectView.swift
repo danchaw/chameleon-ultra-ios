@@ -14,6 +14,29 @@ struct ConnectView: View {
             VStack(spacing: 16) {
                 ErrorBanner(message: $app.lastError)
 
+                if app.isConnected {
+                    // Reached via the dashboard back button: stay connected,
+                    // one tap re-enters the device page.
+                    GlassCard {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(app.displayDeviceName)
+                                    .font(.headline)
+                                Text(L10n.t("Connected"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(L10n.t("Enter device")) {
+                                app.showDeviceList = false
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                }
+
                 GlassCard {
                     VStack(spacing: 6) {
                         Text("Chameleon Ultra")
@@ -66,7 +89,7 @@ struct ConnectView: View {
                                     .frame(height: 52)
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 8) {
-                                        Text(device.displayName)
+                                        Text(app.displayName(for: device))
                                             .font(.headline)
                                             .foregroundStyle(.primary)
                                         if device.isDFU {
@@ -163,6 +186,11 @@ struct ConnectView: View {
     }
 
     private func connect(_ device: DiscoveredDevice) {
+        // already connected to this one (came back via the dashboard): just re-enter
+        if app.connectionState == .connected, app.deviceName == device.displayName {
+            app.showDeviceList = false
+            return
+        }
         ble.stopScan()
         isScanning = false
         Task { await app.connect(to: device) }

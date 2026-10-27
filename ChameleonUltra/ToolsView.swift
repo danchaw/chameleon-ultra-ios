@@ -264,7 +264,6 @@ struct DictionaryDownloadView: View {
     private func download(_ index: Int) {
         let source = sources[index]
         guard let url = URL(string: source.urlString) else { return }
-        hapticFeedback()
         downloadingIndex = index
         Task {
             do {
@@ -281,7 +280,6 @@ struct DictionaryDownloadView: View {
                 }
                 store.add(dictionary: dictionary)
                 results[index] = "✓ \(dictionary.keys.count) \(L10n.t("keys imported"))"
-                notifyFeedback(.success)
             } catch {
                 results[index] = "✗ " + L10n.t("Download failed")
             }

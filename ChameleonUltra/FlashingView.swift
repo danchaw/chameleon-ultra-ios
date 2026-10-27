@@ -258,7 +258,6 @@ struct FlashingView: View {
                 Divider()
 
                 Button {
-                    hapticFeedback()
                     rebootToDFU(zip: nil)
                 } label: {
                     Label(L10n.t("Enter DFU mode"), systemImage: "exclamationmark.arrow.circlepath")
@@ -328,7 +327,6 @@ struct FlashingView: View {
                         .font(.headline)
                     Spacer()
                     Button(role: .destructive) {
-                        hapticFeedback(.medium)
                         confirmClearFirmware = true
                     } label: {
                         Label(L10n.t("Clear all"), systemImage: "trash")
@@ -342,7 +340,6 @@ struct FlashingView: View {
                                 stagedFirmware = nil
                                 validation = nil
                             }
-                            notifyFeedback(.warning)
                         }
                         Button(L10n.t("Cancel"), role: .cancel) {}
                     } message: {
@@ -367,7 +364,6 @@ struct FlashingView: View {
                             }
                             Spacer()
                             Button(role: .destructive) {
-                                hapticFeedback(.medium)
                                 pendingDeleteFirmware = package
                             } label: {
                                 Image(systemName: "trash")
@@ -388,7 +384,6 @@ struct FlashingView: View {
                         }
                     }
                     pendingDeleteFirmware = nil
-                    notifyFeedback(.warning)
                 }
                 Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteFirmware = nil }
             } message: {
@@ -407,7 +402,6 @@ struct FlashingView: View {
             error = L10n.t("Download failed")
             return
         }
-        hapticFeedback()
         busyPhase = .verifying
         let report = FirmwareValidator.validate(zip: data, sourceName: package.title)
         withAnimation {

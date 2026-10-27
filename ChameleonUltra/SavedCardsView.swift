@@ -48,7 +48,6 @@ struct SavedCardsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     showImporter = true
                 } label: {
                     Image(systemName: "square.and.arrow.down.on.square")
@@ -74,7 +73,6 @@ struct SavedCardsView: View {
                 if let data = try? Data(contentsOf: url) {
                     let count = store.importCards(from: data)
                     message = count > 0 ? "✓ \(count) \(L10n.t("Imported"))" : L10n.t("No compatible cards found in file")
-                    if count > 0 { notifyFeedback(.success) }
                 }
             }
         }
@@ -82,7 +80,6 @@ struct SavedCardsView: View {
             Button(L10n.t("Delete"), role: .destructive) {
                 pendingDelete?.forEach { store.delete($0) }
                 pendingDelete = nil
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
         } message: {
@@ -213,7 +210,6 @@ struct CardDetailView: View {
             Section {
                 if app.isConnected {
                     Button {
-                        hapticFeedback()
                         showApplySheet = true
                     } label: {
                         HStack {
@@ -231,7 +227,6 @@ struct CardDetailView: View {
 
             Section(L10n.t("Export")) {
                 Button {
-                    hapticFeedback()
                     export(json: true)
                 } label: {
                     AccentLabel(L10n.t("Export as JSON"), "curlybraces.square")
@@ -239,7 +234,6 @@ struct CardDetailView: View {
                 .buttonStyle(ListRowHighlightStyle())
 
                 Button {
-                    hapticFeedback()
                     export(json: false)
                 } label: {
                     AccentLabel(L10n.t("Export as binary dump"), "doc.zipper")
@@ -267,7 +261,6 @@ struct CardDetailView: View {
 
             Section(L10n.t("Card actions")) {
                 Button {
-                    hapticFeedback()
                     editName = card.name
                     editUID = card.uid
                     showEditSheet = true
@@ -277,7 +270,6 @@ struct CardDetailView: View {
                 .buttonStyle(ListRowHighlightStyle())
 
                 Button {
-                    hapticFeedback()
                     duplicateCard()
                 } label: {
                     AccentLabel(L10n.t("Duplicate card"), "plus.square.on.square")
@@ -292,14 +284,12 @@ struct CardDetailView: View {
                                    blockSize: blockSize) { newBlocks in
                         card.data = newBlocks
                         store.update(card)
-                        notifyFeedback(.success)
                     }
                 } label: {
                     AccentLabel(L10n.t("Dump editor"), "square.and.pencil")
                 }
 
                 Button {
-                    hapticFeedback()
                     showComparePicker = true
                 } label: {
                     AccentLabel(L10n.t("Compare dump…"), "square.split.2x1")
@@ -308,7 +298,6 @@ struct CardDetailView: View {
                 .disabled(compareCandidates.isEmpty)
 
                 Button {
-                    hapticFeedback()
                     saveAsName = card.name
                     saveAsJSON = true
                     showSaveAsSheet = true
@@ -320,7 +309,6 @@ struct CardDetailView: View {
 
             Section(L10n.t("Danger zone")) {
                 Button(role: .destructive) {
-                    hapticFeedback(.medium)
                     showDeleteConfirm = true
                 } label: {
                     AccentLabel(L10n.t("Delete card"), "trash")
@@ -347,7 +335,6 @@ struct CardDetailView: View {
         .alert(L10n.t("Confirm deletion"), isPresented: $showDeleteConfirm) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(card)
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
@@ -382,19 +369,16 @@ struct CardDetailView: View {
     }
 
     private func apply(to slot: Int) {
-        hapticFeedback()
         applyingSlot = slot
         Task {
             do {
                 try await app.applyCardToSlot(card, slot: slot)
                 applyingSlot = -slot - 1   // done marker
-                notifyFeedback(.success)
                 message = L10n.tf("Applied to slot %d", slot)
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 showApplySheet = false
             } catch {
                 message = error.localizedDescription
-                notifyFeedback(.error)
                 showApplySheet = false
             }
             applyingSlot = nil
@@ -412,7 +396,6 @@ struct CardDetailView: View {
         copy.name = card.name + " 副本"
         store.add(copy)
         message = L10n.t("Card updated")
-        notifyFeedback(.success)
     }
 
     private var editSheet: some View {
@@ -437,7 +420,6 @@ struct CardDetailView: View {
                         if !uid.isEmpty { card.uid = uid }
                         store.update(card)
                         showEditSheet = false
-                        notifyFeedback(.success)
                     }
                 }
             }
@@ -557,13 +539,11 @@ struct DictionaryManagerView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     showAdd = true
                 } label: { Image(systemName: "plus") }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     showImporter = true
                 } label: { Image(systemName: "square.and.arrow.down") }
             }
@@ -590,7 +570,6 @@ struct DictionaryManagerView: View {
                             store.add(dictionary: dict)
                             newText = ""; newName = ""
                             showAdd = false
-                            notifyFeedback(.success)
                         }
                     }
                 }
@@ -603,7 +582,6 @@ struct DictionaryManagerView: View {
                     let dict = KeyDictionary.fromText(text, name: name)
                     guard !dict.keys.isEmpty else { return }
                     store.add(dictionary: dict)
-                    notifyFeedback(.success)
                 }
             }
         }
@@ -611,7 +589,6 @@ struct DictionaryManagerView: View {
             Button(L10n.t("Delete"), role: .destructive) {
                 if let dict = pendingDeleteDict { store.delete(dictionary: dict) }
                 pendingDeleteDict = nil
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDeleteDict = nil }
         } message: {
@@ -641,7 +618,6 @@ struct DictionaryDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     let text = dictionary.keyData.map { $0.hex.uppercased() }.joined(separator: "\n") + "\n"
                     let url = FileManager.default.temporaryDirectory
                         .appendingPathComponent("\(dictionary.name).dic")
@@ -654,7 +630,6 @@ struct DictionaryDetailView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) {
-                    hapticFeedback(.medium)
                     confirmDelete = true
                 } label: {
                     Image(systemName: "trash")
@@ -667,7 +642,6 @@ struct DictionaryDetailView: View {
         .alert(L10n.t("Confirm deletion"), isPresented: $confirmDelete) {
             Button(L10n.t("Delete"), role: .destructive) {
                 store.delete(dictionary: dictionary)
-                notifyFeedback(.warning)
                 dismiss()
             }
             Button(L10n.t("Cancel"), role: .cancel) {}

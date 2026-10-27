@@ -10,6 +10,8 @@ struct SlotManagerView: View {
     @State private var confirmReset: (Int, TagFrequency)?
     @State private var showExport = false
     @State private var exportURL: URL?
+    @State private var aliasSlot: Int?
+    @State private var aliasText = ""
 
     var body: some View {
         List {
@@ -17,11 +19,31 @@ struct SlotManagerView: View {
                 Section { Text(error).foregroundStyle(.red) }
             }
             ForEach(0..<8, id: \.self) { slot in
-                Section(app.activeSlot == slot
-                        ? "\(L10n.t("Slot")) \(slot)  •  \(L10n.t("active"))"
-                        : "\(L10n.t("Slot")) \(slot)") {
+                Section {
                     slotRow(slot, frequency: .hf)
                     slotRow(slot, frequency: .lf)
+                } header: {
+                    // slot number stays; alias + editor sit beside it
+                    HStack(spacing: 6) {
+                        Text(app.activeSlot == slot
+                                ? "\(L10n.t("Slot")) \(slot)  •  \(L10n.t("active"))"
+                                : "\(L10n.t("Slot")) \(slot)")
+                        if !app.slotAliases[slot].isEmpty {
+                            Text(app.slotAliases[slot])
+                                .foregroundStyle(themeAccent)
+                        }
+                        Spacer(minLength: 0)
+                        Button {
+                            aliasText = app.slotAliases[slot]
+                            aliasSlot = slot
+                        } label: {
+                            Image(systemName: app.slotAliases[slot].isEmpty ? "plus.circle" : "pencil.line")
+                                .font(.footnote)
+                                .foregroundStyle(app.slotAliases[slot].isEmpty ? Color.secondary.opacity(0.6) : themeAccent)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("Slot alias"))
+                    }
                 }
             }
             Section {
@@ -54,10 +76,26 @@ struct SlotManagerView: View {
         .sheet(isPresented: $showExport) {
             if let exportURL { ShareSheet(items: [exportURL]) }
         }
+        .alert(L10n.t("Slot alias"), isPresented: aliasDialogShown) {
+            TextField(L10n.t("Alias name"), text: $aliasText)
+            Button(L10n.t("Save")) {
+                if let slot = aliasSlot { app.setSlotAlias(slot, aliasText) }
+                aliasSlot = nil
+            }
+            Button(L10n.t("Clear alias"), role: .destructive) {
+                if let slot = aliasSlot { app.setSlotAlias(slot, "") }
+                aliasSlot = nil
+            }
+            Button(L10n.t("Cancel"), role: .cancel) { aliasSlot = nil }
+        }
     }
 
     private var resetDialogShown: Binding<Bool> {
         Binding(get: { confirmReset != nil }, set: { if !$0 { confirmReset = nil } })
+    }
+
+    private var aliasDialogShown: Binding<Bool> {
+        Binding(get: { aliasSlot != nil }, set: { if !$0 { aliasSlot = nil } })
     }
 
     @ViewBuilder
@@ -135,7 +173,6 @@ struct SlotManagerView: View {
 
             HStack(spacing: 10) {
                 Button {
-                    hapticFeedback()
                     confirmReset = (slot, frequency)
                 } label: {
                     Text(L10n.t("Reset slot"))
@@ -149,7 +186,6 @@ struct SlotManagerView: View {
 
                 if app.activeSlot != slot {
                     Button {
-                        hapticFeedback()
                         Task { await app.activateSlot(slot) }
                     } label: {
                         Text(L10n.t("Activate"))
@@ -200,7 +236,6 @@ struct SlotManagerView: View {
     }
 
     private func exportSlot(_ slot: Int, mode: SlotExportMode) {
-        hapticFeedback()
         Task {
             busySlot = slot
             do {
@@ -219,13 +254,11 @@ struct SlotManagerView: View {
                     showExport = true
                 case .newCard:
                     store.add(card)
-                    notifyFeedback(.success)
                 case .updateCard(let existing):
                     card.id = existing.id
                     card.name = existing.name
                     card.color = existing.color
                     store.update(card)
-                    notifyFeedback(.success)
                 }
             } catch {
                 self.error = error.localizedDescription

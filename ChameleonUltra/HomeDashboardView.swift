@@ -4,6 +4,8 @@ import SwiftUI
 struct HomeDashboardView: View {
     @EnvironmentObject var app: AppModel
     @State private var showEmulatorSettings = false
+    @State private var showRenameAlert = false
+    @State private var renameText = ""
     @State private var refreshTask: Task<Void, Never>?
 
     var body: some View {
@@ -17,6 +19,14 @@ struct HomeDashboardView: View {
         }
         .navigationTitle("Chameleon \(app.deviceType.displayName)")
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                // Back to the device list; the connection stays alive.
+                Button {
+                    app.showDeviceList = true
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) {
                     app.disconnect()
@@ -35,6 +45,11 @@ struct HomeDashboardView: View {
         .sheet(isPresented: $showEmulatorSettings) {
             EmulatorSettingsSheet()
         }
+        .alert(L10n.t("Rename device"), isPresented: $showRenameAlert) {
+            TextField(L10n.t("Device name"), text: $renameText)
+            Button(L10n.t("Save")) { app.setDeviceNickname(renameText) }
+            Button(L10n.t("Cancel"), role: .cancel) { }
+        }
         .onAppear { refresh() }
         .onDisappear { refreshTask?.cancel() }
     }
@@ -49,8 +64,18 @@ struct HomeDashboardView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "battery")
                                 .foregroundStyle(.tint)
-                            Text(app.deviceName)
+                            Text(app.displayDeviceName)
                                 .font(.headline)
+                            Button {
+                                renameText = app.deviceNickname
+                                showRenameAlert = true
+                            } label: {
+                                Image(systemName: "pencil.line")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L10n.t("Rename device"))
                         }
                         Text("Chameleon \(app.deviceType.displayName)")
                             .font(.caption)

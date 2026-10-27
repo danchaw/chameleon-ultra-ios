@@ -1,13 +1,11 @@
 import SwiftUI
 import UIKit
-import AudioToolbox
 import UniformTypeIdentifiers
 
 // MARK: - Press feedback
 
-/// Press feedback, chosen design A: theme-colour highlight + a subtle
-/// scale-down. The style itself stays silent — haptics and tap sounds are
-/// fired from the action via `hapticFeedback()`, both user-switchable.
+/// Capsule/icon buttons: gentle dim while pressed (no haptics or sound —
+/// deliberately removed from the app per user request).
 struct PressableButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -17,8 +15,6 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
-/// Stronger feedback for List rows: pressed rows light up with an accent
-/// background so the tap is unmistakable.
 /// Label whose icon follows the app theme accent color.
 struct AccentLabel: View {
     let title: String
@@ -37,6 +33,9 @@ struct AccentLabel: View {
     }
 }
 
+/// System-gray row highlight (user-chosen design): pressing lights up the
+/// WHOLE row — the fill bleeds past the default List content insets — instead
+/// of only tinting the label area. No text recolouring, no scaling.
 struct ListRowHighlightStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         ListRowHighlightBody(configuration: configuration)
@@ -44,16 +43,20 @@ struct ListRowHighlightStyle: ButtonStyle {
 
     private struct ListRowHighlightBody: View {
         let configuration: Configuration
-        @Environment(\.themeAccent) private var accent
 
         var body: some View {
             configuration.label
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
-                .foregroundStyle(configuration.isPressed ? accent : Color.primary)
-                .background(configuration.isPressed ? accent.opacity(0.18) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 10))
-                .scaleEffect(configuration.isPressed ? 0.98 : 1)
+                .background(
+                    Rectangle()
+                        .fill(Color(uiColor: .systemGray4).opacity(0.55))
+                        // expand beyond the row's text/icon bounds so the
+                        // full row width and height flash, like the native
+                        // iOS list selection
+                        .padding(EdgeInsets(top: -12, leading: -18, bottom: -12, trailing: -18))
+                        .opacity(configuration.isPressed ? 1 : 0)
+                )
                 .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
         }
     }
@@ -67,37 +70,6 @@ extension EnvironmentValues {
     var themeAccent: Color {
         get { self[ThemeAccentKey.self] }
         set { self[ThemeAccentKey.self] = newValue }
-    }
-}
-
-// MARK: - Tap feedback (haptics + sound, both switchable in Settings)
-
-/// Preference keys shared with the Settings toggles and settings export.
-/// Defaults: haptics on, tap sound off (matches the original app's feel).
-enum FeedbackPrefs {
-    static let hapticsKey = "hapticsEnabled"
-    static let soundKey = "tapSoundEnabled"
-    static var hapticsOn: Bool { UserDefaults.standard.object(forKey: hapticsKey) as? Bool ?? true }
-    static var soundOn: Bool { UserDefaults.standard.object(forKey: soundKey) as? Bool ?? false }
-}
-
-@MainActor
-func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
-    if FeedbackPrefs.hapticsOn {
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
-    }
-    if FeedbackPrefs.soundOn {
-        AudioServicesPlaySystemSound(1104) // subtle UI tick
-    }
-}
-
-@MainActor
-func notifyFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-    if FeedbackPrefs.hapticsOn {
-        UINotificationFeedbackGenerator().notificationOccurred(type)
-    }
-    if FeedbackPrefs.soundOn {
-        AudioServicesPlaySystemSound(1104)
     }
 }
 
@@ -362,8 +334,15 @@ struct SlotChanger: View {
                         }
                     } label: {
                         VStack(spacing: 2) {
+                            // slot number is always kept visible; alias sits under it
                             Text("\(slot)")
                                 .font(.headline)
+                            if !app.slotAliases[slot].isEmpty {
+                                Text(app.slotAliases[slot])
+                                    .font(.system(size: 8))
+                                    .lineLimit(1)
+                                    .foregroundStyle(.secondary)
+                            }
                             HStack(spacing: 3) {
                                 Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 5, height: 5)
                                 Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 5, height: 5)

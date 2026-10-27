@@ -71,7 +71,13 @@ struct HomeEntryPoint: View {
     var body: some View {
         switch app.connectionState {
         case .connected:
-            HomeDashboardView()
+            // Back button on the dashboard shows the device list again while
+            // the BLE connection stays alive.
+            if app.showDeviceList {
+                ConnectView()
+            } else {
+                HomeDashboardView()
+            }
         case .dfuMode:
             FlashingView()
         case .connecting:

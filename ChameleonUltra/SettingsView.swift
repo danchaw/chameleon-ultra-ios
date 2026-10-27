@@ -10,15 +10,13 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = "system"
     @AppStorage("autoScan") private var autoScan = false
     @AppStorage("autoConnectFirst") private var autoConnectFirst = false
-    @AppStorage(FeedbackPrefs.hapticsKey) private var hapticsEnabled = true
-    @AppStorage(FeedbackPrefs.soundKey) private var tapSoundEnabled = false
     @State private var showSettingsImporter = false
     @State private var showSettingsShare = false
     @State private var settingsURL: URL?
     @State private var message: String?
 
     static let appStringKeys = ["themeColor", "colorScheme", "appLanguage"]
-    static let appBoolKeys = ["autoScan", "autoConnectFirst", "hapticsEnabled", "tapSoundEnabled"]
+    static let appBoolKeys = ["autoScan", "autoConnectFirst"]
     static let settingsMagic = "chameleon-ultra-ios-settings"
 
     /// Exports app settings and — when a device is connected — the live
@@ -61,7 +59,6 @@ struct SettingsView: View {
               let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               dict["format"] as? String == Self.settingsMagic else {
             message = L10n.t("Invalid settings file")
-            notifyFeedback(.error)
             return
         }
 
@@ -71,8 +68,6 @@ struct SettingsView: View {
             if let value = appDict["appLanguage"] as? String, !value.isEmpty { appLanguage = value }
             if let value = appDict["autoScan"] as? Bool { autoScan = value }
             if let value = appDict["autoConnectFirst"] as? Bool { autoConnectFirst = value }
-            if let value = appDict["hapticsEnabled"] as? Bool { hapticsEnabled = value }
-            if let value = appDict["tapSoundEnabled"] as? Bool { tapSoundEnabled = value }
         }
 
         var appliedDevice = false
@@ -100,7 +95,6 @@ struct SettingsView: View {
             : (dict["device"] != nil
                 ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
                 : L10n.t("Settings imported"))
-        notifyFeedback(.success)
     }
 
     /// Shown in About; reads the real bundle version so it never drifts.
@@ -162,21 +156,14 @@ struct SettingsView: View {
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
             }
 
-            Section(L10n.t("Feedback")) {
-                Toggle(L10n.t("Haptic feedback"), isOn: $hapticsEnabled)
-                Toggle(L10n.t("Tap sound feedback"), isOn: $tapSoundEnabled)
-            }
-
             Section {
                 Button {
-                    hapticFeedback()
                     Task { await exportSettings() }
                 } label: {
                     AccentLabel(L10n.t("Export settings"), "square.and.arrow.up")
                 }
                 .buttonStyle(ListRowHighlightStyle())
                 Button {
-                    hapticFeedback()
                     showSettingsImporter = true
                 } label: {
                     AccentLabel(L10n.t("Import settings"), "square.and.arrow.down")
@@ -203,7 +190,6 @@ struct SettingsView: View {
                 // Button + open URL, not Link: Link would tint the text with
                 // the accent colour; only the icon should follow the theme.
                 Button {
-                    hapticFeedback()
                     UIApplication.shared.open(URL(string: "https://github.com/GameTec-live/ChameleonUltraGUI")!)
                 } label: {
                     AccentLabel(L10n.t("Original project (Flutter)"), "safari")
@@ -285,7 +271,6 @@ struct DeviceSettingsView: View {
                                 longPressThreshold = newValue
                                 Task {
                                     try? await app.communicator?.setLongPressThreshold(newValue)
-                                    hapticFeedback()
                                 }
                             }), in: 100...5000, step: 100)
             }
@@ -336,7 +321,6 @@ struct DeviceSettingsView: View {
         .alert(L10n.t("Factory reset?"), isPresented: $confirmFactoryReset) {
             Button(L10n.t("Factory reset (erases everything)"), role: .destructive) {
                 Task { try? await app.communicator?.factoryReset() }
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
@@ -369,7 +353,6 @@ struct DeviceSettingsView: View {
                 }
                 Task {
                     try? await app.communicator?.setButtonConfig(type, mode: newValue, long: long)
-                    hapticFeedback()
                 }
             })) {
             ForEach(ButtonConfig.allCases) { mode in
@@ -422,10 +405,8 @@ struct LogsView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    hapticFeedback()
                     if app.archiveLogNow() {
                         statusMessage = L10n.t("Archived")
-                        notifyFeedback(.success)
                     }
                 } label: {
                     Image(systemName: "archivebox")
@@ -474,7 +455,6 @@ struct LogArchivesView: View {
                             }
                             Spacer()
                             Button {
-                                hapticFeedback()
                                 shareURL = archive.url
                                 showShare = true
                             } label: {
@@ -482,7 +462,6 @@ struct LogArchivesView: View {
                             }
                             .buttonStyle(PressableButtonStyle())
                             Button {
-                                hapticFeedback(.medium)
                                 pendingDelete = archive
                             } label: {
                                 Image(systemName: "trash")
@@ -496,7 +475,6 @@ struct LogArchivesView: View {
                     Text(L10n.t("Log archives"))
                 } footer: {
                     Button(role: .destructive) {
-                        hapticFeedback(.medium)
                         confirmDeleteAll = true
                     } label: {
                         Text(L10n.t("Delete all archives?"))
@@ -519,7 +497,6 @@ struct LogArchivesView: View {
                 if let pendingDelete { app.deleteLogArchive(pendingDelete) }
                 pendingDelete = nil
                 refresh()
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) { pendingDelete = nil }
         } message: {
@@ -529,7 +506,6 @@ struct LogArchivesView: View {
             Button(L10n.t("Delete all"), role: .destructive) {
                 app.deleteAllLogArchives()
                 refresh()
-                notifyFeedback(.warning)
             }
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {

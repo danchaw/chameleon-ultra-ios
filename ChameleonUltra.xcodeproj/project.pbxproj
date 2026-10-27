@@ -8,7 +8,28 @@
 
 /* Begin PBXBuildFile section */
 		CUW0000000000000000000003A /* ChameleonWidget.appex in Embed Foundation Extensions */ = { isa = PBXBuildFile; fileRef = CUW0000000000000000000001A /* ChameleonWidget.appex */; };
+		CUA000000000000000000000BA /* SharedKit in Frameworks */ = { isa = PBXBuildFile; productRef = CULP0000000000000000000002; };
+		CUA000000000000000000000CA /* SharedKit in Frameworks */ = { isa = PBXBuildFile; productRef = CULP0000000000000000000003; };
 /* End PBXBuildFile section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CUA000000000000000000000DA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CUA000000000000000000000BA /* SharedKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CUA000000000000000000000EA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CUA000000000000000000000CA /* SharedKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXContainerItemProxy section */
 		CUW0000000000000000000004A /* PBXContainerItemProxy */ = {
@@ -64,6 +85,7 @@
 			buildPhases = (
 				CU0000000000000000000006A /* Sources */,
 				CU00000000000000000000E0A /* Resources */,
+				CUA000000000000000000000DA /* Frameworks */,
 				CUW0000000000000000000006A /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -87,6 +109,7 @@
 			buildConfigurationList = CUW0000000000000000000009A /* Build configuration list for PBXNativeTarget "ChameleonWidget" */;
 			buildPhases = (
 				CUW0000000000000000000008A /* Sources */,
+				CUA000000000000000000000EA /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -257,7 +280,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChameleonUltra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
@@ -275,7 +298,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.26.0;
+				MARKETING_VERSION = 1.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -291,7 +314,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChameleonUltra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
@@ -309,7 +332,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.26.0;
+				MARKETING_VERSION = 1.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -324,7 +347,7 @@
 				BUNDLE_LOADER = "";
 				CODE_SIGN_ENTITLEMENTS = ChameleonWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -333,7 +356,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.26.0;
+				MARKETING_VERSION = 1.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -351,7 +374,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ChameleonWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 46;
+				CURRENT_PROJECT_VERSION = 47;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -360,7 +383,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.26.0;
+				MARKETING_VERSION = 1.27.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

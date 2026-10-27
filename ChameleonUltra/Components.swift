@@ -4,14 +4,32 @@ import UniformTypeIdentifiers
 
 // MARK: - Press feedback
 
-/// Capsule/icon buttons: gentle dim while pressed (no haptics or sound —
-/// deliberately removed from the app per user request).
+/// Capsule/icon buttons: dim + slight scale while pressed, and a short
+/// afterglow on release so a quick tap is clearly visible (the plain
+/// press-only effect was too fast to notice).
 struct PressableButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.75 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+        PressableBody(configuration: configuration)
+    }
+
+    private struct PressableBody: View {
+        let configuration: Configuration
+        @State private var releaseGlow = false
+
+        var body: some View {
+            configuration.label
+                .opacity(configuration.isPressed ? 0.6 : (releaseGlow ? 0.8 : 1))
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+                .onChange(of: configuration.isPressed) { _, pressed in
+                    guard !pressed else { return }
+                    releaseGlow = true
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 130_000_000)
+                        withAnimation(.easeOut(duration: 0.16)) { releaseGlow = false }
+                    }
+                }
+        }
     }
 }
 
@@ -33,9 +51,10 @@ struct AccentLabel: View {
     }
 }
 
-/// System-gray row highlight (user-chosen design): pressing lights up the
-/// WHOLE row — the fill bleeds past the default List content insets — instead
-/// of only tinting the label area. No text recolouring, no scaling.
+/// System-gray row highlight: the fill spans the FULL row width and the
+/// row's own height, inset slightly so its rounded corners sit cleanly
+/// inside the list card (no bleed past card edges like the old rectangle).
+/// A short afterglow on release makes quick taps clearly visible.
 struct ListRowHighlightStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         ListRowHighlightBody(configuration: configuration)
@@ -43,21 +62,25 @@ struct ListRowHighlightStyle: ButtonStyle {
 
     private struct ListRowHighlightBody: View {
         let configuration: Configuration
+        @State private var releaseGlow = false
 
         var body: some View {
             configuration.label
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .background(
-                    Rectangle()
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .fill(Color(uiColor: .systemGray4).opacity(0.55))
-                        // expand beyond the row's text/icon bounds so the
-                        // full row width and height flash, like the native
-                        // iOS list selection
-                        .padding(EdgeInsets(top: -12, leading: -18, bottom: -12, trailing: -18))
-                        .opacity(configuration.isPressed ? 1 : 0)
+                        .opacity(configuration.isPressed ? 1 : (releaseGlow ? 0.85 : 0))
                 )
-                .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
+                .onChange(of: configuration.isPressed) { _, pressed in
+                    guard !pressed else { return }
+                    releaseGlow = true
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                        withAnimation(.easeOut(duration: 0.18)) { releaseGlow = false }
+                    }
+                }
         }
     }
 }

@@ -5,10 +5,15 @@ import UniformTypeIdentifiers
 struct SavedCardsView: View {
     @EnvironmentObject var store: CardStore
     @EnvironmentObject var app: AppModel
+    @Environment(\.themeAccent) private var themeAccent
     @State private var search = ""
     @State private var showImporter = false
     @State private var message: String?
     @State private var pendingDelete: [CardSave]?
+    // batch selection mode: tap rows to toggle, select-all, delete selected
+    @State private var selectMode = false
+    @State private var selection = Set<UUID>()
+    @State private var confirmBatchDelete = false
 
     var body: some View {
         List {
@@ -17,6 +22,18 @@ struct SavedCardsView: View {
             }
             Section {
                 ForEach(filtered) { card in
+                    if selectMode {
+                        Button {
+                            toggle(card.id)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: selection.contains(card.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selection.contains(card.id) ? Color.accentColor : Color(.systemGray3))
+                                cardRow(card)
+                            }
+                        }
+                        .buttonStyle(ListRowHighlightStyle())
+                    } else {
                     NavigationLink {
                         CardDetailView(card: card)
                     } label: {
@@ -37,6 +54,7 @@ struct SavedCardsView: View {
                             AccentLabel(L10n.t("Delete card"), "trash")
                         }
                     }
+                    }
                 }
                 .onDelete { indexSet in
                     pendingDelete = indexSet.map { filtered[$0] }
@@ -46,18 +64,44 @@ struct SavedCardsView: View {
         .searchable(text: $search, prompt: L10n.t("name, UID or type"))
         .navigationTitle(L10n.t("Saved cards"))
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showImporter = true
-                } label: {
-                    Image(systemName: "square.and.arrow.down.on.square")
+            ToolbarItem(placement: .topBarLeading) {
+                if selectMode {
+                    Button(L10n.t("Cancel")) { exitSelectMode() }
+                } else {
+                    Button(L10n.t("Select")) { selectMode = true }
+                }
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                if selectMode {
+                    Button(selection.count == filtered.count && !filtered.isEmpty
+                            ? L10n.t("Deselect all") : L10n.t("Select all")) {
+                        toggleSelectAll()
+                    }
+                    .disabled(filtered.isEmpty)
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    DictionaryManagerView()
-                } label: {
-                    Image(systemName: "key.horizontal")
+                if selectMode {
+                    Button("\(L10n.t("Delete")) (\(selection.count))", role: .destructive) {
+                        confirmBatchDelete = true
+                    }
+                    .tint(themeAccent)
+                    .disabled(selection.isEmpty)
+                } else {
+                    Button {
+                        showImporter = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.down.on.square")
+                    }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if !selectMode {
+                    NavigationLink {
+                        DictionaryManagerView()
+                    } label: {
+                        Image(systemName: "key.horizontal")
+                    }
                 }
             }
         }
@@ -85,6 +129,35 @@ struct SavedCardsView: View {
         } message: {
             Text(L10n.t("This cannot be undone."))
         }
+        .alert(L10n.t("Confirm deletion"), isPresented: $confirmBatchDelete) {
+            Button(L10n.t("Delete"), role: .destructive) {
+                let doomed = store.cards.filter { selection.contains($0.id) }
+                doomed.forEach { store.delete($0) }
+                exitSelectMode()
+            }
+            Button(L10n.t("Cancel"), role: .cancel) { }
+        } message: {
+            Text("\(L10n.t("Delete")) \(selection.count) · \(L10n.t("This cannot be undone."))")
+        }
+    }
+
+    // MARK: - Batch selection helpers
+
+    private func toggle(_ id: UUID) {
+        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+    }
+
+    private func toggleSelectAll() {
+        if selection.count == filtered.count {
+            selection.removeAll()
+        } else {
+            selection = Set(filtered.map(\.id))
+        }
+    }
+
+    private func exitSelectMode() {
+        selectMode = false
+        selection.removeAll()
     }
 
     private var deleteDialogShown: Binding<Bool> {
@@ -510,16 +583,36 @@ struct CardDetailView: View {
 
 struct DictionaryManagerView: View {
     @EnvironmentObject var store: CardStore
+    @Environment(\.themeAccent) private var themeAccent
     @State private var newText = ""
     @State private var newName = ""
     @State private var showAdd = false
     @State private var showImporter = false
     @State private var pendingDeleteDict: KeyDictionary?
+    @State private var selectMode = false
+    @State private var selection = Set<UUID>()
+    @State private var confirmBatchDelete = false
 
     var body: some View {
         List {
             Section {
                 ForEach(store.dictionaries) { dict in
+                    if selectMode {
+                        Button {
+                            toggle(dict.id)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: selection.contains(dict.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selection.contains(dict.id) ? Color.accentColor : Color(.systemGray3))
+                                VStack(alignment: .leading) {
+                                    Text(dict.name).font(.headline)
+                                    Text("\(dict.keys.count) \(L10n.t("keys"))")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .buttonStyle(ListRowHighlightStyle())
+                    } else {
                     NavigationLink {
                         DictionaryDetailView(dictionary: dict)
                     } label: {
@@ -529,6 +622,7 @@ struct DictionaryManagerView: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    }
                 }
                 .onDelete { indexSet in
                     pendingDeleteDict = indexSet.map { store.dictionaries[$0] }.first
@@ -537,15 +631,41 @@ struct DictionaryManagerView: View {
         }
         .navigationTitle(L10n.t("Dictionaries"))
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showAdd = true
-                } label: { Image(systemName: "plus") }
+            ToolbarItem(placement: .topBarLeading) {
+                if selectMode {
+                    Button(L10n.t("Cancel")) { exitSelectMode() }
+                } else {
+                    Button(L10n.t("Select")) { selectMode = true }
+                }
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                if selectMode {
+                    Button(selection.count == store.dictionaries.count && !store.dictionaries.isEmpty
+                            ? L10n.t("Deselect all") : L10n.t("Select all")) {
+                        toggleSelectAll()
+                    }
+                    .disabled(store.dictionaries.isEmpty)
+                }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showImporter = true
-                } label: { Image(systemName: "square.and.arrow.down") }
+                if selectMode {
+                    Button("\(L10n.t("Delete")) (\(selection.count))", role: .destructive) {
+                        confirmBatchDelete = true
+                    }
+                    .tint(themeAccent)
+                    .disabled(selection.isEmpty)
+                } else {
+                    Button {
+                        showAdd = true
+                    } label: { Image(systemName: "plus") }
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if !selectMode {
+                    Button {
+                        showImporter = true
+                    } label: { Image(systemName: "square.and.arrow.down") }
+                }
             }
         }
         .sheet(isPresented: $showAdd) {
@@ -594,10 +714,37 @@ struct DictionaryManagerView: View {
         } message: {
             Text("\(L10n.t("Delete this dictionary?")) \(L10n.t("This cannot be undone."))")
         }
+        .alert(L10n.t("Confirm deletion"), isPresented: $confirmBatchDelete) {
+            Button(L10n.t("Delete"), role: .destructive) {
+                let doomed = store.dictionaries.filter { selection.contains($0.id) }
+                doomed.forEach { store.delete(dictionary: $0) }
+                exitSelectMode()
+            }
+            Button(L10n.t("Cancel"), role: .cancel) { }
+        } message: {
+            Text("\(L10n.t("Delete")) \(selection.count) · \(L10n.t("This cannot be undone."))")
+        }
     }
 
     private var deleteDictShown: Binding<Bool> {
         Binding(get: { pendingDeleteDict != nil }, set: { if !$0 { pendingDeleteDict = nil } })
+    }
+
+    private func toggle(_ id: UUID) {
+        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+    }
+
+    private func toggleSelectAll() {
+        if selection.count == store.dictionaries.count {
+            selection.removeAll()
+        } else {
+            selection = Set(store.dictionaries.map(\.id))
+        }
+    }
+
+    private func exitSelectMode() {
+        selectMode = false
+        selection.removeAll()
     }
 }
 

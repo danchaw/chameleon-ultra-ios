@@ -125,6 +125,9 @@ struct DeviceStatusEntry: TimelineEntry {
 }
 
 struct DeviceStatusProvider: AppIntentTimelineProvider {
+    typealias Entry = DeviceStatusEntry
+    typealias Intent = DeviceStatusIntent
+
     func placeholder(in context: Context) -> DeviceStatusEntry {
         var snap = WidgetDeviceSnapshot()
         snap.connected = true; snap.batteryPercent = 78; snap.batteryMillivolts = 3910

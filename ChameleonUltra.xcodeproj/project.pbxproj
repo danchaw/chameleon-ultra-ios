@@ -302,7 +302,6 @@
 				CURRENT_PROJECT_VERSION = 45;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
-				PRODUCT_MODULE_NAME = ChameleonUltra;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -330,7 +329,6 @@
 				CURRENT_PROJECT_VERSION = 45;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
-				PRODUCT_MODULE_NAME = ChameleonUltra;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

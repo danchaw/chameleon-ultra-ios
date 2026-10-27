@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 
 // Slot quick-switch widget: 8 tappable slots. Each slot is a Link that
-// opens the app via URL scheme (chameleonultra://activate/N) — the app
+// opens the app via URL scheme (chameleonultragf://activate/N) — the app
 // then activates that slot over its existing BLE connection.
 
 struct SlotsEntry: TimelineEntry {
@@ -23,7 +23,7 @@ struct SlotButton: View {
     let slot: Int
 
     var body: some View {
-        Link(destination: URL(string: "chameleonultra://activate/\(slot)")!) {
+        Link(destination: URL(string: "chameleonultragf://activate/\(slot)")!) {
             VStack(spacing: 3) {
                 Text("\(slot)")
                     .font(.system(size: 17, weight: .bold, design: .rounded))

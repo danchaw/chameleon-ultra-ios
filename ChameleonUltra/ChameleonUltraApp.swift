@@ -17,7 +17,7 @@ struct ChameleonUltraApp: App {
                 .preferredColorScheme(ColorSchemePreference.current)
                 // Widget deep link: chameleonultra://activate/N
                 .onOpenURL { url in
-                    guard url.scheme == "chameleonultra", url.host == "activate",
+                    guard url.scheme == "chameleonultragf", url.host == "activate",
                           let slot = Int(url.lastPathComponent), (0..<8).contains(slot) else { return }
                     Task { await app.activateSlot(slot) }
                 }

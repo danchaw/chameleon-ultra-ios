@@ -124,6 +124,7 @@ struct DeviceStatusEntry: TimelineEntry {
     var title: String
 }
 
+@MainActor
 struct DeviceStatusProvider: AppIntentTimelineProvider {
     typealias Entry = DeviceStatusEntry
     typealias Intent = DeviceStatusIntent
@@ -154,15 +155,15 @@ struct DeviceStatusProvider: AppIntentTimelineProvider {
         return DeviceStatusEntry(date: Date(), info: info, title: title)
     }
 
-    func snapshot(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (DeviceStatusEntry) -> Void) {
-        completion(resolve(for: configuration))
+    func snapshot(for configuration: DeviceStatusIntent, in context: Context) async -> DeviceStatusEntry {
+        resolve(for: configuration)
     }
 
-    func timeline(for configuration: DeviceStatusIntent, in context: Context, completion: @escaping (Timeline<DeviceStatusEntry>) -> Void) {
+    func timeline(for configuration: DeviceStatusIntent, in context: Context) async -> Timeline<DeviceStatusEntry> {
         // Battery is polled every 30 s while connected; the app also reloads
         // this timeline explicitly on connect / disconnect / slot & rename.
         let next = Date().addingTimeInterval(15 * 60)
-        completion(Timeline(entries: [resolve(for: configuration)], policy: .after(next)))
+        return Timeline(entries: [resolve(for: configuration)], policy: .after(next))
     }
 }
 

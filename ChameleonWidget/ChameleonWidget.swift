@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import ActivityKit
+import SharedKit
 
 // Slot quick-switch widget: 8 tappable slots. Each slot is a Link that
 // opens the app via URL scheme (chameleonultra://activate/N) — the app
@@ -38,7 +39,7 @@ struct SlotsProvider: TimelineProvider {
             return entry
         }
         // fallback: App Group snapshot of the last device used
-        if let aliases = WidgetStore.snapshots().first?.slotAliases, aliases.count == 8 {
+        if let aliases = DeviceSnapshot.readDevices().first?.slotAliases, aliases.count == 8 {
             entry.aliases = aliases
         }
         return entry

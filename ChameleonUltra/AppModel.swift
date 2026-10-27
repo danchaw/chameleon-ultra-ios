@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import ActivityKit
 import WidgetKit
+import SharedKit
 
 /// Central application state – connection lifecycle, device status, slot info.
 @MainActor
@@ -66,7 +67,9 @@ final class AppModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
                 guard let self, self.isConnected else { continue }
-                if let battery = try? await self.communicator?.getBatteryCharge() {
+                if let battery = try? await self.communicator?.getBatteryCharge(),
+                   battery.percent > 0 || battery.voltage > 0 {
+                    // ignore transient 0/0 readings from the fuel gauge
                     self.battery = battery
                     self.publishWidgetSnapshot()
                 }
@@ -369,7 +372,10 @@ final class AppModel: ObservableObject {
             deviceNickname = loadRegistry().first { $0.address == deviceKey }?.nickname ?? ""
             slotAliases = loadSlotAliases(for: deviceKey)
             registerCurrentDevice()
-            battery = try await communicator.getBatteryCharge()
+            // the fuel gauge reports 0 for a few seconds right after boot /
+            // first connect — retry until we get a plausible reading
+            battery = nil
+            await readBatteryWithRetry()
             try await refreshSlots()
             if cancelRequested { ble.disconnect(); connectionState = .disconnected; return }
             connectionState = .connected
@@ -383,6 +389,21 @@ final class AppModel: ObservableObject {
             ble.disconnect()
             connectionState = .disconnected
         }
+    }
+
+    /// Read battery, retrying while the gauge still reports all-zero
+    /// (right after first connect the value may not be available yet).
+    private func readBatteryWithRetry() async {
+        for attempt in 0..<4 {
+            if let reading = try? await communicator?.getBatteryCharge(),
+               reading.percent > 0 || reading.voltage > 0 {
+                battery = reading
+                return
+            }
+            if attempt < 3 { try? await Task.sleep(nanoseconds: 1_200_000_000) }
+        }
+        // last attempt's value (even if zero) already stored on failure
+        battery = try? await communicator?.getBatteryCharge()
     }
 
     func refreshSlots() async throws {

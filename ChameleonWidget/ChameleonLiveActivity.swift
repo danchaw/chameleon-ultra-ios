@@ -1,73 +1,28 @@
 import WidgetKit
 import SwiftUI
 import ActivityKit
+import SharedKit
 
-// Shared widget-side data plumbing: the App Group snapshot reader (used as a
-// fallback for slot aliases) and the Live Activity definition + UI.
+// Live Activity UI (lock screen card + Dynamic Island). The attributes type
+// comes from SharedKit — the SAME module the app uses, so ActivityKit can
+// match the activity across the two processes.
+
+// MARK: - Adaptive alias text
 //
-// ChameleonActivityAttributes below MUST stay byte-for-byte identical to
-// ChameleonUltra/ChameleonActivityAttributes.swift — ActivityKit matches the
-// two copies by name. It also carries the slot alias array, which is how the
-// SlotSwitcher widget gets live aliases even when re-signing strips the App
-// Group entitlement (ActivityKit needs no shared container).
+// Short aliases show as-is. Longer ones shrink down to 60% instead of
+// truncating. (A real marquee scroll is not possible inside Live Activity /
+// widget views — Apple only allows static layouts there.)
 
-// MARK: - App Group snapshot fallback (codec mirrors SharedDeviceSnapshot.swift)
+struct FitText: View {
+    let text: String
+    var size: CGFloat = 12
+    var weight: Font.Weight = .regular
 
-struct WidgetDeviceSnapshot: Codable {
-    var address = ""
-    var name = ""
-    var connected = false
-    var batteryPercent: Int?
-    var batteryMillivolts: Int?
-    var deviceTypeName = "Ultra"
-    var activeSlot = 0
-    var slotName = ""
-    var slotAliases: [String] = Array(repeating: "", count: 8)
-    var updatedAt = Date()
-}
-
-enum WidgetStore {
-    static let suiteName = "group.com.chameleonultragui.ios"
-    static let devicesKey = "device.snapshots.v1"
-
-    /// Newest snapshot first (the app sorts on write).
-    static func snapshots() -> [WidgetDeviceSnapshot] {
-        guard let data = UserDefaults(suiteName: suiteName)?.data(forKey: devicesKey),
-              let list = try? JSONDecoder().decode([WidgetDeviceSnapshot].self, from: data) else { return [] }
-        return list
-    }
-}
-
-// MARK: - Live Activity attributes (copy of the app-side definition)
-
-struct ChameleonActivityAttributes: ActivityAttributes {
-    var deviceName: String = ""
-    var deviceTypeName: String = ""
-
-    struct ContentState: Codable, Hashable {
-        var deviceName: String
-        var connected: Bool
-        var batteryPercent: Int?
-        var batteryMillivolts: Int?
-        var activeSlot: Int
-        var slotName: String
-        var slotAliases: [String]
-        var updatedAt: Date
-
-        static func slotLabel(aliases: [String], slot: Int, fallback: String = "") -> String {
-            let alias = (slot >= 0 && slot < aliases.count && !aliases[slot].isEmpty)
-                ? aliases[slot] : fallback
-            return alias.isEmpty ? "\(slot)" : "\(slot) · \(alias)"
-        }
-
-        var activeSlotLabel: String {
-            Self.slotLabel(aliases: slotAliases, slot: activeSlot, fallback: slotName)
-        }
-
-        var voltageText: String? {
-            guard let mv = batteryMillivolts else { return nil }
-            return String(format: "%.2f V", Double(mv) / 1000)
-        }
+    var body: some View {
+        Text(text)
+            .font(.system(size: size, weight: weight))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }
 
@@ -75,14 +30,18 @@ struct ChameleonActivityAttributes: ActivityAttributes {
 
 struct ChameleonLiveActivityView: View {
     let state: ChameleonActivityAttributes.ContentState
-    let attributes: ChameleonActivityAttributes
+
+    private var deviceTitle: String {
+        let name = state.deviceName.isEmpty ? "Chameleon" : state.deviceName
+        return name
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: state.connected ? "sensor.tag.rfid.fill" : "sensor.tag.radiowaves.forward")
                 .foregroundStyle(state.connected ? Color.green : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(state.deviceName.isEmpty ? attributes.deviceName : state.deviceName) \(attributes.deviceTypeName)")
+                Text(deviceTitle)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
                 Text(state.connected ? "Slot \(state.activeSlotLabel)"
@@ -90,6 +49,7 @@ struct ChameleonLiveActivityView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
             Spacer()
             if let percent = state.batteryPercent {
@@ -147,28 +107,38 @@ struct ChameleonIslandCompactTrailing: View {
     let state: ChameleonActivityAttributes.ContentState
 
     var body: some View {
-        Text("S\(state.activeSlot)")
-            .font(.caption2.bold())
-            .monospacedDigit()
+        // compact space is tiny: short aliases ride along (auto-shrunk),
+        // otherwise just the slot number
+        let alias = (state.activeSlot >= 0 && state.activeSlot < state.slotAliases.count)
+            ? state.slotAliases[state.activeSlot] : ""
+        if !alias.isEmpty && alias.count <= 4 {
+            FitText(text: alias, size: 10)
+        } else {
+            Text("S\(state.activeSlot)").font(.caption2.bold()).monospacedDigit()
+        }
     }
 }
 
 struct ChameleonIslandExpanded: View {
     let state: ChameleonActivityAttributes.ContentState
-    let attributes: ChameleonActivityAttributes
+
+    private var deviceTitle: String {
+        state.deviceName.isEmpty ? "Chameleon" : state.deviceName
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: state.connected ? "sensor.tag.rfid.fill" : "sensor.tag.radiowaves.forward")
                 .foregroundStyle(state.connected ? Color.green : Color.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(state.deviceName.isEmpty ? attributes.deviceName : state.deviceName) \(attributes.deviceTypeName)")
+                Text(deviceTitle)
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
                 Text(state.connected ? "Slot \(state.activeSlotLabel)" : "Offline")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
             }
             Spacer()
             if let percent = state.batteryPercent {
@@ -187,11 +157,11 @@ struct ChameleonIslandExpanded: View {
 struct ChameleonLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ChameleonActivityAttributes.self) { context in
-            ChameleonLiveActivityView(state: context.state, attributes: context.attributes)
+            ChameleonLiveActivityView(state: context.state)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
-                    ChameleonIslandExpanded(state: context.state, attributes: context.attributes)
+                    ChameleonIslandExpanded(state: context.state)
                 }
             } compactLeading: {
                 ChameleonIslandCompactLeading(state: context.state)

@@ -82,10 +82,11 @@ struct SlotManagerView: View {
                 if let slot = aliasSlot { app.setSlotAlias(slot, aliasText) }
                 aliasSlot = nil
             }
-            Button(L10n.t("Clear alias"), role: .destructive) {
+            Button(L10n.t("Clear alias")) {
                 if let slot = aliasSlot { app.setSlotAlias(slot, "") }
                 aliasSlot = nil
             }
+            .tint(themeAccent)
             Button(L10n.t("Cancel"), role: .cancel) { aliasSlot = nil }
         }
     }

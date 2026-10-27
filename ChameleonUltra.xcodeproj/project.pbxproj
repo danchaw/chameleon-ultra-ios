@@ -76,6 +76,7 @@
 			);
 			name = ChameleonUltra;
 			packageProductDependencies = (
+				CULP0000000000000000000002 /* SharedKit */,
 			);
 			productName = ChameleonUltra;
 			productReference = CU0000000000000000000001A /* ChameleonUltra.app */;
@@ -96,6 +97,7 @@
 			);
 			name = ChameleonWidget;
 			packageProductDependencies = (
+				CULP0000000000000000000003 /* SharedKit */,
 			);
 			productName = ChameleonWidget;
 			productReference = CUW0000000000000000000001A /* ChameleonWidget.appex */;
@@ -165,6 +167,9 @@
 				Base,
 			);
 			mainGroup = CU0000000000000000000003A;
+			packageReferences = (
+				CULP0000000000000000000001 /* XCLocalSwiftPackageReference "SharedKit" */,
+			);
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			targets = (
@@ -173,6 +178,26 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CULP0000000000000000000001 = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SharedKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CULP0000000000000000000002 = {
+			isa = XCSwiftPackageProductDependency;
+			package = CULP0000000000000000000001;
+			productName = SharedKit;
+		};
+		CULP0000000000000000000003 = {
+			isa = XCSwiftPackageProductDependency;
+			package = CULP0000000000000000000001;
+			productName = SharedKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		CU0000000000000000000006A /* Sources */ = {
@@ -232,7 +257,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChameleonUltra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
@@ -250,7 +275,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.25.0;
+				MARKETING_VERSION = 1.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -266,7 +291,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = ChameleonUltra.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
@@ -284,7 +309,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.25.0;
+				MARKETING_VERSION = 1.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -299,7 +324,7 @@
 				BUNDLE_LOADER = "";
 				CODE_SIGN_ENTITLEMENTS = ChameleonWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -308,7 +333,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.25.0;
+				MARKETING_VERSION = 1.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -326,7 +351,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ChameleonWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 45;
+				CURRENT_PROJECT_VERSION = 46;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ChameleonWidget/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -335,7 +360,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.25.0;
+				MARKETING_VERSION = 1.26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chameleonultragui.ios.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;

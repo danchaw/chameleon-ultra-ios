@@ -140,9 +140,7 @@ final class AppModel: ObservableObject {
             Task {
                 guard let activity = try? await Activity.request(
                     attributes: attributes,
-                    content: .init(state: state, staleDate: nil),
-                    dismissalPolicy: .default,
-                    pushToken: nil) else { return }
+                    content: .init(state: state, staleDate: nil)) else { return }
                 liveActivity = activity
                 // slot widget reads aliases from the live activity — refresh now
                 // that it exists

@@ -121,16 +121,20 @@ extension GeofenceManager: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let completion = locationCompletion else { return }
-        locationCompletion = nil
         let coordinate = locations.last?.coordinate
-        Task { @MainActor in completion(coordinate) }
+        Task { @MainActor in
+            guard let completion = self.locationCompletion else { return }
+            self.locationCompletion = nil
+            completion(coordinate)
+        }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        guard let completion = locationCompletion else { return }
-        locationCompletion = nil
-        Task { @MainActor in completion(nil) }
+        Task { @MainActor in
+            guard let completion = self.locationCompletion else { return }
+            self.locationCompletion = nil
+            completion(nil)
+        }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {

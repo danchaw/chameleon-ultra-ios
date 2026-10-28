@@ -149,6 +149,10 @@ enum ChameleonCommand: UInt16 {
     case mf1GetPrngType = 4040
     case mf1SetPrngType = 4041
 
+    // device-side auto slot polling — custom firmware only
+    case setAutoPoll = 4045
+    case getAutoPoll = 4046
+
     // lf emulator
     case setEM410XemulatorID = 5000
     case getEM410XemulatorID = 5001

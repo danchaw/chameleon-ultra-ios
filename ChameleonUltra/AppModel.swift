@@ -183,6 +183,40 @@ final class AppModel: ObservableObject {
         if on { startCardCycle() } else { stopCardCycle() }
     }
 
+    // Device-side polling lives in the custom firmware and keeps working after
+    // the phone walks away. Stock firmware rejects 4045/4046 -> unsupported.
+    @Published var deviceAutoPollEnabled = false
+    @Published var deviceAutoPollSupported = false
+
+    func refreshDeviceAutoPoll() async {
+        guard isConnected, let communicator else {
+            deviceAutoPollSupported = false
+            deviceAutoPollEnabled = false
+            return
+        }
+        do {
+            let status = try await communicator.getAutoPollStatus()
+            deviceAutoPollSupported = true
+            deviceAutoPollEnabled = status.enabled
+        } catch {
+            deviceAutoPollSupported = false
+            deviceAutoPollEnabled = false
+        }
+    }
+
+    func setDeviceAutoPoll(_ on: Bool) async {
+        guard isConnected, let communicator else { return }
+        do {
+            try await communicator.setAutoPoll(enable: on, intervalMs: AutoPoll.intervalMs, maxLaps: AutoPoll.maxLaps)
+            deviceAutoPollSupported = true
+            deviceAutoPollEnabled = on
+            appendLog(on ? "Device-side slot polling enabled" : "Device-side slot polling disabled")
+        } catch {
+            deviceAutoPollEnabled = false
+            lastError = L10n.t("Device-side polling requires the custom firmware")
+        }
+    }
+
     func startCardCycle() {
         guard cycleTask == nil else { return }
         guard isConnected else { return }
@@ -193,6 +227,8 @@ final class AppModel: ObservableObject {
             var quietTicks = 0
             var sampleFails = 0
             var rotating = AutoPoll.mode == .continuous
+            var switchesThisBurst = 0
+            var latched = false   // round limit hit; re-arms only after the reader goes quiet
             var lastSample = Date.distantPast
             if AutoPoll.mode == .smart {
                 // The counter only moves if the firmware logs reads.
@@ -234,11 +270,13 @@ final class AppModel: ObservableObject {
                             else { risingTicks = 0; quietTicks += 1 }
                         }
                         lastCount = count
-                        if !rotating, risingTicks >= 2 {
+                        if !rotating, risingTicks >= 2, !latched {
                             rotating = true
+                            switchesThisBurst = 0
                             appendLog("Reader detected — rotating slots")
-                        } else if rotating, quietTicks >= 3 {
+                        } else if quietTicks >= 3 {
                             rotating = false
+                            latched = false
                             risingTicks = 0
                             lastCount = -1
                             cycleStatus = L10n.t("Armed · waiting for reader")
@@ -250,6 +288,8 @@ final class AppModel: ObservableObject {
                             // Older firmware without the counter — don't stay
                             // armed forever; behave like continuous mode.
                             rotating = true
+                            latched = false
+                            switchesThisBurst = 0
                             appendLog("Detection counter unavailable — polling continuously")
                         }
                     }
@@ -257,6 +297,26 @@ final class AppModel: ObservableObject {
 
                 guard rotating else {
                     try? await Task.sleep(nanoseconds: 600_000_000)
+                    continue
+                }
+
+                // Round limit: N full sweeps over the enabled slots with no
+                // match → give up. Smart mode latches until the reader goes
+                // quiet; continuous mode pauses a beat and tries another burst.
+                let laps = AutoPoll.maxLaps
+                if laps > 0, enabled.count > 1, switchesThisBurst >= laps * enabled.count {
+                    switchesThisBurst = 0
+                    rotating = false
+                    if AutoPoll.mode == .continuous {
+                        cycleStatus = String(format: L10n.t("No match in %d rounds — pausing"), laps)
+                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                        rotating = true
+                    } else {
+                        latched = true
+                        quietTicks = 0
+                        cycleStatus = String(format: L10n.t("No match in %d rounds — resting"), laps)
+                        appendLog("Round limit hit after \(laps) laps — waiting for a new reader visit")
+                    }
                     continue
                 }
 
@@ -268,6 +328,7 @@ final class AppModel: ObservableObject {
                 do {
                     try await communicator.activateSlot(slot)
                     activeSlot = slot
+                    switchesThisBurst += 1
                     cycleStatus = "\(L10n.t("Slot")) \(slot)"
                 } catch is CancellationError {
                     break
@@ -527,6 +588,7 @@ final class AppModel: ObservableObject {
             updateLiveActivity()
             // auto cycle picks up where it left off on a fresh connection
             if autoCycleEnabled { startCardCycle() }
+            await refreshDeviceAutoPoll()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
             if cancelRequested { return }
@@ -709,6 +771,8 @@ final class AppModel: ObservableObject {
         connectionState = .disconnected
         showDeviceList = false
         dfuProgress = nil
+        deviceAutoPollSupported = false
+        deviceAutoPollEnabled = false
         updateLiveActivity()
         stopCardCycle()
     }

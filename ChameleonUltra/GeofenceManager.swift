@@ -19,6 +19,10 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// Fired when the phone enters a bound region.
     var onRegionEnter: ((UUID) -> Void)?
 
+    /// One-shot current-location request (the region editor uses it to open
+    /// the camera at the user's position instead of the whole world).
+    private var locationCompletion: ((CLLocationCoordinate2D?) -> Void)?
+
     override init() {
         super.init()
         manager.delegate = self
@@ -36,6 +40,23 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// locked (iOS shows a second confirmation in Settings).
     func requestAlwaysAuthorization() {
         manager.requestAlwaysAuthorization()
+    }
+
+    /// Single position fix; completion runs on main, nil on failure/denied.
+    func requestCurrentLocation(_ completion: @escaping (CLLocationCoordinate2D?) -> Void) {
+        switch manager.authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+            completion(nil)
+            return
+        case .denied, .restricted:
+            completion(nil)
+            return
+        default:
+            break
+        }
+        locationCompletion = completion
+        manager.requestLocation()
     }
 
     /// Stop every currently monitored region.
@@ -97,6 +118,19 @@ extension GeofenceManager: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         Task { @MainActor in self.refreshMonitoring() }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let completion = locationCompletion else { return }
+        locationCompletion = nil
+        let coordinate = locations.last?.coordinate
+        Task { @MainActor in completion(coordinate) }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard let completion = locationCompletion else { return }
+        locationCompletion = nil
+        Task { @MainActor in completion(nil) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {

@@ -50,6 +50,7 @@ enum L10n {
         "Save region": "保存区域",
         "Add region": "添加区域",
         "Drag the map — screen centre sets the circle": "拖动地图：十字准星为圆心，红圈即范围",
+        "Cannot get current location": "无法获取当前定位，请检查定位权限",
         "No cards — import one first": "暂无卡片，请先导入",
         "Auto card cycle": "自动轮流出卡",
         "Interval": "间隔",

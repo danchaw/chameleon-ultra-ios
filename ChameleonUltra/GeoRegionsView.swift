@@ -74,10 +74,14 @@ struct GeoRegionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     var onSaved: () -> Void
 
+    @EnvironmentObject var app: AppModel
     @State private var name = ""
     @State private var cardId: UUID?
     @State private var center: CLLocationCoordinate2D?
     @State private var radius: Double = 300
+    /// One-shot camera target: the user's position when the editor opens.
+    @State private var focus: CLLocationCoordinate2D?
+    @State private var locateFailed = false
 
     var body: some View {
         NavigationStack {
@@ -93,7 +97,7 @@ struct GeoRegionEditorView: View {
                 }
 
                 Section {
-                    RegionMapCanvas(center: $center, radius: $radius)
+                    RegionMapCanvas(center: $center, radius: $radius, focus: focus)
                         .frame(height: 200)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -106,9 +110,10 @@ struct GeoRegionEditorView: View {
                                     .frame(width: 2, height: 17)
                             }
                         }
-                    Text(L10n.t("Drag the map — screen centre sets the circle"))
+                    Text(locateFailed ? L10n.t("Cannot get current location")
+                                       : L10n.t("Drag the map — screen centre sets the circle"))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(locateFailed ? Color.red : Color.secondary)
                     VStack(alignment: .leading) {
                         Text("\(L10n.t("Radius")): \(Int(radius)) m")
                             .font(.footnote)
@@ -126,6 +131,15 @@ struct GeoRegionEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.t("Cancel")) { dismiss() }
+                }
+            }
+            .onAppear {
+                app.geofence.requestCurrentLocation { coordinate in
+                    if let coordinate {
+                        focus = coordinate
+                    } else {
+                        locateFailed = true
+                    }
                 }
             }
         }
@@ -150,13 +164,16 @@ struct GeoRegionEditorView: View {
 
 // MARK: - Map canvas
 //
-// Dragging the map moves the circle center (map-view centre = circle centre);
-// the circle always renders under the centre crosshair. On load the map
-// jumps to the user's current location so a center exists immediately.
+// On open the editor passes a `focus` coordinate (the user's position, via a
+// one-shot CLLocationManager request) and the camera jumps there with a
+// ~radius*4 span — a 300 m fence fills the view instead of the whole world.
+// Dragging the map moves the circle center (screen centre = circle centre);
+// the red ring re-draws under the crosshair continuously.
 
 struct RegionMapCanvas: UIViewRepresentable {
     @Binding var center: CLLocationCoordinate2D?
     @Binding var radius: Double
+    var focus: CLLocationCoordinate2D?
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
@@ -170,6 +187,7 @@ struct RegionMapCanvas: UIViewRepresentable {
 
     func updateUIView(_ map: MKMapView, context: Context) {
         context.coordinator.parent = self
+        context.coordinator.applyFocusIfNeeded(map)
         context.coordinator.redraw(map)
     }
 
@@ -177,38 +195,10 @@ struct RegionMapCanvas: UIViewRepresentable {
         var parent: RegionMapCanvas
         /// Suppresses region-change feedback while we move the camera.
         private var programmaticMove = false
+        private var appliedFocus: CLLocationCoordinate2D?
 
         init(_ parent: RegionMapCanvas) {
             self.parent = parent
-        }
-
-        func mapViewDidFinishLoadingMap(_ map: MKMapView) {
-            // initial framing: jump to the user position once the fix lands
-            // (first launch may still be asking permission — retry while the
-            // editor stays open)
-            locate(map, tries: 10)
-        }
-
-        private func locate(_ map: MKMapView, tries: Int) {
-            guard tries > 0 else { return }
-            if let loc = map.userLocation.location {
-                centerMap(map, at: loc.coordinate)
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                    guard map.window != nil else { return }   // editor closed
-                    self.locate(map, tries: tries - 1)
-                }
-            }
-        }
-
-        private func centerMap(_ map: MKMapView, at coordinate: CLLocationCoordinate2D) {
-            guard parent.center == nil else { return }
-            programmaticMove = true
-            parent.center = coordinate
-            map.setRegion(MKCoordinateRegion(center: coordinate,
-                                             latitudinalMeters: parent.radius * 6,
-                                             longitudinalMeters: parent.radius * 6), animated: true)
-            redraw(map)
         }
 
         // user panned/zoomed: the map centre IS the circle centre
@@ -219,6 +209,22 @@ struct RegionMapCanvas: UIViewRepresentable {
             }
             parent.center = map.centerCoordinate
             redraw(map)
+        }
+
+        func applyFocusIfNeeded(_ map: MKMapView) {
+            guard let focus = parent.focus, parent.center == nil,
+                  !Self.same(focus, appliedFocus) else { return }
+            appliedFocus = focus
+            programmaticMove = true
+            parent.center = focus
+            map.setRegion(MKCoordinateRegion(center: focus,
+                                             latitudinalMeters: parent.radius * 4,
+                                             longitudinalMeters: parent.radius * 4), animated: false)
+        }
+
+        static func same(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D?) -> Bool {
+            guard let b else { return false }
+            return abs(a.latitude - b.latitude) < 1e-9 && abs(a.longitude - b.longitude) < 1e-9
         }
 
         func redraw(_ map: MKMapView) {

@@ -95,16 +95,6 @@ struct HomeDashboardView: View {
                 Text(L10n.t("Electronic fence"))
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                NavigationLink {
-                    GeoRegionsView()
-                } label: {
-                    Text(L10n.t("Manage"))
-                        .font(.footnote)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(.quaternary, in: Capsule())
-                }
-                .buttonStyle(.plain)
             }
             Toggle(L10n.t("Enable geofence"), isOn: Binding(
                 get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
@@ -130,6 +120,30 @@ struct HomeDashboardView: View {
             Text(app.geofence.statusText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            // Full-width row: a 44 pt tap target beats a tiny capsule, and the
+            // count tells you at a glance how many fences exist.
+            NavigationLink {
+                GeoRegionsView()
+            } label: {
+                HStack(spacing: 8) {
+                    Text(L10n.t("Manage regions"))
+                        .font(.subheadline.weight(.medium))
+                    Text(String(format: L10n.t("%d"), GeoRegionStore.load().count))
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.15), in: Capsule())
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+                .frame(minHeight: 44)
+                .padding(.horizontal, 14)
+                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
         }
     }
 

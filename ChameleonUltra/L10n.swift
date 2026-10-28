@@ -32,6 +32,7 @@ enum L10n {
         "Clear": "清除",
         "Save": "保存",
         "Delete": "删除",
+        "%d": "%d",
         "Select card…": "选择卡片…",
         "Geofence": "电子围栏",
         "Electronic fence": "电子围栏",

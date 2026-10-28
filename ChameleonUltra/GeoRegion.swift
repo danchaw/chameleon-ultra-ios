@@ -93,20 +93,22 @@ enum GeoRegionStore {
     }
 }
 
-/// Auto card-cycling preferences: the app pushes every saved card into the
-/// active slot one after another at a fixed interval, so whatever reader you
-/// tap finds a matching card without manual selection.
+/// Auto slot-polling preferences: instead of pushing cards into one slot,
+/// the app rotates the device's ACTIVE SLOT across its card slots at a fast
+/// gap (50–200 ms), so a door reader picks up whichever slot matches.
 enum AutoPoll {
     static let enabledKey = "autoCycleEnabled"
-    static let intervalKey = "autoCycleInterval"
+    /// New key: old "autoCycleInterval" stored seconds (3/5/10/30); reusing it
+    /// would read a stale 5 as 5 ms. Milliseconds live under their own key.
+    static let intervalKey = "autoPollIntervalMs"
 
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: enabledKey)
     }
 
-    /// Per-card dwell time in seconds (BLE write takes ~1-2 s).
-    static var intervalSeconds: Int {
+    /// Gap between slot switches, in milliseconds (slider range 50–200).
+    static var intervalMs: Int {
         let i = UserDefaults.standard.integer(forKey: intervalKey)
-        return i >= 3 ? i : 5
+        return (50...200).contains(i) ? i : 100
     }
 }

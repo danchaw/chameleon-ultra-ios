@@ -164,14 +164,17 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: - Auto card cycle (push every saved card at an interval)
+    // MARK: - Auto slot polling (rotate the device's active card slot)
 
-    /// Reads the door-reader game: instead of picking a card by hand, the app
-    /// pushes each saved card into the active slot one after another — the
-    /// reader picks whichever matches and opens.
+    /// Door-reader game, slot edition: the user writes a different card into
+    /// each device slot beforehand; the app then flips the ACTIVE SLOT
+    /// 0→1→2… every 50–200 ms so a waiting reader catches whichever card
+    /// matches. Only the tiny setActiveSlot command is sent — slot contents
+    /// are never rewritten, so the cycle is fast and flash-wear-friendly.
     @Published var autoCycleEnabled: Bool = UserDefaults.standard.bool(forKey: AutoPoll.enabledKey)
     @Published var cycleStatus: String = ""
     private var cycleTask: Task<Void, Never>?
+    private var cycleActivitySync = Date.distantPast
 
     func setAutoCycle(_ on: Bool) {
         autoCycleEnabled = on
@@ -183,28 +186,32 @@ final class AppModel: ObservableObject {
         guard cycleTask == nil else { return }
         guard isConnected else { return }
         cycleTask = Task { @MainActor in
-            appendLog("Auto card cycle started")
+            appendLog("Auto slot polling started")
+            var slot = activeSlot
             while !Task.isCancelled {
-                // follow the current active slot so manual switches still work
-                let slot = activeSlot
-                let cards = store.cards
-                guard isConnected, !cards.isEmpty else {
+                guard isConnected, let communicator else {
                     cycleStatus = L10n.t("Waiting for device/cards")
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
                     continue
                 }
-                for card in cards {
-                    guard !Task.isCancelled, isConnected else { break }
-                    do {
-                        try await applyCardToSlot(card, slot: slot)
-                        cycleStatus = card.name
-                    } catch is CancellationError {
-                        break
-                    } catch {
-                        cycleStatus = "\(card.name): \(error.localizedDescription)"
-                    }
-                    try? await Task.sleep(nanoseconds: UInt64(AutoPoll.intervalSeconds) * 1_000_000_000)
+                let count = max(2, deviceType.slotCount)
+                slot = (slot + 1) % count
+                do {
+                    try await communicator.activateSlot(slot)
+                    activeSlot = slot
+                    cycleStatus = "\(L10n.t("Slot")) \(slot)"
+                } catch is CancellationError {
+                    break
+                } catch {
+                    cycleStatus = "\(L10n.t("Slot")) \(slot): \(error.localizedDescription)"
                 }
+                // Keep the Live Activity roughly in sync without hammering
+                // ActivityKit with an update every 50 ms.
+                if Date().timeIntervalSince(cycleActivitySync) > 3 {
+                    cycleActivitySync = Date()
+                    updateLiveActivity()
+                }
+                try? await Task.sleep(nanoseconds: UInt64(AutoPoll.intervalMs) * 1_000_000)
             }
         }
     }
@@ -213,6 +220,7 @@ final class AppModel: ObservableObject {
         cycleTask?.cancel()
         cycleTask = nil
         cycleStatus = ""
+        updateLiveActivity()
     }
 
     // MARK: - Device registry (user-editable names)

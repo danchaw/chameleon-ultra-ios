@@ -389,6 +389,9 @@ enum ChameleonDevice: String {
     case ultra, lite
 
     var displayName: String { self == .ultra ? "Ultra" : "Lite" }
+
+    /// Emulated card slots the device exposes: Ultra has 8, Lite 2.
+    var slotCount: Int { self == .ultra ? 8 : 2 }
 }
 
 // MARK: - Message structs

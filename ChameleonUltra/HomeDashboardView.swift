@@ -8,6 +8,8 @@ struct HomeDashboardView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @State private var refreshTask: Task<Void, Never>?
+    /// Slot-poll gap in ms; mirrors UserDefaults (AutoPoll.intervalKey).
+    @State private var pollMs = Double(AutoPoll.intervalMs)
 
     var body: some View {
         ScrollView {
@@ -57,32 +59,35 @@ struct HomeDashboardView: View {
         .onDisappear { refreshTask?.cancel() }
     }
 
-    /// Auto card cycle: push every saved card into the active slot at a
-    /// fixed interval — the door reader picks whichever matches.
+    /// Auto slot polling: flip the device's active card slot every 50–200 ms
+    /// — the door reader catches whichever slot holds a matching card.
     private var autoCycleCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(L10n.t("Auto card cycle"), isOn: Binding(
+            Toggle(L10n.t("Auto slot polling"), isOn: Binding(
                 get: { app.autoCycleEnabled },
                 set: { app.setAutoCycle($0) }
             ))
             if app.autoCycleEnabled {
-                Picker(L10n.t("Interval"), selection: Binding(
-                    get: {
-                        let i = UserDefaults.standard.integer(forKey: AutoPoll.intervalKey)
-                        return i >= 3 ? i : 5
-                    },
-                    set: { UserDefaults.standard.set($0, forKey: AutoPoll.intervalKey) }
-                )) {
-                    Text("3 s").tag(3)
-                    Text("5 s").tag(5)
-                    Text("10 s").tag(10)
-                    Text("30 s").tag(30)
+                HStack(spacing: 10) {
+                    Text(L10n.t("Interval"))
+                    Slider(value: $pollMs, in: 50...200, step: 10)
+                    Text("\(Int(pollMs)) ms")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 58, alignment: .trailing)
                 }
                 Text(app.cycleStatus.isEmpty ? L10n.t("Idle") : "\(L10n.t("Cycling")) · \(app.cycleStatus)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                Text(L10n.t("Polling only flips the active slot — write a card into each slot first."))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
+        }
+        .onAppear { pollMs = Double(AutoPoll.intervalMs) }
+        .onChange(of: pollMs) { _, value in
+            UserDefaults.standard.set(Int(value), forKey: AutoPoll.intervalKey)
         }
     }
 

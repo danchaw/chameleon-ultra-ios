@@ -205,9 +205,10 @@ struct GeoRegionEditorView: View {
                          centre: centre,
                          radius: stage == .radius ? radius : 0,
                          centreRequest: centreRequest,
-                         onRegionChanged: { newRegion in
+                         onRegionChanged: { newRegion, userDriven in
                              mapRegion = newRegion
                              visibleSpan = newRegion.span.latitudeDelta
+                             if userDriven { centreUnderCrosshair(newRegion.center) }
                          })
                 .overlay { crosshair }
                 .overlay(alignment: .bottomTrailing) { locateButton }
@@ -464,17 +465,28 @@ struct GeoRegionEditorView: View {
         recentreOn(region.coordinate, meters: max(600, region.radius * 4))
     }
 
-    /// Confirm → pin the visible centre and move on to the radius slider.
+    /// Confirm only moves to the next stage now; the point itself was chosen
+    /// the moment the map moved under the crosshair.
     private func confirmCrosshair() {
-        if let visible = mapRegion {
-            place(at: visible.center, title: nil)
-        } else {
-            place(at: camera.center, title: nil)
+        if centre == nil {
+            place(at: (mapRegion ?? camera).center, title: nil)
         }
         guard let centre else { return }
         withAnimation(.snappy) { stage = .radius }
         searchFocused = false
         recentreOn(centre, meters: max(600, radius * 3.2))
+    }
+
+    /// The crosshair is welded to the screen centre, so whatever the user
+    /// drags underneath it *is* the chosen point — no extra tap needed.
+    private func centreUnderCrosshair(_ coordinate: CLLocationCoordinate2D) {
+        if let old = centre {
+            let moved = CLLocation(latitude: old.latitude, longitude: old.longitude)
+                .distance(from: CLLocation(latitude: coordinate.latitude,
+                                           longitude: coordinate.longitude))
+            if moved > 2 { placeTitle = nil }   // the name no longer matches
+        }
+        centre = coordinate
     }
 
     private func place(at coordinate: CLLocationCoordinate2D, title: String?) {

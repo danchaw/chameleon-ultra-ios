@@ -127,8 +127,10 @@ struct FenceMapView: UIViewRepresentable {
     var radius: Double
     /// Which camera request to apply — a new value re-centres the map.
     var centreRequest: Int = 0
-    /// Fires after the user stops panning, with the region now on screen.
-    var onRegionChanged: (MKCoordinateRegion) -> Void = { _ in }
+    /// Fires whenever the visible region settles. `userDriven` is false while
+    /// a programmatic camera request is landing, so drag-to-pick does not
+    /// fight animated pans to GPS or to a searched place.
+    var onRegionChanged: (MKCoordinateRegion, _ userDriven: Bool) -> Void = { _, _ in }
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
@@ -137,6 +139,8 @@ struct FenceMapView: UIViewRepresentable {
         map.isRotateEnabled = false
         map.isPitchEnabled = false
         map.setRegion(region, animated: false)
+        // The opening camera is ours, not a drag: do not preselect its centre.
+        context.coordinator.programmaticCentre = region.center
         context.coordinator.parent = self
         context.coordinator.apply(centre: centre, radius: radius, to: map)
         return map
@@ -148,6 +152,7 @@ struct FenceMapView: UIViewRepresentable {
         context.coordinator.parent = self
         if context.coordinator.lastCentreRequest != centreRequest {
             context.coordinator.lastCentreRequest = centreRequest
+            context.coordinator.programmaticCentre = region.center
             map.setRegion(region, animated: true)
         }
         context.coordinator.apply(centre: centre, radius: radius, to: map)
@@ -156,35 +161,48 @@ struct FenceMapView: UIViewRepresentable {
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: FenceMapView?
         var lastCentreRequest = 0
-        private var drawnCentre: CLLocationCoordinate2D?
-        private var drawnRadius: Double = -1
+        /// Centre of the camera move we last asked for. A region callback
+        /// landing here is *our* animation finishing, not the user dragging,
+        /// so drag-to-pick must not treat it as a fresh selection.
+        var programmaticCentre: CLLocationCoordinate2D?
+        private var pin: FencePin?
+        private var circle: MKCircle?
         private var didSeedUserLocation = false
 
         func apply(centre: CLLocationCoordinate2D?, radius: Double, to map: MKMapView) {
-            let moved: Bool
-            if let centre {
-                if let old = drawnCentre {
-                    moved = !(abs(old.latitude - centre.latitude) < 1e-7 &&
-                              abs(old.longitude - centre.longitude) < 1e-7)
-                } else {
-                    moved = true
+            guard let centre else {
+                if let pin {
+                    map.removeAnnotation(pin)
+                    self.pin = nil
                 }
-            } else {
-                moved = drawnCentre != nil
+                removeCircle(from: map)
+                return
             }
-            guard moved || abs(radius - drawnRadius) > 0.01 else { return }
-            map.removeOverlays(map.overlays)
-            map.removeAnnotations(map.annotations.filter { !($0 is MKUserLocation) })
-            if let centre {
-                drawnCentre = centre
-                drawnRadius = radius
-                map.addAnnotation(FencePin(coordinate: centre))
-                if radius > 0 {
-                    map.addOverlay(MKCircle(center: centre, radius: radius))
-                }
-            } else {
-                drawnCentre = nil
-                drawnRadius = -1
+            // The crosshair follows the selection live: dragging the map
+            // slides the world under a circle that stays where you put it.
+            let annotation = pin ?? {
+                let fresh = FencePin(coordinate: centre)
+                map.addAnnotation(fresh)
+                pin = fresh
+                return fresh
+            }()
+            annotation.coordinate = centre
+            annotation.radius = radius
+            if let old = circle,
+               abs(old.coordinate.latitude - centre.latitude) < 1e-8,
+               abs(old.coordinate.longitude - centre.longitude) < 1e-8,
+               abs(old.radius - radius) < 0.5 { return }
+            removeCircle(from: map)
+            guard radius > 0 else { return }
+            let fresh = MKCircle(center: centre, radius: radius)
+            map.addOverlay(fresh)
+            circle = fresh
+        }
+
+        private func removeCircle(from map: MKMapView) {
+            if let circle {
+                map.removeOverlay(circle)
+                self.circle = nil
             }
         }
 
@@ -192,9 +210,11 @@ struct FenceMapView: UIViewRepresentable {
             guard !didSeedUserLocation,
                   let coordinate = userLocation.location?.coordinate else { return }
             didSeedUserLocation = true
-            mapView.setRegion(MKCoordinateRegion(center: coordinate,
-                                                 latitudinalMeters: 300,
-                                                 longitudinalMeters: 300), animated: true)
+            let seed = MKCoordinateRegion(center: coordinate,
+                                          latitudinalMeters: 300,
+                                          longitudinalMeters: 300)
+            programmaticCentre = seed.center
+            mapView.setRegion(seed, animated: true)
         }
 
         // Search suggestions follow the visible map, not the whole planet.
@@ -202,7 +222,18 @@ struct FenceMapView: UIViewRepresentable {
             if mapView.userTrackingMode != .none {
                 mapView.setUserTrackingMode(.none, animated: false)
             }
-            parent?.onRegionChanged(mapView.region)
+            // MapKit's own change, or ours? Animated programmatic pans end
+            // exactly where we asked; anything else came from a finger.
+            var userDriven = true
+            if let target = programmaticCentre {
+                let landed = mapView.region.center
+                let off = CLLocation(latitude: target.latitude, longitude: target.longitude)
+                    .distance(from: CLLocation(latitude: landed.latitude,
+                                               longitude: landed.longitude))
+                if off < 5 { userDriven = false }
+            }
+            if userDriven { programmaticCentre = nil }
+            parent?.onRegionChanged(mapView.region, userDriven)
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
@@ -229,7 +260,8 @@ struct FenceMapView: UIViewRepresentable {
 }
 
 final class FencePin: NSObject, MKAnnotation {
-    let coordinate: CLLocationCoordinate2D
+    var coordinate: CLLocationCoordinate2D
+    var radius: Double = 0
     init(coordinate: CLLocationCoordinate2D) {
         self.coordinate = coordinate
     }

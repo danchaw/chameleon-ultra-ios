@@ -49,7 +49,7 @@ enum L10n {
         "Radius": "半径",
         "Save region": "保存区域",
         "Add region": "添加区域",
-        "Drag the map — screen centre sets the circle": "拖动地图，屏幕中心即为圆心",
+        "Drag the map — screen centre sets the circle": "拖动地图：十字准星为圆心，红圈即范围",
         "No cards — import one first": "暂无卡片，请先导入",
         "Auto card cycle": "自动轮流出卡",
         "Interval": "间隔",

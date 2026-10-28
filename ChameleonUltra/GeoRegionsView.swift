@@ -97,6 +97,15 @@ struct GeoRegionEditorView: View {
                         .frame(height: 200)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                        // crosshair marks the screen centre = circle centre
+                        .overlay {
+                            ZStack {
+                                Rectangle().fill(Color.red.opacity(0.9))
+                                    .frame(width: 17, height: 2)
+                                Rectangle().fill(Color.red.opacity(0.9))
+                                    .frame(width: 2, height: 17)
+                            }
+                        }
                     Text(L10n.t("Drag the map — screen centre sets the circle"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -174,24 +183,29 @@ struct RegionMapCanvas: UIViewRepresentable {
         }
 
         func mapViewDidFinishLoadingMap(_ map: MKMapView) {
-            // initial framing: current location if we have it
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                guard map.centerCoordinate.latitude != 0, map.userLocation.location != nil else {
-                    // still no fix (permission just requested) — retry once
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        self.centerMap(map)
-                    }
-                    return
+            // initial framing: jump to the user position once the fix lands
+            // (first launch may still be asking permission — retry while the
+            // editor stays open)
+            locate(map, tries: 10)
+        }
+
+        private func locate(_ map: MKMapView, tries: Int) {
+            guard tries > 0 else { return }
+            if let loc = map.userLocation.location {
+                centerMap(map, at: loc.coordinate)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    guard map.window != nil else { return }   // editor closed
+                    self.locate(map, tries: tries - 1)
                 }
-                self.centerMap(map)
             }
         }
 
-        private func centerMap(_ map: MKMapView) {
-            guard parent.center == nil, let loc = map.userLocation.location else { return }
+        private func centerMap(_ map: MKMapView, at coordinate: CLLocationCoordinate2D) {
+            guard parent.center == nil else { return }
             programmaticMove = true
-            parent.center = loc.coordinate
-            map.setRegion(MKCoordinateRegion(center: loc.coordinate,
+            parent.center = coordinate
+            map.setRegion(MKCoordinateRegion(center: coordinate,
                                              latitudinalMeters: parent.radius * 6,
                                              longitudinalMeters: parent.radius * 6), animated: true)
             redraw(map)
@@ -218,8 +232,8 @@ struct RegionMapCanvas: UIViewRepresentable {
             if let circle = overlay as? MKCircle {
                 let renderer = MKCircleRenderer(circle: circle)
                 renderer.strokeColor = .systemRed
-                renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.15)
-                renderer.lineWidth = 2
+                renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.28)
+                renderer.lineWidth = 3
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)

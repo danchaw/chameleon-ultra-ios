@@ -58,7 +58,6 @@ enum L10n {
         "Card missing": "卡片已删除",
         "Edit region": "编辑区域",
         "Save changes": "保存修改",
-        "Delete": "删除",
         "Save region": "保存区域",
         "Add region": "添加区域",
         "Tap the map to set the centre": "点击地图确认位置（可多次点击微调）",

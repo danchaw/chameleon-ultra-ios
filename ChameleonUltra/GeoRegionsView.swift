@@ -94,7 +94,7 @@ struct GeoRegionEditorView: View {
 
                 Section {
                     RegionMapCanvas(center: $center, radius: $radius)
-                        .frame(height: 280)
+                        .frame(height: 200)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     Text(L10n.t("Drag the map — screen centre sets the circle"))
@@ -192,8 +192,8 @@ struct RegionMapCanvas: UIViewRepresentable {
             programmaticMove = true
             parent.center = loc.coordinate
             map.setRegion(MKCoordinateRegion(center: loc.coordinate,
-                                             latitudinalMeters: parent.radius * 4,
-                                             longitudinalMeters: parent.radius * 4), animated: true)
+                                             latitudinalMeters: parent.radius * 6,
+                                             longitudinalMeters: parent.radius * 6), animated: true)
             redraw(map)
         }
 

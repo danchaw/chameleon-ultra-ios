@@ -19,6 +19,8 @@ final class PlaceSearchModel: NSObject, ObservableObject {
     @Published private(set) var coordinateHint = ""
 
     private let completer = MKLocalSearchCompleter()
+    /// Latest suggestion-expansion run, cancelled when the query changes.
+    private var resolveTask: Task<Void, Never>?
 
     override init() {
         super.init()

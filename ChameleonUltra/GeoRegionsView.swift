@@ -146,8 +146,14 @@ struct GeoRegionEditorView: View {
     @State private var camera = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074),
         span: MKCoordinateSpan(latitudeDelta: 0.004, longitudeDelta: 0.004))
-    @State private var visibleRegion: MKCoordinateRegion?
+    /// Which camera request to apply — a new value re-centres the map.
     @State private var centreRequest = 0
+    /// Span of the current view. MKCoordinateRegion is not Equatable, so only
+    /// this flag is published; scrubbing a region into @State would re-layout
+    /// the whole editor on every finger move.
+    @State private var visibleSpan: Double?
+    /// Last visible rect, for search biasing and "is it already on screen".
+    @State private var mapRegion: MKCoordinateRegion?
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -174,7 +180,9 @@ struct GeoRegionEditorView: View {
             }
         }
         .onAppear(perform: prefill)
-        .onChange(of: visibleRegion) { _, newValue in search.bind(region: newValue) }
+        .onChange(of: visibleSpan) { _, _ in
+            if let mapRegion { search.bind(region: mapRegion) }
+        }
         .onChange(of: search.query) { _, newValue in
             // Typing again while sizing the fence means "find another place".
             guard !newValue.isEmpty, stage == .radius else { return }
@@ -190,7 +198,10 @@ struct GeoRegionEditorView: View {
                          centre: centre,
                          radius: stage == .radius ? radius : 0,
                          centreRequest: centreRequest,
-                         onRegionChanged: { visibleRegion = $0 })
+                         onRegionChanged: { newRegion in
+                             mapRegion = newRegion
+                             visibleSpan = newRegion.span.latitudeDelta
+                         })
                 .overlay { crosshair }
                 .overlay(alignment: .bottomTrailing) { locateButton }
                 .overlay(alignment: .bottomLeading) { hintChip }
@@ -443,7 +454,7 @@ struct GeoRegionEditorView: View {
 
     /// Confirm → pin the visible centre and move on to the radius slider.
     private func confirmCrosshair() {
-        if let visible = visibleRegion {
+        if let visible = mapRegion {
             place(at: visible.center, title: nil)
         } else {
             place(at: camera.center, title: nil)
@@ -458,7 +469,7 @@ struct GeoRegionEditorView: View {
         searchFocused = false
         placeTitle = title
         centre = coordinate
-        let near = visibleRegion.map {
+        let near = mapRegion.map {
             CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude)
                 .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
         }

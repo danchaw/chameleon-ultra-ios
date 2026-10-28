@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Connected dashboard (port of `gui/page/home.dart`).
 struct HomeDashboardView: View {
@@ -100,13 +101,20 @@ struct HomeDashboardView: View {
             } label: {
                 Label(L10n.t("Manage regions"), systemImage: "map")
             }
-            Button {
-                app.geofence.requestAlwaysAuthorization()
-            } label: {
-                Label(L10n.t("Allow background triggers"), systemImage: "lock.badge.clock")
-                    .font(.footnote)
-            }
-            .buttonStyle(.bordered)
+            Toggle(L10n.t("Allow background triggers"), isOn: Binding(
+                get: { app.geofence.hasAlwaysAccess },
+                set: { want in
+                    if want {
+                        app.geofence.requestAlwaysAuthorization()
+                    } else {
+                        // iOS cannot revoke Always programmatically — send the
+                        // user to the Settings page for this app
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+            ))
             Text(app.geofence.statusText)
                 .font(.caption)
                 .foregroundStyle(.secondary)

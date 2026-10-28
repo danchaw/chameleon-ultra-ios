@@ -12,6 +12,10 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// Human-readable state for the Settings page.
     @Published var statusText = ""
 
+    /// Live authorization status so the "background triggers" Toggle
+    /// reflects reality (the system dialog changes it behind our back).
+    @Published private(set) var authorization: CLAuthorizationStatus = .notDetermined
+
     private let manager = CLLocationManager()
     /// Region ids currently registered with CoreLocation.
     private var registered = Set<UUID>()
@@ -26,7 +30,11 @@ final class GeofenceManager: NSObject, ObservableObject {
     override init() {
         super.init()
         manager.delegate = self
+        authorization = manager.authorizationStatus
     }
+
+    /// "Always" granted — the fence wakes the app on the locked screen.
+    var hasAlwaysAccess: Bool { authorization == .authorizedAlways }
 
     var isAllowed: Bool {
         switch manager.authorizationStatus {
@@ -117,7 +125,10 @@ final class GeofenceManager: NSObject, ObservableObject {
 extension GeofenceManager: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        Task { @MainActor in self.refreshMonitoring() }
+        Task { @MainActor in
+            self.authorization = status
+            self.refreshMonitoring()
+        }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

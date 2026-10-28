@@ -208,8 +208,8 @@ struct RegionMapCanvas: UIViewRepresentable {
             appliedFocus = focus
             parent.center = focus
             map.setRegion(MKCoordinateRegion(center: focus,
-                                             latitudinalMeters: parent.radius * 2,
-                                             longitudinalMeters: parent.radius * 2), animated: false)
+                                             latitudinalMeters: parent.radius * 3,
+                                             longitudinalMeters: parent.radius * 3), animated: false)
         }
 
         static func same(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D?) -> Bool {

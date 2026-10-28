@@ -14,6 +14,7 @@ struct HomeDashboardView: View {
                 deviceCard
                 GlassCard { SlotChanger() }
                 GlassCard { autoCycleCard }
+                GlassCard { geofenceCard }
                 quickActions
             }
             .padding()
@@ -81,6 +82,34 @@ struct HomeDashboardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+        }
+    }
+
+    /// Electronic fence: entering a mapped region auto-loads its card.
+    private var geofenceCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(L10n.t("Enable geofence"), isOn: Binding(
+                get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
+                set: {
+                    UserDefaults.standard.set($0, forKey: GeofenceManager.enabledKey)
+                    app.geofence.refreshMonitoring()
+                }
+            ))
+            NavigationLink {
+                GeoRegionsView()
+            } label: {
+                Label(L10n.t("Manage regions"), systemImage: "map")
+            }
+            Button {
+                app.geofence.requestAlwaysAuthorization()
+            } label: {
+                Label(L10n.t("Allow background triggers"), systemImage: "lock.badge.clock")
+                    .font(.footnote)
+            }
+            .buttonStyle(.bordered)
+            Text(app.geofence.statusText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

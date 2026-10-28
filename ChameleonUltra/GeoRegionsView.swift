@@ -78,7 +78,7 @@ struct GeoRegionEditorView: View {
     @State private var name = ""
     @State private var cardId: UUID?
     @State private var center: CLLocationCoordinate2D?
-    @State private var radius: Double = 300
+    @State private var radius: Double = 100
     /// One-shot camera target: the user's position when the editor opens.
     @State private var focus: CLLocationCoordinate2D?
     @State private var locateFailed = false
@@ -101,17 +101,8 @@ struct GeoRegionEditorView: View {
                         .frame(height: 200)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        // crosshair marks the screen centre = circle centre
-                        .overlay {
-                            ZStack {
-                                Rectangle().fill(Color.red.opacity(0.9))
-                                    .frame(width: 17, height: 2)
-                                Rectangle().fill(Color.red.opacity(0.9))
-                                    .frame(width: 2, height: 17)
-                            }
-                        }
                     Text(locateFailed ? L10n.t("Cannot get current location")
-                                       : L10n.t("Drag the map — screen centre sets the circle"))
+                                       : L10n.t("Tap the map to set the centre"))
                         .font(.caption)
                         .foregroundStyle(locateFailed ? Color.red : Color.secondary)
                     VStack(alignment: .leading) {
@@ -180,6 +171,10 @@ struct RegionMapCanvas: UIViewRepresentable {
         map.delegate = context.coordinator
         map.showsUserLocation = true
         map.isRotateEnabled = false
+        // single tap = confirm the circle centre at the touched point
+        let tap = UITapGestureRecognizer(target: context.coordinator,
+                                         action: #selector(Coordinator.handleTap(_:)))
+        map.addGestureRecognizer(tap)
         return map
     }
 
@@ -193,33 +188,28 @@ struct RegionMapCanvas: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: RegionMapCanvas
-        /// Suppresses region-change feedback while we move the camera.
-        private var programmaticMove = false
         private var appliedFocus: CLLocationCoordinate2D?
 
         init(_ parent: RegionMapCanvas) {
             self.parent = parent
         }
 
-        // user panned/zoomed: the map centre IS the circle centre
-        func mapView(_ map: MKMapView, regionDidChangeAnimated animated: Bool) {
-            if programmaticMove {
-                programmaticMove = false
-                return
-            }
-            parent.center = map.centerCoordinate
+        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+            guard gesture.state == .ended, let map = gesture.view as? MKMapView else { return }
+            parent.center = map.convert(gesture.location(in: map), toCoordinateFrom: map)
             redraw(map)
         }
 
+        // open at the user's position framed to ~2x the default radius (100 m
+        // radius -> ~200 m window)
         func applyFocusIfNeeded(_ map: MKMapView) {
             guard let focus = parent.focus, parent.center == nil,
                   !Self.same(focus, appliedFocus) else { return }
             appliedFocus = focus
-            programmaticMove = true
             parent.center = focus
             map.setRegion(MKCoordinateRegion(center: focus,
-                                             latitudinalMeters: parent.radius * 4,
-                                             longitudinalMeters: parent.radius * 4), animated: false)
+                                             latitudinalMeters: parent.radius * 2,
+                                             longitudinalMeters: parent.radius * 2), animated: false)
         }
 
         static func same(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D?) -> Bool {

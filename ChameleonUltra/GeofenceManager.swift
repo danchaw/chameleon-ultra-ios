@@ -141,11 +141,12 @@ final class GeofenceManager: NSObject, ObservableObject {
         guard UserDefaults.standard.bool(forKey: Self.enabledKey), isAllowed else { return }
         let regions = GeoRegionStore.load().filter { $0.isEnabled && $0.radius > 0 }
         guard !regions.isEmpty else { return }
-        requestCurrentLocation { [weak self] loc in
-            guard let self, let loc else { return }
+        requestCurrentLocation { [weak self] coord in
+            guard let self, let coord else { return }
+            let here = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
             for r in regions
-            where loc.distance(from: CLLocation(latitude: r.centerLatitude,
-                                                longitude: r.centerLongitude)) <= r.radius {
+            where here.distance(from: CLLocation(latitude: r.centerLatitude,
+                                                 longitude: r.centerLongitude)) <= r.radius {
                 self.fireEnter(r.id)
             }
         }

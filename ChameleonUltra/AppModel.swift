@@ -168,9 +168,10 @@ final class AppModel: ObservableObject {
 
     /// Door-reader game, slot edition: the user writes a different card into
     /// each device slot beforehand; the app then flips the ACTIVE SLOT
-    /// 0→1→2… every 50–200 ms so a waiting reader catches whichever card
-    /// matches. Only the tiny setActiveSlot command is sent — slot contents
-    /// are never rewritten, so the cycle is fast and flash-wear-friendly.
+    /// between the *enabled* slots every 50–500 ms so a waiting reader catches
+    /// whichever card matches. Only the tiny setActiveSlot command is sent —
+    /// slot contents are never rewritten, so the cycle is fast and
+    /// flash-wear-friendly.
     @Published var autoCycleEnabled: Bool = UserDefaults.standard.bool(forKey: AutoPoll.enabledKey)
     @Published var cycleStatus: String = ""
     private var cycleTask: Task<Void, Never>?
@@ -186,16 +187,84 @@ final class AppModel: ObservableObject {
         guard cycleTask == nil else { return }
         guard isConnected else { return }
         cycleTask = Task { @MainActor in
-            appendLog("Auto slot polling started")
             var slot = activeSlot
+            var lastCount = -1
+            var risingTicks = 0
+            var quietTicks = 0
+            var sampleFails = 0
+            var rotating = AutoPoll.mode == .continuous
+            var lastSample = Date.distantPast
+            if AutoPoll.mode == .smart {
+                // The counter only moves if the firmware logs reads.
+                try? await communicator?.setMf1DetectionStatus(true)
+                cycleStatus = L10n.t("Armed · waiting for reader")
+                appendLog("Auto polling armed — waiting for a reader")
+            } else {
+                appendLog("Auto slot polling started")
+            }
             while !Task.isCancelled {
                 guard isConnected, let communicator else {
                     cycleStatus = L10n.t("Waiting for device/cards")
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
                     continue
                 }
-                let count = max(2, deviceType.slotCount)
-                slot = (slot + 1) % count
+                // Only slots the user switched on; re-read every round so
+                // toggling a slot in the manager takes effect immediately.
+                let enabled = (0..<deviceType.slotCount)
+                    .filter { $0 < slotEnabled.count && slotEnabled[$0].any }
+                guard !enabled.isEmpty else {
+                    cycleStatus = L10n.t("No enabled slots to poll")
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    continue
+                }
+
+                // Smart mode: sample the firmware's reader-auth counter ~3×/s
+                // while rotating, ~1×/s while armed. A rising counter means a
+                // reader is genuinely working on the card — start rotating.
+                // It going quiet means the read finished (accepted, or the
+                // card was pulled away) — rest again.
+                if AutoPoll.mode == .smart,
+                   Date().timeIntervalSince(lastSample) >= (rotating ? 0.3 : 1.0) {
+                    lastSample = Date()
+                    do {
+                        let count = try await communicator.getMf1DetectionCount()
+                        sampleFails = 0
+                        if lastCount >= 0 {
+                            if count > lastCount { risingTicks += 1; quietTicks = 0 }
+                            else { risingTicks = 0; quietTicks += 1 }
+                        }
+                        lastCount = count
+                        if !rotating, risingTicks >= 2 {
+                            rotating = true
+                            appendLog("Reader detected — rotating slots")
+                        } else if rotating, quietTicks >= 3 {
+                            rotating = false
+                            risingTicks = 0
+                            lastCount = -1
+                            cycleStatus = L10n.t("Armed · waiting for reader")
+                            appendLog("Reader left — resting on slot \(slot)")
+                        }
+                    } catch {
+                        sampleFails += 1
+                        if sampleFails >= 5, !rotating {
+                            // Older firmware without the counter — don't stay
+                            // armed forever; behave like continuous mode.
+                            rotating = true
+                            appendLog("Detection counter unavailable — polling continuously")
+                        }
+                    }
+                }
+
+                guard rotating else {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    continue
+                }
+
+                if let idx = enabled.firstIndex(of: slot) {
+                    slot = enabled[(idx + 1) % enabled.count]
+                } else {
+                    slot = enabled.first!   // current slot got switched off
+                }
                 do {
                     try await communicator.activateSlot(slot)
                     activeSlot = slot

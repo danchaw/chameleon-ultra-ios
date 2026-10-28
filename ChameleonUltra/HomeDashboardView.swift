@@ -59,7 +59,7 @@ struct HomeDashboardView: View {
         .onDisappear { refreshTask?.cancel() }
     }
 
-    /// Auto slot polling: flip the device's active card slot every 50–200 ms
+    /// Auto slot polling: flip the device's active card slot every 50–500 ms
     /// — the door reader catches whichever slot holds a matching card.
     private var autoCycleCard: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -68,9 +68,36 @@ struct HomeDashboardView: View {
                 set: { app.setAutoCycle($0) }
             ))
             if app.autoCycleEnabled {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Text(L10n.t("Poll trigger"))
+                    Picker(L10n.t("Poll trigger"), selection: Binding(
+                        get: { AutoPoll.mode },
+                        set: {
+                            AutoPoll.mode = $0
+                            if app.autoCycleEnabled { app.stopCardCycle(); app.startCardCycle() }
+                        }
+                    )) {
+                        Text(L10n.t("On reader read")).tag(AutoPoll.Mode.smart)
+                        Text(L10n.t("Continuous")).tag(AutoPoll.Mode.continuous)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+                HStack(spacing: 8) {
                     Text(L10n.t("Interval"))
-                    Slider(value: $pollMs, in: 50...200, step: 10)
+                    Text(L10n.t("Slow"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    // Left = slow, right = fast: the slider position is the
+                    // mirror of the interval (550 - position), so dragging
+                    // right always means "quicker".
+                    Slider(value: Binding(
+                        get: { Double(550 - Int(pollMs)) },
+                        set: { pollMs = Double(550 - Int($0)) }
+                    ), in: 50...500, step: 10)
+                    Text(L10n.t("Fast"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     Text("\(Int(pollMs)) ms")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -231,6 +258,11 @@ struct HomeDashboardView: View {
                 FlashingView(embedded: true)
             } label: {
                 actionTile(L10n.t("Firmware update"), "arrow.down.doc.fill")
+            }
+            NavigationLink {
+                DeviceSettingsView()
+            } label: {
+                actionTile(L10n.t("Device settings"), "gearshape.2.fill")
             }
         }
         .buttonStyle(.plain)

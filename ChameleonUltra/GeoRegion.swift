@@ -94,10 +94,16 @@ enum GeoRegionStore {
 }
 
 /// Auto slot-polling preferences: instead of pushing cards into one slot,
-/// the app rotates the device's ACTIVE SLOT across its card slots at a fast
-/// gap (50–200 ms), so a door reader picks up whichever slot matches.
+/// the app rotates the device's ACTIVE SLOT across its *enabled* card slots
+/// at a fast gap (50–500 ms), so a door reader picks up whichever slot
+/// matches.
 enum AutoPoll {
+    /// When the switch is ON: .smart rests and only rotates slots while a
+    /// reader is detected working on the card; .continuous never rests.
+    enum Mode: String { case smart, continuous }
+
     static let enabledKey = "autoCycleEnabled"
+    static let modeKey = "autoPollMode"
     /// New key: old "autoCycleInterval" stored seconds (3/5/10/30); reusing it
     /// would read a stale 5 as 5 ms. Milliseconds live under their own key.
     static let intervalKey = "autoPollIntervalMs"
@@ -106,9 +112,14 @@ enum AutoPoll {
         UserDefaults.standard.bool(forKey: enabledKey)
     }
 
-    /// Gap between slot switches, in milliseconds (slider range 50–200).
+    static var mode: Mode {
+        get { Mode(rawValue: UserDefaults.standard.string(forKey: modeKey) ?? "") ?? .smart }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: modeKey) }
+    }
+
+    /// Gap between slot switches, in milliseconds (slider range 50–500).
     static var intervalMs: Int {
         let i = UserDefaults.standard.integer(forKey: intervalKey)
-        return (50...200).contains(i) ? i : 100
+        return (50...500).contains(i) ? i : 100
     }
 }

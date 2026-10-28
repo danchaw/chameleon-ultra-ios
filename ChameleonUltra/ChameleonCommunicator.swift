@@ -520,6 +520,20 @@ final class ChameleonCommunicator {
         try await sendCmd(.mf1SetDetectionEnable, data: Data([enabled ? 1 : 0]))
     }
 
+    func isMf1DetectionEnabled() async throws -> Bool {
+        try await sendCmd(.mf1GetDetectionStatus).data.first == 1
+    }
+
+    /// How many times a reader has tried to authenticate against the
+    /// currently emulated card. The firmware counts the HF side itself — the
+    /// BLE link carries no field events — so the app samples this counter to
+    /// learn that a reader is working on the card right now.
+    func getMf1DetectionCount() async throws -> Int {
+        let data = try await sendCmd(.mf1GetDetectionCount).data
+        guard data.count >= 4 else { return 0 }
+        return Int(data.readU32(at: 0))
+    }
+
 
     // MARK: - LF
 

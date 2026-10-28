@@ -19,8 +19,8 @@ struct SettingsView: View {
     static let appBoolKeys = ["autoScan", "autoConnectFirst"]
     static let settingsMagic = "chameleon-ultra-ios-settings"
 
-    /// Exports app settings and — when a device is connected — the live
-    /// device settings too, in a dedicated `.cusettings` format.
+    /// Exports app settings only — device-side settings live on the device
+    /// itself and are deliberately not part of the file.
     private func exportSettings() async {
         var appDict: [String: Any] = [:]
         for key in Self.appStringKeys {
@@ -29,20 +29,7 @@ struct SettingsView: View {
         for key in Self.appBoolKeys {
             appDict[key] = UserDefaults.standard.bool(forKey: key)
         }
-        var dict: [String: Any] = ["format": Self.settingsMagic, "version": 2, "app": appDict]
-
-        if app.isConnected, let c = app.communicator {
-            var device: [String: Any] = [:]
-            if let mode = try? await c.getAnimationMode() { device["animation"] = mode.rawValue }
-            if let wake = try? await c.getSleepTimeout() { device["wakeTime"] = wake }
-            if let threshold = try? await c.getLongPressThreshold() { device["longPressThreshold"] = threshold }
-            if let pairing = try? await c.isBLEPairEnabled() { device["pairing"] = pairing }
-            if let a = try? await c.getButtonConfig(.a, long: false) { device["aPress"] = a.rawValue }
-            if let b = try? await c.getButtonConfig(.b, long: false) { device["bPress"] = b.rawValue }
-            if let al = try? await c.getButtonConfig(.a, long: true) { device["aLongPress"] = al.rawValue }
-            if let bl = try? await c.getButtonConfig(.b, long: true) { device["bLongPress"] = bl.rawValue }
-            if !device.isEmpty { dict["device"] = device }
-        }
+        let dict: [String: Any] = ["format": Self.settingsMagic, "version": 2, "app": appDict]
 
         guard JSONSerialization.isValidJSONObject(dict),
               let data = try? JSONSerialization.data(withJSONObject: dict, options: [.prettyPrinted]) else { return }
@@ -70,31 +57,9 @@ struct SettingsView: View {
             if let value = appDict["autoConnectFirst"] as? Bool { autoConnectFirst = value }
         }
 
-        var appliedDevice = false
-        if let device = dict["device"] as? [String: Any], app.isConnected, let c = app.communicator {
-            if let raw = device["animation"] as? Int, let mode = AnimationSetting(rawValue: UInt8(raw)) {
-                try? await c.setAnimationMode(mode)
-            }
-            if let wake = device["wakeTime"] as? Int { try? await c.setSleepTimeout(wake) }
-            if let threshold = device["longPressThreshold"] as? Int { try? await c.setLongPressThreshold(threshold) }
-            if let pairing = device["pairing"] as? Bool { try? await c.setBLEPairEnabled(pairing) }
-            let buttonMap: [(String, ButtonType, Bool)] = [
-                ("aPress", .a, false), ("bPress", .b, false),
-                ("aLongPress", .a, true), ("bLongPress", .b, true),
-            ]
-            for (key, type, long) in buttonMap {
-                if let raw = device[key] as? Int, let mode = ButtonConfig(rawValue: UInt8(raw)) {
-                    try? await c.setButtonConfig(type, mode: mode, long: long)
-                }
-            }
-            appliedDevice = true
-        }
-
-        message = appliedDevice
-            ? "\(L10n.t("Settings imported")) · \(L10n.t("Device settings applied"))"
-            : (dict["device"] != nil
-                ? "\(L10n.t("Settings imported")) · \(L10n.t("Device not connected — app settings only"))"
-                : L10n.t("Settings imported"))
+        // A "device" section in older exports is ignored on purpose: device
+        // settings are managed live on the device page now.
+        message = L10n.t("Settings imported")
     }
 
     /// Shown in About; reads the real bundle version so it never drifts.
@@ -141,16 +106,6 @@ struct SettingsView: View {
                 }
             }
 
-            if app.isConnected {
-                Section(L10n.t("Device")) {
-                    NavigationLink {
-                        DeviceSettingsView()
-                    } label: {
-                        AccentLabel(L10n.t("Device settings"), "gearshape.2")
-                    }
-                }
-            }
-
             Section(L10n.t("Connection")) {
                 Toggle(L10n.t("Auto scan devices"), isOn: $autoScan)
                 Toggle(L10n.t("Auto connect first device"), isOn: $autoConnectFirst)
@@ -173,7 +128,7 @@ struct SettingsView: View {
             } header: {
                 Text(L10n.t("Settings management"))
             } footer: {
-                Text("\(L10n.t("App settings")) + \(L10n.t("Device settings")) · .cusettings")
+                Text("\(L10n.t("App settings")) · .cusettings")
             }
 
             if let message {

@@ -108,19 +108,19 @@ extension PlaceSearchModel: MKLocalSearchCompleterDelegate {
         Task { @MainActor in
             self.resolveTask?.cancel()
             self.resolveTask = Task { @MainActor in
-                let items = await withTaskGroup(of: (Int, MKMapItem?).self) { group -> [(Int, MKMapItem)] in
+                let indexed = await withTaskGroup(of: IndexedItem.self) { group -> [IndexedItem] in
                     for (index, completion) in completions.enumerated() {
                         group.addTask {
-                            let item: MKMapItem? = await self.resolve(completion)
-                            return (index, item)
+                            IndexedItem(index: index, item: await self.resolve(completion))
                         }
                     }
-                    var found: [(Int, MKMapItem)] = []
-                    for await pair in group { if let pair = pair.1 { found.append((pair.0, pair.1)) } }
+                    var found: [IndexedItem] = []
+                    for await result in group { found.append(result) }
                     return found
                 }
                 if Task.isCancelled { return }
-                self.results = items.sorted { $0.0 < $1.0 }.map { $0.1 }
+                // Keep the completer's ranking rather than completion order.
+                self.results = indexed.sorted { $0.index < $1.index }.compactMap { $0.item }
             }
         }
     }
@@ -241,6 +241,12 @@ struct FenceMapView: UIViewRepresentable {
             return view
         }
     }
+}
+
+/// One expanded suggestion, tagged with its position in the completer list.
+private struct IndexedItem: Sendable {
+    let index: Int
+    let item: MKMapItem?
 }
 
 final class FencePin: NSObject, MKAnnotation {

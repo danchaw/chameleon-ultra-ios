@@ -70,7 +70,7 @@ struct GeoRegionsView: View {
                     }
                 }
             } footer: {
-                Text(L10n.t("The circle is centred on you and shows 100 m around your position. Swipe left to delete."))
+                Text(L10n.t("Drag the map, search for a place or tap to place the centre — then pick the radius."))
             }
         }
         .navigationTitle(L10n.t("Geofence"))
@@ -118,6 +118,12 @@ struct GeoRegionsView: View {
 }
 
 // MARK: - Editor
+//
+// Two stages, in the order the question is actually asked on the phone:
+//   1. locate — pan the map, search a place, pin the crosshair, or use my GPS
+//   2. radius — slider (0…500, step 50) while the circle grows on the map
+
+private enum EditorStage { case locate, radius }
 
 struct GeoRegionEditorView: View {
     @EnvironmentObject var store: CardStore
@@ -127,67 +133,284 @@ struct GeoRegionEditorView: View {
     var onSaved: () -> Void
 
     @EnvironmentObject var app: AppModel
+    @StateObject private var search = PlaceSearchModel()
+
+    @State private var stage: EditorStage = .locate
     @State private var name = ""
     @State private var cardId: UUID?
     @State private var radius: Double = 100
+    @State private var centre: CLLocationCoordinate2D?
+    @State private var placeTitle: String?
+
+    /// Used for the very first frame if position is slow or denied.
+    @State private var camera = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074),
+        span: MKCoordinateSpan(latitudeDelta: 0.004, longitudeDelta: 0.004))
+    @State private var visibleRegion: MKCoordinateRegion?
+    @State private var centreRequest = 0
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(L10n.t("Region name")) {
-                    TextField(L10n.t("Name"), text: $name)
-                    Picker(L10n.t("Bind card"), selection: $cardId) {
-                        Text(L10n.t("Select card…")).tag(UUID?.none)
-                        ForEach(store.cards) { card in
-                            Text(card.name).tag(UUID?.some(card.id))
-                        }
-                    }
-                }
-
-                Section {
-                    // Fixed view: always a 100 m window around the user's
-                    // position; the red circle is drawn at `radius`.
-                    UserCentredMap(radius: radius)
-                        .frame(height: 240)
-                        .listRowInsets(EdgeInsets())
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .overlay(alignment: .topLeading) {
-                            Text("100 m")
-                                .font(.caption2)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .padding(8)
-                        }
-                    HStack(spacing: 12) {
-                        Text(L10n.t("Radius"))
-                            .font(.footnote)
-                        Slider(value: $radius, in: 0...500, step: 50)
-                        Text(radiusText)
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(radius > 0 ? Color.accentColor : .secondary)
-                            .frame(minWidth: 54, alignment: .trailing)
-                    }
-                    Text(radius > 0 ? L10n.t("Entering the circle loads the bound card")
-                                    : L10n.t("Radius 0 turns this fence off"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    Button(region == nil ? L10n.t("Save region") : L10n.t("Save changes")) { save() }
-                        .disabled(!canSave)
-                }
-            }
-            .navigationTitle(region == nil ? L10n.t("Add region") : L10n.t("Edit region"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.t("Cancel")) { dismiss() }
-                }
-            }
-            .onAppear(perform: prefill)
+        GeometryReader { proxy in
+            mapCanvas(height: max(240, min(proxy.size.height * 0.5, 440)))
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        .navigationTitle(region == nil ? L10n.t("Add region") : L10n.t("Edit region"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(L10n.t("Cancel")) { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(stage == .locate ? L10n.t("Next")
+                                        : (region == nil ? L10n.t("Save region") : L10n.t("Save changes"))) {
+                    if stage == .locate {
+                        confirmCrosshair()
+                    } else {
+                        save()
+                    }
+                }
+                .disabled(stage == .locate ? centre == nil : !canSave)
+            }
+        }
+        .onAppear(perform: prefill)
+        .onChange(of: visibleRegion) { _, newValue in search.bind(region: newValue) }
+        .onChange(of: search.query) { _, newValue in
+            // Typing again while sizing the fence means "find another place".
+            guard !newValue.isEmpty, stage == .radius else { return }
+            withAnimation(.snappy) { stage = .locate }
+        }
+    }
+
+    // MARK: Map
+
+    private func mapCanvas(height: CGFloat) -> some View {
+        ZStack(alignment: .top) {
+            FenceMapView(region: camera,
+                         centre: centre,
+                         radius: stage == .radius ? radius : 0,
+                         centreRequest: centreRequest,
+                         onRegionChanged: { visibleRegion = $0 })
+                .overlay { crosshair }
+                .overlay(alignment: .bottomTrailing) { locateButton }
+                .overlay(alignment: .bottomLeading) { hintChip }
+
+            if stage == .locate {
+                searchLayer
+            }
+        }
+        .frame(height: height)
+        .contentShape(Rectangle())
+        .onTapGesture { searchFocused = false }
+    }
+
+    /// Fixed screen-centre marker: "Confirm" pins whatever sits here.
+    private var crosshair: some View {
+        ZStack {
+            Circle()
+                .fill(.red.opacity(0.18))
+                .frame(width: 46, height: 46)
+            Circle()
+                .stroke(.red, lineWidth: 2)
+                .frame(width: 18, height: 18)
+            Circle()
+                .fill(.red)
+                .frame(width: 6, height: 6)
+            Rectangle()
+                .fill(.red.opacity(0.75))
+                .frame(width: 1, height: 10)
+                .offset(y: -17)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var locateButton: some View {
+        Button {
+            app.geofence.requestCurrentLocation { coordinate in
+                guard let coordinate else {
+                    app.lastError = L10n.t("Cannot get current location")
+                    return
+                }
+                place(at: coordinate, title: L10n.t("My location"))
+            }
+        } label: {
+            Image(systemName: "location.fill")
+                .font(.body.weight(.semibold))
+                .frame(width: 40, height: 40)
+                .background(.regularMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .padding(12)
+        .accessibilityLabel(L10n.t("My location"))
+    }
+
+    private var hintChip: some View {
+        let text: String = {
+            if stage == .radius { return L10n.t("Drag the slider to resize the circle") }
+            return centre == nil ? L10n.t("Drag or search the map, then tap Confirm")
+                                 : L10n.t("Centre picked — adjust the radius next")
+        }()
+        return Text(text)
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
+            .padding(12)
+            .allowsHitTesting(false)
+    }
+
+    // MARK: Search (stage 1)
+
+    private var searchLayer: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.t("Search a place or lat, lon"), text: $search.query)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .focused($searchFocused)
+                        .onSubmit { Task { await jumpToTypedPlace() } }
+                    if !search.query.isEmpty {
+                        Button {
+                            search.query = ""
+                            search.clear()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                Button(L10n.t("Confirm")) { confirmCrosshair() }
+                    .font(.subheadline.weight(.semibold))
+                    .disabled(centre == nil)
+                    .foregroundStyle(centre == nil ? Color.secondary : Color.white)
+                    .padding(.horizontal, 12)
+                    .frame(height: 40)
+                    .background(centre == nil ? AnyShapeStyle(.regularMaterial)
+                                              : AnyShapeStyle(Color.accentColor),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            if search.isSearching {
+                ProgressView()
+                    .padding(10)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            if searchFocused && !search.results.isEmpty {
+                suggestionList
+            } else if !search.coordinateHint.isEmpty {
+                Text(search.coordinateHint)
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var suggestionList: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(Array(search.results.enumerated()), id: \.offset) { _, item in
+                    Button {
+                        place(at: item.placemark.coordinate, title: item.name)
+                        searchFocused = false
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "mappin.circle.fill")
+                                .foregroundStyle(.red)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name ?? L10n.t("Unknown"))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                if let subtitle = subtitle(item) {
+                                    Text(subtitle)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    Divider().padding(.leading, 40)
+                }
+            }
+        }
+        .frame(maxHeight: 240)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(.horizontal, 12)
+    }
+
+    private func subtitle(_ item: MKMapItem) -> String? {
+        let placemark = item.placemark
+        let parts = [placemark.title, placemark.locality, placemark.country]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty && $0 != item.name }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    // MARK: Bottom bar
+
+    @ViewBuilder
+    private var bottomBar: some View {
+        VStack(spacing: 12) {
+            TextField(L10n.t("Name"), text: $name)
+                .textFieldStyle(.roundedBorder)
+                .submitLabel(.done)
+
+            Picker(L10n.t("Bind card"), selection: $cardId) {
+                Text(L10n.t("Select card…")).tag(UUID?.none)
+                ForEach(store.cards) { card in
+                    Text(card.name).tag(UUID?.some(card.id))
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if stage == .radius {
+                HStack(spacing: 12) {
+                    Text(L10n.t("Radius"))
+                        .font(.footnote)
+                    Slider(value: $radius, in: 0...500, step: 50)
+                    Text(radiusText)
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(radius > 0 ? Color.accentColor : .secondary)
+                        .frame(minWidth: 54, alignment: .trailing)
+                }
+                Text(radius > 0 ? L10n.t("Entering the circle loads the bound card")
+                                : L10n.t("Radius 0 turns this fence off"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let centre {
+                Label(placeTitle ?? String(format: "%.5f, %.5f", centre.latitude, centre.longitude),
+                      systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(.bar)
     }
 
     private var radiusText: String {
@@ -195,119 +418,88 @@ struct GeoRegionEditorView: View {
     }
 
     private var canSave: Bool {
-        cardId != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
+        cardId != nil
+            && !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && centre != nil
     }
 
+    // MARK: Actions
+
     private func prefill() {
-        guard let region else { return }
+        guard let region else {
+            // Brand-new fence: open on the phone's position, not the world.
+            app.geofence.requestCurrentLocation { coordinate in
+                guard centre == nil, let coordinate else { return }
+                recentreOn(coordinate, meters: 600)
+            }
+            return
+        }
         name = region.name
         cardId = region.cardId
         radius = region.radius
+        centre = region.coordinate
+        recentreOn(region.coordinate, meters: max(600, region.radius * 4))
+    }
+
+    /// Confirm → pin the visible centre and move on to the radius slider.
+    private func confirmCrosshair() {
+        if let visible = visibleRegion {
+            place(at: visible.center, title: nil)
+        } else {
+            place(at: camera.center, title: nil)
+        }
+        guard let centre else { return }
+        withAnimation(.snappy) { stage = .radius }
+        searchFocused = false
+        recentreOn(centre, meters: max(600, radius * 3.2))
+    }
+
+    private func place(at coordinate: CLLocationCoordinate2D, title: String?) {
+        searchFocused = false
+        placeTitle = title
+        centre = coordinate
+        let near = visibleRegion.map {
+            CLLocation(latitude: $0.center.latitude, longitude: $0.center.longitude)
+                .distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude))
+        }
+        // Already in view: keep the zoom, so panning does not fight the user.
+        guard near.map({ $0 > 40 }) ?? true else { return }
+        recentreOn(coordinate, meters: 600)
+    }
+
+    private func recentreOn(_ coordinate: CLLocationCoordinate2D, meters: Double) {
+        camera = MKCoordinateRegion(center: coordinate,
+                                    latitudinalMeters: meters,
+                                    longitudinalMeters: meters)
+        centreRequest += 1
+    }
+
+    private func jumpToTypedPlace() async {
+        guard let item = await search.resolve() else {
+            app.lastError = L10n.t("Place not found")
+            return
+        }
+        place(at: item.placemark.coordinate, title: item.name)
     }
 
     private func save() {
-        guard let cardId else { return }
-        // Fresh location capture: fences are relative to where you are now.
-        app.geofence.requestCurrentLocation { coordinate in
-            let centre = coordinate ?? region?.coordinate
-            guard let centre else { return }
-            if var existing = region {
-                existing.name = name.trimmingCharacters(in: .whitespaces)
-                existing.cardId = cardId
-                existing.radius = radius
-                existing.centerLatitude = centre.latitude
-                existing.centerLongitude = centre.longitude
-                GeoRegionStore.update(existing)
-            } else {
-                GeoRegionStore.add(GeoRegion(name: name.trimmingCharacters(in: .whitespaces),
-                                             cardId: cardId,
-                                             centerLatitude: centre.latitude,
-                                             centerLongitude: centre.longitude,
-                                             radius: radius))
-            }
-            onSaved()
-            dismiss()
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let cardId, let centre else { return }
+        if var existing = region {
+            existing.name = trimmed
+            existing.cardId = cardId
+            existing.radius = radius
+            existing.centerLatitude = centre.latitude
+            existing.centerLongitude = centre.longitude
+            GeoRegionStore.update(existing)
+        } else {
+            GeoRegionStore.add(GeoRegion(name: trimmed,
+                                         cardId: cardId,
+                                         centerLatitude: centre.latitude,
+                                         centerLongitude: centre.longitude,
+                                         radius: radius))
         }
-    }
-}
-
-// MARK: - Map canvas
-//
-// Fixed 100 m window around the user: the camera is locked to the device
-// location (recentred whenever it moves >1 m) and shows ~200 m across, so the
-// red fence circle (radius 0–500, default 100) is always drawn relative to
-// "me". Dragging the map is disabled — the view is a live preview, not a
-// placement surface; the centre is captured from the GPS fix on save.
-
-struct UserCentredMap: UIViewRepresentable {
-    var radius: Double
-
-    func makeUIView(context: Context) -> MKMapView {
-        let map = MKMapView()
-        map.delegate = context.coordinator
-        map.showsUserLocation = true
-        map.isRotateEnabled = false
-        map.isPitchEnabled = false
-        map.isScrollEnabled = false
-        map.isZoomEnabled = false
-        return map
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func updateUIView(_ map: MKMapView, context: Context) {
-        context.coordinator.parent = self
-        context.coordinator.recentreIfNeeded(map)
-        context.coordinator.redraw(map)
-    }
-
-    final class Coordinator: NSObject, MKMapViewDelegate {
-        var parent: UserCentredMap
-        private var currentCentre: CLLocationCoordinate2D?
-        private var lastCamera: CLLocationCoordinate2D?
-
-        init(_ parent: UserCentredMap) {
-            self.parent = parent
-        }
-
-        func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
-            guard let coordinate = userLocation.location?.coordinate else { return }
-            currentCentre = coordinate
-            recentreIfNeeded(mapView)
-            redraw(mapView)
-        }
-
-        // Centre once, then only when the fix drifts, so the user can still
-        // inspect while standing still.
-        func recentreIfNeeded(_ map: MKMapView) {
-            guard let centre = currentCentre else { return }
-            if let last = lastCamera,
-               CLLocation(latitude: last.latitude, longitude: last.longitude)
-                   .distance(from: CLLocation(latitude: centre.latitude,
-                                              longitude: centre.longitude)) < 1 {
-                return
-            }
-            lastCamera = centre
-            map.setRegion(MKCoordinateRegion(center: centre,
-                                             latitudinalMeters: 200,
-                                             longitudinalMeters: 200), animated: lastCamera != nil)
-        }
-
-        func redraw(_ map: MKMapView) {
-            map.removeOverlays(map.overlays)
-            guard let centre = currentCentre, parent.radius > 0 else { return }
-            map.addOverlay(MKCircle(center: centre, radius: parent.radius))
-        }
-
-        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let circle = overlay as? MKCircle {
-                let renderer = MKCircleRenderer(circle: circle)
-                renderer.strokeColor = .systemRed
-                renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.28)
-                renderer.lineWidth = 3
-                return renderer
-            }
-            return MKOverlayRenderer(overlay: overlay)
-        }
+        onSaved()
+        dismiss()
     }
 }

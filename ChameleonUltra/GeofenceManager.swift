@@ -2,8 +2,7 @@ import Foundation
 import CoreLocation
 
 /// Location monitoring for the electronic fence. Registers every saved
-/// region (circles directly; polygons as their bounding circle with an exact
-/// point-in-polygon re-check on entry) and reports ENTER events with the
+/// circular region with CoreLocation and reports ENTER events with the
 /// region id. The AppModel then pushes the bound card into the device.
 @MainActor
 final class GeofenceManager: NSObject, ObservableObject {
@@ -16,11 +15,8 @@ final class GeofenceManager: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     /// Region ids currently registered with CoreLocation.
     private var registered = Set<UUID>()
-    /// Regions awaiting a one-shot location fix to confirm polygon entry.
-    private var pendingConfirm = Set<UUID>()
 
-    /// Fired when the phone enters a bound region (exact for circles; for
-    /// polygons the app re-checks the exact polygon before acting).
+    /// Fired when the phone enters a bound region.
     var onRegionEnter: ((UUID) -> Void)?
 
     override init() {
@@ -33,6 +29,13 @@ final class GeofenceManager: NSObject, ObservableObject {
         case .authorizedWhenInUse, .authorizedAlways: return true
         default: return false
         }
+    }
+
+
+    /// Ask for "Always" so fence events wake the app while the phone is
+    /// locked (iOS shows a second confirmation in Settings).
+    func requestAlwaysAuthorization() {
+        manager.requestAlwaysAuthorization()
     }
 
     /// Stop every currently monitored region.
@@ -83,24 +86,7 @@ final class GeofenceManager: NSObject, ObservableObject {
             manager.requestState(for: cr)   // fires didEnter if already inside
             registered.insert(region.id)
         }
-        statusText = String(format: L10n.t("Monitoring %d region(s)"), regions.count)
-    }
-
-    /// One-shot location fix used to confirm polygon containment.
-    private func requestContainmentCheck(for region: GeoRegion) {
-        pendingConfirm.insert(region.id)
-        manager.startUpdatingLocation()
-    }
-
-    /// Ask for "Always" so fence events wake the app while the phone is
-    /// locked (iOS shows a second confirmation in Settings).
-    func requestAlwaysAuthorization() {
-        manager.requestAlwaysAuthorization()
-    }
-
-    /// True when the user has granted Always (locked-screen fence triggers).
-    var hasAlwaysAccess: Bool {
-        manager.authorizationStatus == .authorizedAlways
+        statusText = L10n.tf("Monitoring %d region(s)", regions.count)
     }
 }
 
@@ -113,44 +99,12 @@ extension GeofenceManager: CLLocationManagerDelegate {
         Task { @MainActor in self.refreshMonitoring() }
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        Task { @MainActor in
-            guard !self.pendingConfirm.isEmpty else {
-                manager.stopUpdatingLocation()
-                return
-            }
-            manager.stopUpdatingLocation()
-            let regions = GeoRegionStore.load()
-            for id in self.pendingConfirm {
-                guard let region = regions.first(where: { $0.id == id }) else { continue }
-                if region.contains(location.coordinate) {
-                    self.onRegionEnter?(region.id)
-                }
-            }
-            self.pendingConfirm.removeAll()
-        }
-    }
-
-    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in
-            self.pendingConfirm.removeAll()
-            manager.stopUpdatingLocation()
-            self.statusText = L10n.t("Location failed")
-        }
-    }
-
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         guard let id = UUID(uuidString: region.identifier) else { return }
         Task { @MainActor in
             guard self.registered.contains(id),
-                  let region = GeoRegionStore.load().first(where: { $0.id == id }) else { return }
-            if region.kind == .polygon {
-                // bounding circle only — confirm exact polygon containment
-                self.requestContainmentCheck(for: region)
-            } else {
-                self.onRegionEnter?(id)
-            }
+                  GeoRegionStore.load().contains(where: { $0.id == id }) else { return }
+            self.onRegionEnter?(id)
         }
     }
 }

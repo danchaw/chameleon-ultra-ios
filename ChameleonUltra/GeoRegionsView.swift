@@ -2,8 +2,8 @@ import SwiftUI
 import MapKit
 
 /// Electronic-fence region list + map editor. A region binds ONE saved card;
-/// entering the region (circle or drawn polygon) makes the app push that card
-/// into the Chameleon's active slot automatically.
+/// entering the circle makes the app push that card into the Chameleon's
+/// active slot automatically.
 struct GeoRegionsView: View {
     @EnvironmentObject var store: CardStore
     @EnvironmentObject var app: AppModel
@@ -12,13 +12,11 @@ struct GeoRegionsView: View {
 
     var body: some View {
         List {
-            if regions.isEmpty {
-                Section {
+            Section {
+                if regions.isEmpty {
                     Text(L10n.t("No regions yet"))
                         .foregroundStyle(.secondary)
                 }
-            }
-            Section {
                 ForEach(regions) { region in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(region.name).font(.headline)
@@ -47,7 +45,10 @@ struct GeoRegionsView: View {
             }
         }
         .sheet(isPresented: $showEditor) {
-            GeoRegionEditorView { regions = GeoRegionStore.load() }
+            GeoRegionEditorView {
+                regions = GeoRegionStore.load()
+                app.geofence.refreshMonitoring()
+            }
         }
         .overlay {
             if store.cards.isEmpty {
@@ -62,10 +63,7 @@ struct GeoRegionsView: View {
 
     private func regionSubtitle(_ region: GeoRegion) -> String {
         let cardName = store.cards.first { $0.id == region.cardId }?.name ?? "—"
-        let shape = region.kind == .circle
-            ? String(format: L10n.t("Circle · %.0f m"), region.radius)
-            : L10n.tf("Polygon · %d points", region.points.count)
-        return "\(shape) · \(cardName)"
+        return String(format: L10n.t("Circle · %.0f m"), region.radius) + " · \(cardName)"
     }
 }
 
@@ -76,12 +74,10 @@ struct GeoRegionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     var onSaved: () -> Void
 
-    @State private var kind: GeoRegion.Kind = .circle
     @State private var name = ""
     @State private var cardId: UUID?
     @State private var center: CLLocationCoordinate2D?
     @State private var radius: Double = 300
-    @State private var points: [CLLocationCoordinate2D] = []
 
     var body: some View {
         NavigationStack {
@@ -97,35 +93,17 @@ struct GeoRegionEditorView: View {
                 }
 
                 Section {
-                    Picker(L10n.t("Shape"), selection: $kind) {
-                        Text(L10n.t("Circle")).tag(GeoRegion.Kind.circle)
-                        Text(L10n.t("Polygon")).tag(GeoRegion.Kind.polygon)
-                    }
-                    .pickerStyle(.segmented)
-
-                    RegionMapCanvas(kind: kind, center: $center, radius: $radius, points: $points)
-                        .frame(height: 300)
+                    RegionMapCanvas(center: $center, radius: $radius)
+                        .frame(height: 280)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                    switch kind {
-                    case .circle:
-                        VStack(alignment: .leading) {
-                            Text("\(L10n.t("Radius")): \(Int(radius)) m")
-                                .font(.footnote)
-                            Slider(value: $radius, in: 50...3000, step: 50)
-                        }
-                        Text(L10n.t("Long-press map to set center"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    case .polygon:
-                        Text(L10n.t("Tap map to add points"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button(L10n.t("Undo point")) {
-                            if !points.isEmpty { points.removeLast() }
-                        }
-                        .disabled(points.isEmpty)
+                    Text(L10n.t("Drag the map — screen centre sets the circle"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading) {
+                        Text("\(L10n.t("Radius")): \(Int(radius)) m")
+                            .font(.footnote)
+                        Slider(value: $radius, in: 50...3000, step: 50)
                     }
                 }
 
@@ -145,55 +123,37 @@ struct GeoRegionEditorView: View {
     }
 
     private var canSave: Bool {
-        guard cardId != nil, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
-        switch kind {
-        case .circle: return center != nil
-        case .polygon: return points.count >= 3
-        }
+        cardId != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && center != nil
     }
 
     private func save() {
-        guard let cardId else { return }
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        let region: GeoRegion
-        switch kind {
-        case .circle:
-            guard let center else { return }
-            region = GeoRegion(name: trimmed, cardId: cardId, kind: .circle,
-                               centerLatitude: center.latitude, centerLongitude: center.longitude,
+        guard let cardId, let center else { return }
+        let region = GeoRegion(name: name.trimmingCharacters(in: .whitespaces),
+                               cardId: cardId,
+                               centerLatitude: center.latitude,
+                               centerLongitude: center.longitude,
                                radius: radius)
-        case .polygon:
-            let doubles = points.map { [$0.latitude, $0.longitude] }
-            let bc = GeoRegion.boundingCircle(for: doubles)
-            region = GeoRegion(name: trimmed, cardId: cardId, kind: .polygon,
-                               centerLatitude: bc.center.latitude, centerLongitude: bc.center.longitude,
-                               radius: bc.radius, points: doubles)
-        }
         GeoRegionStore.add(region)
         onSaved()
         dismiss()
     }
 }
 
-// MARK: - Map drawing canvas (MKMapView: taps = polygon vertices, long-press = circle center)
+// MARK: - Map canvas
+//
+// Dragging the map moves the circle center (map-view centre = circle centre);
+// the circle always renders under the centre crosshair. On load the map
+// jumps to the user's current location so a center exists immediately.
 
 struct RegionMapCanvas: UIViewRepresentable {
-    let kind: GeoRegion.Kind
     @Binding var center: CLLocationCoordinate2D?
     @Binding var radius: Double
-    @Binding var points: [CLLocationCoordinate2D]
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
         map.delegate = context.coordinator
         map.showsUserLocation = true
         map.isRotateEnabled = false
-        let tap = UITapGestureRecognizer(target: context.coordinator,
-                                         action: #selector(Coordinator.handleTap(_:)))
-        let long = UILongPressGestureRecognizer(target: context.coordinator,
-                                                action: #selector(Coordinator.handleLongPress(_:)))
-        map.addGestureRecognizer(tap)
-        map.addGestureRecognizer(long)
         return map
     }
 
@@ -206,56 +166,57 @@ struct RegionMapCanvas: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: RegionMapCanvas
+        /// Suppresses region-change feedback while we move the camera.
+        private var programmaticMove = false
 
         init(_ parent: RegionMapCanvas) {
             self.parent = parent
         }
 
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            guard parent.kind == .polygon, let map = gesture.view as? MKMapView, gesture.state == .ended else { return }
-            let coordinate = map.convert(gesture.location(in: map), toCoordinateFrom: map)
-            parent.points.append(coordinate)
+        func mapViewDidFinishLoadingMap(_ map: MKMapView) {
+            // initial framing: current location if we have it
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                guard map.centerCoordinate.latitude != 0, map.userLocation.location != nil else {
+                    // still no fix (permission just requested) — retry once
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        self.centerMap(map)
+                    }
+                    return
+                }
+                self.centerMap(map)
+            }
+        }
+
+        private func centerMap(_ map: MKMapView) {
+            guard parent.center == nil, let loc = map.userLocation.location else { return }
+            programmaticMove = true
+            parent.center = loc.coordinate
+            map.setRegion(MKCoordinateRegion(center: loc.coordinate,
+                                             latitudinalMeters: parent.radius * 4,
+                                             longitudinalMeters: parent.radius * 4), animated: true)
             redraw(map)
         }
 
-        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
-            guard gesture.state == .began, let map = gesture.view as? MKMapView else { return }
-            let coordinate = map.convert(gesture.location(in: map), toCoordinateFrom: map)
-            if parent.kind == .circle {
-                parent.center = coordinate
-                // reframe once per explicit center placement, not on slider drags
-                map.setRegion(MKCoordinateRegion(center: coordinate,
-                                                 latitudinalMeters: parent.radius * 3,
-                                                 longitudinalMeters: parent.radius * 3), animated: true)
-                redraw(map)
+        // user panned/zoomed: the map centre IS the circle centre
+        func mapView(_ map: MKMapView, regionDidChangeAnimated animated: Bool) {
+            if programmaticMove {
+                programmaticMove = false
+                return
             }
+            parent.center = map.centerCoordinate
+            redraw(map)
         }
 
         func redraw(_ map: MKMapView) {
             map.removeOverlays(map.overlays)
-            switch parent.kind {
-            case .circle:
-                if let center = parent.center {
-                    map.addOverlay(MKCircle(center: center, radius: parent.radius))
-                }
-            case .polygon:
-                if parent.points.count >= 2 {
-                    var coords = parent.points
-                    map.addOverlay(MKPolygon(coordinates: &coords, count: coords.count))
-                }
+            if let center = parent.center {
+                map.addOverlay(MKCircle(center: center, radius: parent.radius))
             }
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let circle = overlay as? MKCircle {
                 let renderer = MKCircleRenderer(circle: circle)
-                renderer.strokeColor = .systemRed
-                renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.15)
-                renderer.lineWidth = 2
-                return renderer
-            }
-            if let polygon = overlay as? MKPolygon {
-                let renderer = MKPolygonRenderer(polygon: polygon)
                 renderer.strokeColor = .systemRed
                 renderer.fillColor = UIColor.systemRed.withAlphaComponent(0.15)
                 renderer.lineWidth = 2

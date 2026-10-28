@@ -89,6 +89,23 @@ struct HomeDashboardView: View {
     /// Electronic fence: entering a mapped region auto-loads its card.
     private var geofenceCard: some View {
         VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "mappin.and.ellipse")
+                    .foregroundStyle(.tint)
+                Text(L10n.t("Electronic fence"))
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                NavigationLink {
+                    GeoRegionsView()
+                } label: {
+                    Text(L10n.t("Manage"))
+                        .font(.footnote)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(.quaternary, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
             Toggle(L10n.t("Enable geofence"), isOn: Binding(
                 get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
                 set: {
@@ -96,11 +113,6 @@ struct HomeDashboardView: View {
                     app.geofence.refreshMonitoring()
                 }
             ))
-            NavigationLink {
-                GeoRegionsView()
-            } label: {
-                Label(L10n.t("Manage regions"), systemImage: "map")
-            }
             Toggle(L10n.t("Allow background triggers"), isOn: Binding(
                 get: { app.geofence.hasAlwaysAccess },
                 set: { want in

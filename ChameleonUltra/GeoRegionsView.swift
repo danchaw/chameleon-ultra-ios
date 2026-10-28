@@ -9,28 +9,68 @@ struct GeoRegionsView: View {
     @EnvironmentObject var app: AppModel
     @State private var regions: [GeoRegion] = GeoRegionStore.load()
     @State private var showEditor = false
+    @State private var editingRegion: GeoRegion?
 
     var body: some View {
         List {
             Section {
                 if regions.isEmpty {
-                    Text(L10n.t("No regions yet"))
-                        .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
+                        Image(systemName: "mappin.slash")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text(L10n.t("No regions yet"))
+                            .font(.headline)
+                        Text(L10n.t("Add a region and bind a card — walking into the circle loads that card automatically."))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
                 }
                 ForEach(regions) { region in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(region.name).font(.headline)
-                        Text(regionSubtitle(region))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Button {
+                            editingRegion = region
+                        } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(region.name).font(.headline)
+                                HStack(spacing: 6) {
+                                    Image(systemName: "creditcard")
+                                    Text(cardName(region))
+                                    Text("·")
+                                    Text(radiusText(region))
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Toggle("", isOn: Binding(
+                            get: { region.isEnabled && region.radius > 0 },
+                            set: { on in
+                                GeoRegionStore.setEnabled(region.id, on)
+                                regions = GeoRegionStore.load()
+                                app.geofence.refreshMonitoring()
+                            }
+                        ))
+                        .labelsHidden()
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            GeoRegionStore.delete(region)
+                            regions = GeoRegionStore.load()
+                            app.geofence.refreshMonitoring()
+                        } label: {
+                            Label(L10n.t("Delete"), systemImage: "trash")
+                        }
                     }
                 }
-                .onDelete { indexSet in
-                    let doomed = indexSet.map { regions[$0] }
-                    doomed.forEach { GeoRegionStore.delete($0) }
-                    regions = GeoRegionStore.load()
-                    app.geofence.refreshMonitoring()
-                }
+            } footer: {
+                Text(L10n.t("The circle is centred on you and shows 100 m around your position. Swipe left to delete."))
             }
         }
         .navigationTitle(L10n.t("Geofence"))
@@ -45,7 +85,13 @@ struct GeoRegionsView: View {
             }
         }
         .sheet(isPresented: $showEditor) {
-            GeoRegionEditorView {
+            GeoRegionEditorView(region: nil) {
+                regions = GeoRegionStore.load()
+                app.geofence.refreshMonitoring()
+            }
+        }
+        .sheet(item: $editingRegion) { region in
+            GeoRegionEditorView(region: region) {
                 regions = GeoRegionStore.load()
                 app.geofence.refreshMonitoring()
             }
@@ -61,9 +107,13 @@ struct GeoRegionsView: View {
         }
     }
 
-    private func regionSubtitle(_ region: GeoRegion) -> String {
-        let cardName = store.cards.first { $0.id == region.cardId }?.name ?? "—"
-        return String(format: L10n.t("Circle · %.0f m"), region.radius) + " · \(cardName)"
+    private func cardName(_ region: GeoRegion) -> String {
+        store.cards.first { $0.id == region.cardId }?.name ?? L10n.t("Card missing")
+    }
+
+    private func radiusText(_ region: GeoRegion) -> String {
+        region.radius > 0 ? String(format: L10n.t("%.0f m"), region.radius)
+                          : L10n.t("Fence off")
     }
 }
 
@@ -72,16 +122,14 @@ struct GeoRegionsView: View {
 struct GeoRegionEditorView: View {
     @EnvironmentObject var store: CardStore
     @Environment(\.dismiss) private var dismiss
+    /// nil = create; non-nil = edit in place.
+    var region: GeoRegion?
     var onSaved: () -> Void
 
     @EnvironmentObject var app: AppModel
     @State private var name = ""
     @State private var cardId: UUID?
-    @State private var center: CLLocationCoordinate2D?
     @State private var radius: Double = 100
-    /// One-shot camera target: the user's position when the editor opens.
-    @State private var focus: CLLocationCoordinate2D?
-    @State private var locateFailed = false
 
     var body: some View {
         NavigationStack {
@@ -97,84 +145,111 @@ struct GeoRegionEditorView: View {
                 }
 
                 Section {
-                    RegionMapCanvas(center: $center, radius: $radius, focus: focus)
-                        .frame(height: 200)
+                    // Fixed view: always a 100 m window around the user's
+                    // position; the red circle is drawn at `radius`.
+                    UserCentredMap(radius: radius)
+                        .frame(height: 240)
                         .listRowInsets(EdgeInsets())
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                    Text(locateFailed ? L10n.t("Cannot get current location")
-                                       : L10n.t("Tap the map to set the centre"))
-                        .font(.caption)
-                        .foregroundStyle(locateFailed ? Color.red : Color.secondary)
-                    VStack(alignment: .leading) {
-                        Text("\(L10n.t("Radius")): \(Int(radius)) m")
+                        .overlay(alignment: .topLeading) {
+                            Text("100 m")
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .padding(8)
+                        }
+                    HStack(spacing: 12) {
+                        Text(L10n.t("Radius"))
                             .font(.footnote)
-                        Slider(value: $radius, in: 50...3000, step: 50)
+                        Slider(value: $radius, in: 0...500, step: 50)
+                        Text(radiusText)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(radius > 0 ? Color.accentColor : .secondary)
+                            .frame(minWidth: 54, alignment: .trailing)
                     }
+                    Text(radius > 0 ? L10n.t("Entering the circle loads the bound card")
+                                    : L10n.t("Radius 0 turns this fence off"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
-                    Button(L10n.t("Save region")) { save() }
+                    Button(region == nil ? L10n.t("Save region") : L10n.t("Save changes")) { save() }
                         .disabled(!canSave)
                 }
             }
-            .navigationTitle(L10n.t("Add region"))
+            .navigationTitle(region == nil ? L10n.t("Add region") : L10n.t("Edit region"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.t("Cancel")) { dismiss() }
                 }
             }
-            .onAppear {
-                app.geofence.requestCurrentLocation { coordinate in
-                    if let coordinate {
-                        focus = coordinate
-                    } else {
-                        locateFailed = true
-                    }
-                }
-            }
+            .onAppear(perform: prefill)
         }
     }
 
+    private var radiusText: String {
+        radius > 0 ? String(format: "%.0f m", radius) : L10n.t("Fence off")
+    }
+
     private var canSave: Bool {
-        cardId != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty && center != nil
+        cardId != nil && !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func prefill() {
+        guard let region else { return }
+        name = region.name
+        cardId = region.cardId
+        radius = region.radius
     }
 
     private func save() {
-        guard let cardId, let center else { return }
-        let region = GeoRegion(name: name.trimmingCharacters(in: .whitespaces),
-                               cardId: cardId,
-                               centerLatitude: center.latitude,
-                               centerLongitude: center.longitude,
-                               radius: radius)
-        GeoRegionStore.add(region)
-        onSaved()
-        dismiss()
+        guard let cardId else { return }
+        // Fresh location capture: fences are relative to where you are now.
+        app.geofence.requestCurrentLocation { coordinate in
+            let centre = coordinate ?? region?.coordinate
+            guard let centre else { return }
+            if var existing = region {
+                existing.name = name.trimmingCharacters(in: .whitespaces)
+                existing.cardId = cardId
+                existing.radius = radius
+                existing.centerLatitude = centre.latitude
+                existing.centerLongitude = centre.longitude
+                GeoRegionStore.update(existing)
+            } else {
+                GeoRegionStore.add(GeoRegion(name: name.trimmingCharacters(in: .whitespaces),
+                                             cardId: cardId,
+                                             centerLatitude: centre.latitude,
+                                             centerLongitude: centre.longitude,
+                                             radius: radius))
+            }
+            onSaved()
+            dismiss()
+        }
     }
 }
 
 // MARK: - Map canvas
 //
-// On open the editor passes a `focus` coordinate (the user's position, via a
-// one-shot CLLocationManager request) and the camera jumps there with a
-// ~radius*4 span — a 300 m fence fills the view instead of the whole world.
-// Dragging the map moves the circle center (screen centre = circle centre);
-// the red ring re-draws under the crosshair continuously.
+// Fixed 100 m window around the user: the camera is locked to the device
+// location (recentred whenever it moves >1 m) and shows ~200 m across, so the
+// red fence circle (radius 0–500, default 100) is always drawn relative to
+// "me". Dragging the map is disabled — the view is a live preview, not a
+// placement surface; the centre is captured from the GPS fix on save.
 
-struct RegionMapCanvas: UIViewRepresentable {
-    @Binding var center: CLLocationCoordinate2D?
-    @Binding var radius: Double
-    var focus: CLLocationCoordinate2D?
+struct UserCentredMap: UIViewRepresentable {
+    var radius: Double
 
     func makeUIView(context: Context) -> MKMapView {
         let map = MKMapView()
         map.delegate = context.coordinator
         map.showsUserLocation = true
         map.isRotateEnabled = false
-        // single tap = confirm the circle centre at the touched point
-        let tap = UITapGestureRecognizer(target: context.coordinator,
-                                         action: #selector(Coordinator.handleTap(_:)))
-        map.addGestureRecognizer(tap)
+        map.isPitchEnabled = false
+        map.isScrollEnabled = false
+        map.isZoomEnabled = false
         return map
     }
 
@@ -182,46 +257,46 @@ struct RegionMapCanvas: UIViewRepresentable {
 
     func updateUIView(_ map: MKMapView, context: Context) {
         context.coordinator.parent = self
-        context.coordinator.applyFocusIfNeeded(map)
+        context.coordinator.recentreIfNeeded(map)
         context.coordinator.redraw(map)
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
-        var parent: RegionMapCanvas
-        private var appliedFocus: CLLocationCoordinate2D?
+        var parent: UserCentredMap
+        private var currentCentre: CLLocationCoordinate2D?
+        private var lastCamera: CLLocationCoordinate2D?
 
-        init(_ parent: RegionMapCanvas) {
+        init(_ parent: UserCentredMap) {
             self.parent = parent
         }
 
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            guard gesture.state == .ended, let map = gesture.view as? MKMapView else { return }
-            parent.center = map.convert(gesture.location(in: map), toCoordinateFrom: map)
-            redraw(map)
+        func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+            guard let coordinate = userLocation.location?.coordinate else { return }
+            currentCentre = coordinate
+            recentreIfNeeded(mapView)
+            redraw(mapView)
         }
 
-        // open at the user's position framed to ~2x the default radius (100 m
-        // radius -> ~200 m window)
-        func applyFocusIfNeeded(_ map: MKMapView) {
-            guard let focus = parent.focus, parent.center == nil,
-                  !Self.same(focus, appliedFocus) else { return }
-            appliedFocus = focus
-            parent.center = focus
-            map.setRegion(MKCoordinateRegion(center: focus,
-                                             latitudinalMeters: parent.radius * 3,
-                                             longitudinalMeters: parent.radius * 3), animated: false)
-        }
-
-        static func same(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D?) -> Bool {
-            guard let b else { return false }
-            return abs(a.latitude - b.latitude) < 1e-9 && abs(a.longitude - b.longitude) < 1e-9
+        // Centre once, then only when the fix drifts, so the user can still
+        // inspect while standing still.
+        func recentreIfNeeded(_ map: MKMapView) {
+            guard let centre = currentCentre else { return }
+            if let last = lastCamera,
+               CLLocation(latitude: last.latitude, longitude: last.longitude)
+                   .distance(from: CLLocation(latitude: centre.latitude,
+                                              longitude: centre.longitude)) < 1 {
+                return
+            }
+            lastCamera = centre
+            map.setRegion(MKCoordinateRegion(center: centre,
+                                             latitudinalMeters: 200,
+                                             longitudinalMeters: 200), animated: lastCamera != nil)
         }
 
         func redraw(_ map: MKMapView) {
             map.removeOverlays(map.overlays)
-            if let center = parent.center {
-                map.addOverlay(MKCircle(center: center, radius: parent.radius))
-            }
+            guard let centre = currentCentre, parent.radius > 0 else { return }
+            map.addOverlay(MKCircle(center: centre, radius: parent.radius))
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {

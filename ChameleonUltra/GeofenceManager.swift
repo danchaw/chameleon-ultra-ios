@@ -100,7 +100,7 @@ final class GeofenceManager: NSObject, ObservableObject {
             statusText = L10n.t("Fence monitoring off")
             return
         }
-        let regions = GeoRegionStore.load()
+        let regions = GeoRegionStore.load().filter { $0.isEnabled && $0.radius > 0 }
         guard !regions.isEmpty else {
             statusText = L10n.t("No regions yet")
             return
@@ -152,7 +152,7 @@ extension GeofenceManager: CLLocationManagerDelegate {
         guard let id = UUID(uuidString: region.identifier) else { return }
         Task { @MainActor in
             guard self.registered.contains(id),
-                  GeoRegionStore.load().contains(where: { $0.id == id }) else { return }
+                  GeoRegionStore.load().contains(where: { $0.id == id && $0.isEnabled }) else { return }
             self.onRegionEnter?(id)
         }
     }

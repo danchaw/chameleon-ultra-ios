@@ -154,29 +154,36 @@ struct GeoRegionEditorView: View {
     @State private var visibleSpan: Double?
     /// Last visible rect, for search biasing and "is it already on screen".
     @State private var mapRegion: MKCoordinateRegion?
+    /// A tapped suggestion is being expanded to coordinates.
+    @State private var isResolvingPlace = false
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        GeometryReader { proxy in
-            mapCanvas(height: max(240, min(proxy.size.height * 0.5, 440)))
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
-        .navigationTitle(region == nil ? L10n.t("Add region") : L10n.t("Edit region"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(L10n.t("Cancel")) { dismiss() }
+        // NavigationStack is what gives a sheet its title bar; without it the
+        // Cancel / Next / Save toolbar silently disappears.
+        NavigationStack {
+            VStack(spacing: 0) {
+                mapCanvas
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                bottomBar
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(stage == .locate ? L10n.t("Next")
-                                        : (region == nil ? L10n.t("Save region") : L10n.t("Save changes"))) {
-                    if stage == .locate {
-                        confirmCrosshair()
-                    } else {
-                        save()
-                    }
+            .navigationTitle(region == nil ? L10n.t("Add region") : L10n.t("Edit region"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("Cancel")) { dismiss() }
                 }
-                .disabled(stage == .locate ? centre == nil : !canSave)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(stage == .locate ? L10n.t("Next")
+                                            : (region == nil ? L10n.t("Save region") : L10n.t("Save changes"))) {
+                        if stage == .locate {
+                            confirmCrosshair()
+                        } else {
+                            save()
+                        }
+                    }
+                    .disabled(stage == .locate ? centre == nil : !canSave)
+                }
             }
         }
         .onAppear(perform: prefill)
@@ -192,7 +199,7 @@ struct GeoRegionEditorView: View {
 
     // MARK: Map
 
-    private func mapCanvas(height: CGFloat) -> some View {
+    private var mapCanvas: some View {
         ZStack(alignment: .top) {
             FenceMapView(region: camera,
                          centre: centre,
@@ -210,7 +217,6 @@ struct GeoRegionEditorView: View {
                 searchLayer
             }
         }
-        .frame(height: height)
         .contentShape(Rectangle())
         .onTapGesture { searchFocused = false }
     }
@@ -313,13 +319,13 @@ struct GeoRegionEditorView: View {
             .padding(.horizontal, 12)
             .padding(.top, 8)
 
-            if search.isSearching {
+            if search.isSearching || isResolvingPlace {
                 ProgressView()
                     .padding(10)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
 
-            if searchFocused && !search.results.isEmpty {
+            if searchFocused && !search.completions.isEmpty {
                 suggestionList
             } else if !search.coordinateHint.isEmpty {
                 Text(search.coordinateHint)
@@ -335,20 +341,19 @@ struct GeoRegionEditorView: View {
     private var suggestionList: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ForEach(Array(search.results.enumerated()), id: \.offset) { _, item in
+                ForEach(Array(search.completions.enumerated()), id: \.offset) { _, completion in
                     Button {
-                        place(at: item.placemark.coordinate, title: item.name)
-                        searchFocused = false
+                        choose(completion)
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "mappin.circle.fill")
                                 .foregroundStyle(.red)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name ?? L10n.t("Unknown"))
+                                Text(completion.title)
                                     .font(.subheadline)
                                     .foregroundStyle(.primary)
-                                if let subtitle = subtitle(item) {
-                                    Text(subtitle)
+                                if !completion.subtitle.isEmpty {
+                                    Text(completion.subtitle)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -369,12 +374,19 @@ struct GeoRegionEditorView: View {
         .padding(.horizontal, 12)
     }
 
-    private func subtitle(_ item: MKMapItem) -> String? {
-        let placemark = item.placemark
-        let parts = [placemark.title, placemark.locality, placemark.country]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty && $0 != item.name }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    /// Tap a suggestion: expand it to coordinates (the completer only knows
+    /// names), pin it, and keep the stage so the radius can follow.
+    private func choose(_ completion: MKLocalSearchCompletion) {
+        searchFocused = false
+        isResolvingPlace = true
+        Task {
+            defer { isResolvingPlace = false }
+            guard let item = await search.resolve(completion) else {
+                app.lastError = L10n.t("Place not found")
+                return
+            }
+            place(at: item.placemark.coordinate, title: completion.title)
+        }
     }
 
     // MARK: Bottom bar

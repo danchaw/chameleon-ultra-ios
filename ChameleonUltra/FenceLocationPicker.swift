@@ -12,15 +12,16 @@ final class PlaceSearchModel: NSObject, ObservableObject {
     @Published var query = "" {
         didSet { if query != oldValue { update(query: query) } }
     }
-    @Published private(set) var results: [MKMapItem] = []
+    /// Suggestions straight from the completer — a single local call, so the
+    /// list appears as fast as you type. Coordinates are only fetched, lazily,
+    /// when a row is tapped.
+    @Published private(set) var completions: [MKLocalSearchCompletion] = []
     @Published private(set) var isSearching = false
     /// Filled when the query looks like a bare coordinate pair, e.g.
     /// "30.6, 104.0", so Enter can jump straight there.
     @Published private(set) var coordinateHint = ""
 
     private let completer = MKLocalSearchCompleter()
-    /// Latest suggestion-expansion run, cancelled when the query changes.
-    private var resolveTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -40,7 +41,7 @@ final class PlaceSearchModel: NSObject, ObservableObject {
         coordinateHint = Self.parseCoordinate(query) == nil ? "" : L10n.t("Coordinates detected")
         guard query.trimmingCharacters(in: .whitespaces).count >= 1 else {
             completer.queryFragment = ""
-            results = []
+            completions = []
             return
         }
         completer.queryFragment = query
@@ -58,7 +59,9 @@ final class PlaceSearchModel: NSObject, ObservableObject {
                                 named: String(format: "%.4f, %.4f",
                                               coordinate.latitude, coordinate.longitude))
         }
-        if let item = results.first { return item }
+        if let completion = completions.first, let item = await resolve(completion) {
+            return item
+        }
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = text
         request.region = completer.region
@@ -77,8 +80,7 @@ final class PlaceSearchModel: NSObject, ObservableObject {
     }
 
     func clear() {
-        resolveTask?.cancel()
-        results = []
+        completions = []
         coordinateHint = ""
     }
 
@@ -105,28 +107,11 @@ final class PlaceSearchModel: NSObject, ObservableObject {
 extension PlaceSearchModel: MKLocalSearchCompleterDelegate {
     nonisolated func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         let completions = Array(completer.results.prefix(8))
-        Task { @MainActor in
-            self.resolveTask?.cancel()
-            self.resolveTask = Task { @MainActor in
-                let indexed = await withTaskGroup(of: IndexedItem.self) { group -> [IndexedItem] in
-                    for (index, completion) in completions.enumerated() {
-                        group.addTask {
-                            IndexedItem(index: index, item: await self.resolve(completion))
-                        }
-                    }
-                    var found: [IndexedItem] = []
-                    for await result in group { found.append(result) }
-                    return found
-                }
-                if Task.isCancelled { return }
-                // Keep the completer's ranking rather than completion order.
-                self.results = indexed.sorted { $0.index < $1.index }.compactMap { $0.item }
-            }
-        }
+        Task { @MainActor in self.completions = completions }
     }
 
     nonisolated func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-        Task { @MainActor in self.results = [] }
+        Task { @MainActor in self.completions = [] }
     }
 }
 
@@ -241,12 +226,6 @@ struct FenceMapView: UIViewRepresentable {
             return view
         }
     }
-}
-
-/// One expanded suggestion, tagged with its position in the completer list.
-private struct IndexedItem: Sendable {
-    let index: Int
-    let item: MKMapItem?
 }
 
 final class FencePin: NSObject, MKAnnotation {

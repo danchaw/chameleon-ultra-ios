@@ -110,7 +110,10 @@ extension PlaceSearchModel: MKLocalSearchCompleterDelegate {
             self.resolveTask = Task { @MainActor in
                 let items = await withTaskGroup(of: (Int, MKMapItem?).self) { group -> [(Int, MKMapItem)] in
                     for (index, completion) in completions.enumerated() {
-                        group.addTask { await self.resolve(completion).map { (index, $0) } }
+                        group.addTask {
+                            let item: MKMapItem? = await self.resolve(completion)
+                            return (index, item)
+                        }
                     }
                     var found: [(Int, MKMapItem)] = []
                     for await pair in group { if let pair = pair.1 { found.append((pair.0, pair.1)) } }

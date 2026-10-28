@@ -48,6 +48,8 @@ enum L10n {
         "Add a region and bind a card — walking into the circle loads that card automatically.": "点右上角 + 新建区域并绑定卡片，走进圆圈即自动切换到该卡。",
         "The circle is centred on you and shows 100 m around your position. Swipe left to delete.": "地图以你的位置为圆心显示周边 100 米，圆圈即可触发范围。左滑删除区域。",
         "Monitoring %d region(s)": "监控中：%d 个区域",
+        "Fence: card loaded": "围栏已触发，已载入",
+        "Fence: device not connected": "电子围栏：已触发，但设备未连接",
         "Region name": "区域名称",
         "Bind card": "绑定卡片",
         "Circle · %.0f m": "圆形 · %.0f 米",

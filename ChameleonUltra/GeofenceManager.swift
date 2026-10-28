@@ -23,6 +23,20 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// Fired when the phone enters a bound region.
     var onRegionEnter: ((UUID) -> Void)?
 
+    /// Dedupe ENTER triggers: requestState + didEnterRegion + the manual probe
+    /// can all report the same region seconds apart.
+    private var lastTrigger: (id: UUID, at: Date)?
+
+    @MainActor
+    private func fireEnter(_ id: UUID) {
+        guard registered.contains(id),
+              GeoRegionStore.load().contains(where: { $0.id == id && $0.isEnabled }) else { return }
+        if let last = lastTrigger, last.id == id,
+           Date().timeIntervalSince(last.at) < 30 { return }
+        lastTrigger = (id, Date())
+        onRegionEnter?(id)
+    }
+
     /// One-shot current-location request (the region editor uses it to open
     /// the camera at the user's position instead of the whole world).
     private var locationCompletion: ((CLLocationCoordinate2D?) -> Void)?
@@ -107,15 +121,34 @@ final class GeofenceManager: NSObject, ObservableObject {
         }
         for region in regions {
             let cr = CLCircularRegion(center: region.coordinate,
-                                      radius: max(50, region.radius),
+                                      radius: region.monitoringRadius,
                                       identifier: region.id.uuidString)
             cr.notifyOnEntry = true
             cr.notifyOnExit = false
             manager.startMonitoring(for: cr)
-            manager.requestState(for: cr)   // fires didEnter if already inside
+            // Answer arrives via didDetermineState (NOT didEnterRegion).
+            manager.requestState(for: cr)
             registered.insert(region.id)
         }
         statusText = L10n.tf("Monitoring %d region(s)", regions.count)
+        // CoreLocation only fires ENTER on true transitions and may lag minutes,
+        // so check "already inside" ourselves right now.
+        probeInsideNow()
+    }
+
+    /// One-shot position fix; applies any region whose TRUE radius contains us.
+    private func probeInsideNow() {
+        guard UserDefaults.standard.bool(forKey: Self.enabledKey), isAllowed else { return }
+        let regions = GeoRegionStore.load().filter { $0.isEnabled && $0.radius > 0 }
+        guard !regions.isEmpty else { return }
+        requestCurrentLocation { [weak self] loc in
+            guard let self, let loc else { return }
+            for r in regions
+            where loc.distance(from: CLLocation(latitude: r.centerLatitude,
+                                                longitude: r.centerLongitude)) <= r.radius {
+                self.fireEnter(r.id)
+            }
+        }
     }
 }
 
@@ -151,9 +184,19 @@ extension GeofenceManager: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         guard let id = UUID(uuidString: region.identifier) else { return }
         Task { @MainActor in
-            guard self.registered.contains(id),
-                  GeoRegionStore.load().contains(where: { $0.id == id && $0.isEnabled }) else { return }
-            self.onRegionEnter?(id)
+            self.fireEnter(id)
+        }
+    }
+
+    /// requestState(for:) answers HERE (inside/outside/unknown) — this is what
+    /// makes "already inside when the fence is created" work.
+    nonisolated func locationManager(_ manager: CLLocationManager,
+                                     didDetermineState state: CLRegionState,
+                                     for region: CLRegion) {
+        guard state == .inside,
+              let id = UUID(uuidString: region.identifier) else { return }
+        Task { @MainActor in
+            self.fireEnter(id)
         }
     }
 }

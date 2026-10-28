@@ -20,6 +20,12 @@ struct GeoRegion: Identifiable, Codable, Equatable {
         CLLocationCoordinate2D(latitude: centerLatitude, longitude: centerLongitude)
     }
 
+    /// CoreLocation monitoring is unreliable below its ~100 m floor; the true
+    /// radius is still honoured by the app-side inside-probe.
+    var monitoringRadius: Double {
+        max(100, radius)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, name, cardId, centerLatitude, centerLongitude, radius, isEnabled
     }

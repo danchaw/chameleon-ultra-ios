@@ -149,6 +149,7 @@ final class AppModel: ObservableObject {
     private func handleRegionEnter(_ regionId: UUID) {
         guard isConnected, let communicator else {
             appendLog("电子围栏：进入区域，但设备未连接")
+            geofence.statusText = L10n.t("Fence: device not connected")
             return
         }
         guard let region = GeoRegionStore.load().first(where: { $0.id == regionId }),
@@ -158,8 +159,10 @@ final class AppModel: ObservableObject {
                 try await applyCardToSlot(card, slot: activeSlot)
                 try? await refreshSlots()
                 appendLog("电子围栏：已载入「\(card.name)」（\(region.name)）")
+                geofence.statusText = "\(L10n.t("Fence: card loaded"))「\(card.name)」"
             } catch {
                 appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
+                lastError = error.localizedDescription
             }
         }
     }

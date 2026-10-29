@@ -233,13 +233,15 @@ final class ChameleonCommunicator {
         let ms = UInt16(max(50, min(500, intervalMs)))
         let laps = UInt8(max(0, min(10, maxLaps)))
         let resp = try await sendCmd(.setAutoPoll, data: Data([enable ? 1 : 0, UInt8(ms >> 8), UInt8(ms & 0xFF), laps]))
-        guard resp.status == 0 else { throw ChameleonError.invalidResponse("setAutoPoll status \(resp.status)") }
+        // Device-operation commands answer STATUS_SUCCESS = 0x68, not 0x00 (app_status.h).
+        guard resp.status == 0x68 || resp.status == 0 else { throw ChameleonError.invalidResponse("setAutoPoll status \(resp.status)") }
     }
 
     func getAutoPollStatus() async throws -> DeviceAutoPollStatus {
-        // short fuse + no retry: stock firmware simply never answers this opcode
+        // short fuse + no retry: stock firmware answers this opcode with STATUS_INVALID_CMD (0x67).
         let resp = try await sendCmd(.getAutoPoll, timeout: 2, retryOnTimeout: false)
-        guard resp.status == 0, resp.data.count >= 5 else { throw ChameleonError.invalidResponse("getAutoPoll status \(resp.status)") }
+        // Device-operation commands answer STATUS_SUCCESS = 0x68, not 0x00 (app_status.h).
+        guard resp.status == 0x68 || resp.status == 0, resp.data.count >= 5 else { throw ChameleonError.invalidResponse("getAutoPoll status \(resp.status)") }
         return DeviceAutoPollStatus(enabled: resp.data[0] != 0,
                                     intervalMs: Int(resp.data.readU16(at: 1)),
                                     rotating: resp.data[3] != 0,

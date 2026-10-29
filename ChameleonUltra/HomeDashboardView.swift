@@ -8,15 +8,12 @@ struct HomeDashboardView: View {
     @State private var showRenameAlert = false
     @State private var renameText = ""
     @State private var refreshTask: Task<Void, Never>?
-    /// Slot-poll gap in ms; mirrors UserDefaults (AutoPoll.intervalKey).
-    @State private var pollMs = Double(AutoPoll.intervalMs)
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 deviceCard
                 GlassCard { SlotChanger() }
-                GlassCard { autoCycleCard }
                 quickActions
             }
             .padding()
@@ -56,65 +53,6 @@ struct HomeDashboardView: View {
         }
         .onAppear { refresh() }
         .onDisappear { refreshTask?.cancel() }
-    }
-
-    /// Auto slot polling: flip the device's active card slot every 50–500 ms
-    /// — the door reader catches whichever slot holds a matching card.
-    private var autoCycleCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Toggle(L10n.t("Auto slot polling"), isOn: Binding(
-                get: { app.autoCycleEnabled },
-                set: { app.setAutoCycle($0) }
-            ))
-            if app.autoCycleEnabled {
-                HStack(spacing: 8) {
-                    Text(L10n.t("Poll trigger"))
-                    Picker(L10n.t("Poll trigger"), selection: Binding(
-                        get: { AutoPoll.mode },
-                        set: {
-                            AutoPoll.mode = $0
-                            if app.autoCycleEnabled { app.stopCardCycle(); app.startCardCycle() }
-                        }
-                    )) {
-                        Text(L10n.t("On reader read")).tag(AutoPoll.Mode.smart)
-                        Text(L10n.t("Continuous")).tag(AutoPoll.Mode.continuous)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
-                HStack(spacing: 8) {
-                    Text(L10n.t("Interval"))
-                    Text(L10n.t("Slow"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    // Left = slow, right = fast: the slider position is the
-                    // mirror of the interval (550 - position), so dragging
-                    // right always means "quicker".
-                    Slider(value: Binding(
-                        get: { Double(550 - Int(pollMs)) },
-                        set: { pollMs = Double(550 - Int($0)) }
-                    ), in: 50...500, step: 10)
-                    Text(L10n.t("Fast"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("\(Int(pollMs)) ms")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(width: 58, alignment: .trailing)
-                }
-                Text(app.cycleStatus.isEmpty ? L10n.t("Idle") : "\(L10n.t("Cycling")) · \(app.cycleStatus)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(L10n.t("Polling only flips the active slot — write a card into each slot first."))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .onAppear { pollMs = Double(AutoPoll.intervalMs) }
-        .onChange(of: pollMs) { _, value in
-            UserDefaults.standard.set(Int(value), forKey: AutoPoll.intervalKey)
-        }
     }
 
     private var deviceCard: some View {

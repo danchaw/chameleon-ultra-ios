@@ -187,7 +187,6 @@ struct DeviceSettingsView: View {
     @State private var aLongPress: ButtonConfig?
     @State private var bLongPress: ButtonConfig?
     @State private var longPressThreshold: Int?
-    @State private var deviceLaps: Int?
 
     var body: some View {
         Form {
@@ -230,57 +229,6 @@ struct DeviceSettingsView: View {
                                     try? await app.communicator?.setLongPressThreshold(newValue)
                                 }
                             }), in: 100...5000, step: 100)
-            }
-            Section {
-                Toggle(L10n.t("Device-side polling"), isOn: Binding(
-                    get: { app.deviceAutoPollEnabled },
-                    set: { on in Task { await app.setDeviceAutoPoll(on) } }))
-                    .disabled(!app.isConnected)
-                if app.deviceAutoPollSupported, let currentLaps = deviceLaps {
-                    HStack {
-                        Text(L10n.t("Poll rounds"))
-                        Slider(value: Binding(
-                            get: { Double(deviceLaps ?? currentLaps) },
-                            set: { newValue in
-                                deviceLaps = Int(newValue)
-                                AutoPoll.maxLaps = Int(newValue)
-                                if app.deviceAutoPollEnabled {
-                                    Task { await app.setDeviceAutoPoll(true) }
-                                }
-                            }), in: 0...10, step: 1)
-                        Text(currentLaps == 0 ? L10n.t("Unlimited") : "\(currentLaps)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 40, alignment: .trailing)
-                    }
-                }
-                Text(app.deviceAutoPollSupported
-                     ? L10n.t("Runs inside the device firmware — keeps polling slots after the phone is gone.")
-                     : L10n.t("Current firmware does not support this — flash the custom firmware first."))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                HStack {
-                    if let probe = app.deviceAutoPollProbe {
-                        Text(probe)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .textSelection(.enabled)
-                    }
-                    Spacer(minLength: 0)
-                    Button(L10n.t("Re-check device polling")) {
-                        Task { await app.refreshDeviceAutoPoll() }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(!app.isConnected)
-                }
-            } header: {
-                Text(L10n.t("Auto slot polling"))
-            } footer: {
-                if app.deviceAutoPollSupported {
-                    Text(L10n.t("Uses the interval from the auto polling card."))
-                }
             }
             Section(L10n.t("Button config")) {
                 if let current = aPress {
@@ -338,9 +286,6 @@ struct DeviceSettingsView: View {
         }
         .task {
             guard let communicator = app.communicator else { return }
-            // re-probe every time the page opens so the support verdict and
-            // the diagnostic line reflect the firmware actually running now
-            await app.refreshDeviceAutoPoll()
             animation = try? await communicator.getAnimationMode()
             wakeTime = try? await communicator.getSleepTimeout()
             pairing = try? await communicator.isBLEPairEnabled()
@@ -349,12 +294,6 @@ struct DeviceSettingsView: View {
             aLongPress = try? await communicator.getButtonConfig(.a, long: true)
             bLongPress = try? await communicator.getButtonConfig(.b, long: true)
             longPressThreshold = try? await communicator.getLongPressThreshold()
-            if app.deviceAutoPollSupported, let st = try? await communicator.getAutoPollStatus() {
-                AutoPoll.maxLaps = st.maxLaps     // firmware is the source of truth when it answers
-                deviceLaps = st.maxLaps
-            } else {
-                deviceLaps = AutoPoll.maxLaps
-            }
         }
     }
 

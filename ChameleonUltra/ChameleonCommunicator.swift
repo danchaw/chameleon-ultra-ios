@@ -220,34 +220,6 @@ final class ChameleonCommunicator {
         Int(try await sendCmd(.getActiveSlot).data.first ?? 0)
     }
 
-    // Device-side auto slot polling. Custom firmware only (opcodes 4045/4046):
-    // SET payload = [enable, interval_ms BE u16, max_laps], GET reply = [enable, interval_ms BE u16, rotating, max_laps].
-    struct DeviceAutoPollStatus {
-        let enabled: Bool
-        let intervalMs: Int
-        let rotating: Bool
-        let maxLaps: Int
-    }
-
-    func setAutoPoll(enable: Bool, intervalMs: Int, maxLaps: Int) async throws {
-        let ms = UInt16(max(50, min(500, intervalMs)))
-        let laps = UInt8(max(0, min(10, maxLaps)))
-        let resp = try await sendCmd(.setAutoPoll, data: Data([enable ? 1 : 0, UInt8(ms >> 8), UInt8(ms & 0xFF), laps]))
-        // Device-operation commands answer STATUS_SUCCESS = 0x68, not 0x00 (app_status.h).
-        guard resp.status == 0x68 || resp.status == 0 else { throw ChameleonError.invalidResponse("setAutoPoll status \(resp.status)") }
-    }
-
-    func getAutoPollStatus() async throws -> DeviceAutoPollStatus {
-        // short fuse + no retry: stock firmware answers this opcode with STATUS_INVALID_CMD (0x67).
-        let resp = try await sendCmd(.getAutoPoll, timeout: 2, retryOnTimeout: false)
-        // Device-operation commands answer STATUS_SUCCESS = 0x68, not 0x00 (app_status.h).
-        guard resp.status == 0x68 || resp.status == 0, resp.data.count >= 5 else { throw ChameleonError.invalidResponse("getAutoPoll status \(resp.status)") }
-        return DeviceAutoPollStatus(enabled: resp.data[0] != 0,
-                                    intervalMs: Int(resp.data.readU16(at: 1)),
-                                    rotating: resp.data[3] != 0,
-                                    maxLaps: Int(resp.data[4]))
-    }
-
     func setSlotType(_ slot: Int, type: TagType) async throws {
         try await sendCmd(.setSlotTagType, data: Data([UInt8(slot)] + type.rawValue.bytesBE))
     }

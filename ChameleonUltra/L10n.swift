@@ -50,7 +50,7 @@ enum L10n {
         "Monitoring %d region(s)": "监控中：%d 个区域",
         "Fence: card loaded": "围栏已触发，已载入",
         "Fence: device not connected": "电子围栏：已触发，但设备未连接",
-        "Fence: active card already matches": "围栏：当前卡槽已是目标卡片，未重复写入",
+        "Fence: active card already matches": "围栏：卡槽已是目标卡片，未重复写入",
         "Fence: card load failed": "电子围栏：写卡失败",
         "Fence: bound card missing": "电子围栏：绑定的卡片已不存在，请在区域编辑里重新选卡",
         "nearest %d m": "距最近圆心 %d 米",

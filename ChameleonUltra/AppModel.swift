@@ -77,8 +77,8 @@ final class AppModel: ObservableObject {
             }
         }
         // electronic fence: enter region -> load bound card
-        geofence.onRegionEnter = { [weak self] regionId in
-            self?.handleRegionEnter(regionId)
+        geofence.onRegionEnter = { [weak self] regionId, forced in
+            self?.handleRegionEnter(regionId, forceWrite: forced)
         }
         geofence.refreshMonitoring()
     }
@@ -146,22 +146,33 @@ final class AppModel: ObservableObject {
 
     // MARK: - Electronic fence (region enter -> load bound card)
 
-    /// Which saved card the app last wrote into each device slot. The
-    /// firmware cannot report "which saved card sits in slot N", so this is
-    /// our own bookkeeping, updated at every choke point (applyCardToSlot and
-    /// the two slot-clear paths in SlotManagerView). Unknown or mismatched ->
-    /// the fence writes; a recorded match -> it skips the write.
+    /// Which card payload the app last wrote into each device slot — stored as
+    /// a content fingerprint (id + tag + UID + full dump hash), not just the
+    /// card id, so editing a dump or importing a same-id card invalidates it.
+    /// The firmware cannot report "which saved card sits in slot N" for Mifare,
+    /// so this is our own bookkeeping, updated at every choke point
+    /// (applyCardToSlot and the slot-clear/reset paths). It is only trusted to
+    /// SKIP writes for background CoreLocation events — every user-initiated
+    /// check (toggle, save, connect, 「立即自检」) re-writes unconditionally,
+    /// because a stale ledger must never block the card from landing.
     static let slotCardMapKey = "slotCardMap"
 
-    func slotCardId(slot: Int) -> UUID? {
-        guard let map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String],
-              let raw = map[String(slot)] else { return nil }
-        return UUID(uuidString: raw)
+    /// FNV-1a over the card payload — stable across launches (unlike hashValue,
+    /// which is seeded per process).
+    private func cardStamp(_ card: CardSave) -> String {
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in card.binaryDump { h ^= UInt64(byte); h = h &* 0x100_0000_01b3 }
+        for byte in card.uidData { h ^= UInt64(byte); h = h &* 0x100_0000_01b3 }
+        return "\(card.id.uuidString)|\(card.tag)|\(String(h, radix: 16))"
+    }
+
+    private func slotCardStamp(slot: Int) -> String? {
+        (UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String])?[String(slot)]
     }
 
     private func rememberSlotCard(_ card: CardSave, slot: Int) {
         var map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String] ?? [:]
-        map[String(slot)] = card.id.uuidString
+        map[String(slot)] = cardStamp(card)
         UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
     }
 
@@ -171,7 +182,11 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
     }
 
-    private func handleRegionEnter(_ regionId: UUID) {
+    func clearAllSlotCards() {
+        UserDefaults.standard.removeObject(forKey: Self.slotCardMapKey)
+    }
+
+    private func handleRegionEnter(_ regionId: UUID, forceWrite: Bool = false) {
         guard isConnected, communicator != nil else {
             appendLog("电子围栏：进入区域，但设备未连接")
             geofence.statusText = L10n.t("Fence: device not connected")
@@ -183,9 +198,10 @@ final class AppModel: ObservableObject {
             geofence.statusText = L10n.t("Fence: bound card missing")
             return
         }
-        if slotCardId(slot: activeSlot) == card.id {
+        if !forceWrite, slotCardStamp(slot: activeSlot) == cardStamp(card) {
             appendLog("电子围栏：当前卡槽已是「\(card.name)」，无需重复写入")
             geofence.statusText = L10n.t("Fence: active card already matches")
+                + "（\(L10n.t("Slot")) \(activeSlot + 1) · \(card.name)）"
             return
         }
         Task { @MainActor in
@@ -193,6 +209,7 @@ final class AppModel: ObservableObject {
                 try await applyCardToSlot(card, slot: activeSlot)
                 appendLog("电子围栏：已载入「\(card.name)」到卡槽 \(activeSlot + 1)（\(region.name)）")
                 geofence.statusText = "\(L10n.t("Fence: card loaded"))「\(card.name)」"
+                    + "（\(L10n.t("Slot")) \(activeSlot + 1)）"
             } catch {
                 appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
                 geofence.statusText = "\(L10n.t("Fence: card load failed")) \(error.localizedDescription)"

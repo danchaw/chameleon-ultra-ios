@@ -20,8 +20,10 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// Region ids currently registered with CoreLocation.
     private var registered = Set<UUID>()
 
-    /// Fired when the phone enters a bound region.
-    var onRegionEnter: ((UUID) -> Void)?
+    /// Fired when the phone enters a bound region. `forced` marks USER intent
+    /// (toggle on, save, connect, "Check now") — the write path must not
+    /// honour the "already matches" ledger for those.
+    var onRegionEnter: ((UUID, _ forced: Bool) -> Void)?
 
     /// "Monitoring %d region(s)" line the probe results get appended to.
     private var monitorLine = ""
@@ -37,7 +39,7 @@ final class GeofenceManager: NSObject, ObservableObject {
         if !force, let last = lastTrigger, last.id == id,
            Date().timeIntervalSince(last.at) < 30 { return false }
         lastTrigger = (id, Date())
-        onRegionEnter?(id)
+        onRegionEnter?(id, force)
         return true
     }
 

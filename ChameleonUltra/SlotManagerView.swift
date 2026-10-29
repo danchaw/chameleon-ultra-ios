@@ -63,6 +63,7 @@ struct SlotManagerView: View {
                     Task {
                         do {
                             try await app.communicator?.deleteSlotInfo(slot, frequency: frequency)
+                            app.clearSlotCard(slot)
                             try await app.refreshSlots()
                         } catch { self.error = error.localizedDescription }
                     }
@@ -161,6 +162,7 @@ struct SlotManagerView: View {
                         do {
                             try await app.communicator?.setSlotType(slot, type: newType)
                             try await app.communicator?.setDefaultDataToSlot(slot, type: newType)
+                            app.clearSlotCard(slot)
                             try await app.refreshSlots()
                         } catch { self.error = error.localizedDescription }
                         busySlot = nil

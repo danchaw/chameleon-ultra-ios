@@ -46,6 +46,8 @@ final class AppModel: ObservableObject {
     let ble = BLEManager()
     let store = CardStore()
     let firmwareStore = FirmwareStore()
+    /// Electronic fence: entering a bound region pushes its card to the device.
+    let geofence = GeofenceManager()
     private(set) var communicator: ChameleonCommunicator?
     private var cancellables: [AnyCancellable] = []
 
@@ -54,6 +56,21 @@ final class AppModel: ObservableObject {
     static let shared = AppModel()
 
     private init() {
+        // Electronic fence: sink + (re)registration run from the very start,
+        // probeInsideNow inside refreshMonitoring does the "am I already in a
+        // region?" check and reports its verdict into geofence.statusText.
+        geofence.onRegionEnter = { [weak self] regionId, forced in
+            self?.handleRegionEnter(regionId, forceWrite: forced)
+        }
+        // Every fence decision (probe verdicts, swallowed replays, dismissed
+        // ghost events) lands in the in-app Logs tab — silence was the bug.
+        geofence.onEventLog = { [weak self] s in
+            self?.appendLog("Fence: \(s)")
+        }
+        // Register at launch even before the UI exists: system ENTER events
+        // can wake a killed app, and fireEnter requires the id to be in
+        // `registered` (empty on a cold background start without this).
+        geofence.refreshMonitoring()
         ble.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
         ble.onDisconnected = { [weak self] in
@@ -134,6 +151,86 @@ final class AppModel: ObservableObject {
             let finalState = makeActivityState(connected: false)
             Task { try? await activity.end(.init(state: finalState, staleDate: nil),
                                            dismissalPolicy: .default) }
+        }
+    }
+
+    // MARK: - Electronic fence (region enter -> load bound card)
+
+    /// Which card payload the app last wrote into each device slot — stored as
+    /// a content fingerprint (id + tag + UID + full dump hash), not just the
+    /// card id, so editing a dump or importing a same-id card invalidates it.
+    /// The firmware cannot report "which saved card sits in slot N" for Mifare,
+    /// so this is our own bookkeeping, updated at every choke point
+    /// (applyCardToSlot and the slot-clear/reset paths). It is only trusted to
+    /// SKIP writes for background CoreLocation events — every user-initiated
+    /// check (toggle, save, connect, 「立即自检」) re-writes unconditionally,
+    /// because a stale ledger must never block the card from landing.
+    static let slotCardMapKey = "slotCardMap"
+
+    /// FNV-1a over the card payload — stable across launches (unlike hashValue,
+    /// which is seeded per process).
+    private func cardStamp(_ card: CardSave) -> String {
+        var h: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in card.binaryDump { h ^= UInt64(byte); h = h &* 0x100_0000_01b3 }
+        for byte in card.uidData { h ^= UInt64(byte); h = h &* 0x100_0000_01b3 }
+        return "\(card.id.uuidString)|\(card.tag)|\(String(h, radix: 16))"
+    }
+
+    private func slotCardStamp(slot: Int) -> String? {
+        (UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String])?[String(slot)]
+    }
+
+    private func rememberSlotCard(_ card: CardSave, slot: Int) {
+        var map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String] ?? [:]
+        map[String(slot)] = cardStamp(card)
+        UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
+    }
+
+    func clearSlotCard(_ slot: Int) {
+        var map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String] ?? [:]
+        guard map.removeValue(forKey: String(slot)) != nil else { return }
+        UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
+    }
+
+    func clearAllSlotCards() {
+        UserDefaults.standard.removeObject(forKey: Self.slotCardMapKey)
+    }
+
+    private func handleRegionEnter(_ regionId: UUID, forceWrite: Bool = false) {
+        guard isConnected, let communicator else {
+            appendLog("电子围栏：进入区域，但设备未连接")
+            geofence.statusText = L10n.t("Fence: device not connected")
+            return
+        }
+        guard let region = GeoRegionStore.load().first(where: { $0.id == regionId }),
+              let card = store.cards.first(where: { $0.id == region.cardId }) else {
+            appendLog("电子围栏：区域绑定的卡片已不存在")
+            geofence.statusText = L10n.t("Fence: bound card missing")
+            return
+        }
+        Task { @MainActor in
+            // The device's own buttons switch the active slot without telling
+            // the app — always re-read the LIVE slot before deciding or
+            // writing, or the fence writes to a stale slot and the card the
+            // user is looking at stays empty forever.
+            if let live = try? await communicator.getActiveSlot() { activeSlot = live }
+            let slot = activeSlot
+            if !forceWrite, slotCardStamp(slot: slot) == cardStamp(card) {
+                appendLog("电子围栏：卡槽 \(slot + 1) 已是「\(card.name)」，无需重复写入")
+                geofence.statusText = L10n.t("Fence: active card already matches")
+                    + "（\(L10n.t("Slot")) \(slot + 1) · \(card.name)）"
+                return
+            }
+            do {
+                try await applyCardToSlot(card, slot: slot)
+                appendLog("电子围栏：已载入「\(card.name)」到卡槽 \(slot + 1)（\(region.name)）")
+                geofence.statusText = "\(L10n.t("Fence: card loaded"))「\(card.name)」"
+                    + "（\(L10n.t("Slot")) \(slot + 1)）"
+            } catch {
+                appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
+                geofence.statusText = "\(L10n.t("Fence: card load failed")) \(error.localizedDescription)"
+                lastError = error.localizedDescription
+            }
         }
     }
 
@@ -371,6 +468,9 @@ final class AppModel: ObservableObject {
             showDeviceList = false
             updateLiveActivity()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
+            // fence re-check on every fresh connection (clears the 30 s dedup
+            // window so an already-inside region writes immediately)
+            geofence.refreshAfterConnect()
         } catch {
             if cancelRequested { return }
             lastError = "Device handshake failed: \(error.localizedDescription)"
@@ -475,6 +575,7 @@ final class AppModel: ObservableObject {
         }
 
         try await communicator.enableSlot(slot, frequency: frequency, status: true)
+        rememberSlotCard(card, slot: slot)
         try await refreshSlots()
     }
 

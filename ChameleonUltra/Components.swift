@@ -110,11 +110,133 @@ struct GlassCard<Content: View>: View {
         content
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
-            )
+            .modifier(GlassBackgroundModifier())
+    }
+}
+
+/// Native Liquid Glass on iOS 26+, the hand-rolled material fallback before it.
+struct GlassBackgroundModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(GlassEffect(.regular, interactive: true),
+                               in: .rect(cornerRadius: 22, style: .continuous))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
+                )
+        }
+    }
+}
+
+// MARK: - Haptics
+
+enum Haptics {
+    static func light() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+    static func error() {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+}
+
+// MARK: - App-wide toast (bound to AppModel.lastError)
+
+struct ToastModifier: ViewModifier {
+    @EnvironmentObject var app: AppModel
+    @Environment(\.themeAccent) private var themeAccent
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .top) {
+            if visible, let message = app.lastToast {
+                HStack(spacing: 8) {
+                    Image(systemName: message.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .foregroundStyle(message.isError ? .orange : themeAccent)
+                    Text(message.text)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(3)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .modificationIndicatorChrome()
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .onChange(of: app.lastToast?.id) { _, newID in
+            guard newID != nil else { return }
+            withAnimation(.snappy) { visible = true }
+            Haptics.light()
+            Task {
+                try? await Task.sleep(nanoseconds: 3_200_000_000)
+                withAnimation(.snappy) { visible = false }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                if app.lastToast?.id == newID { app.lastToast = nil }
+            }
+        }
+    }
+}
+
+/// Capsule material background shared by toast + empty-state chrome.
+private struct ModificationIndicatorChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(GlassEffect(.regular), in: .capsule)
+        } else {
+            content
+                .background(.regularMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        }
+    }
+}
+
+extension View {
+    func modificationIndicatorChrome() -> some View { modifier(ModificationIndicatorChrome()) }
+    /// Toast / banner entry point: set `app.lastToast`.
+    func appToast() -> some View { modifier(ToastModifier()) }
+}
+
+// MARK: - Empty state
+
+struct EmptyState: View {
+    let icon: String
+    let title: String
+    let subtitle: String?
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+    @Environment(\.themeAccent) private var themeAccent
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 40, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text(title)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderedProminent)
+                    .tint(themeAccent)
+                    .padding(.top, 4)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 44)
     }
 }
 
@@ -283,47 +405,46 @@ struct SlotChanger: View {
             Text(L10n.t("Emulation slot"))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-            HStack(spacing: 8) {
-                ForEach(0..<8, id: \.self) { slot in
+            // 8 columns: official devices show one row, 16-slot Mocha firmware two.
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+                ForEach(0..<app.slotCount, id: \.self) { slot in
                     Button {
                         guard !animating else { return }
                         animating = true
                         Task {
                             await app.activateSlot(slot)
+                            Haptics.light()
                             animating = false
                         }
                     } label: {
-                        VStack(spacing: 3) {
+                        VStack(spacing: 2) {
                             Text("\(slot)")
-                                .font(.headline)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(app.activeSlot == slot ? themeAccent : .primary)
                             HStack(spacing: 3) {
-                                Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 5, height: 5)
-                                Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 5, height: 5)
+                                Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 4, height: 4)
+                                Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 4, height: 4)
                             }
+                            Text(app.slotAliases[slot])
+                                .font(.system(size: 7))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                                .foregroundStyle(.secondary)
+                                .frame(height: 9)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 5)
                         .background(
                             app.activeSlot == slot
                                 ? AnyShapeStyle(themeAccent.opacity(0.25))
-                                : AnyShapeStyle(Color(.systemBackground).opacity(0.5)),                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                : AnyShapeStyle(Color(.systemBackground).opacity(0.5)),
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(L10n.t("Slot")) \(slot)")
                 }
             }
-            // alias column: one label per slot, same widths as the blocks above
-            HStack(spacing: 8) {
-                ForEach(0..<8, id: \.self) { slot in
-                    Text(app.slotAliases[slot])
-                        .font(.system(size: 8))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .foregroundStyle(app.activeSlot == slot ? themeAccent : .secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.top, -2)
         }
     }
 }

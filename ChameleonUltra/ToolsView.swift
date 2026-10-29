@@ -105,7 +105,7 @@ struct SniffingView: View {
             }
             .padding()
         }
-        .navigationTitle(isLF ? "LF sniffing" : "HF sniffing")
+        .navigationTitle(isLF ? L10n.t("LF sniffing") : L10n.t("HF sniffing"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

@@ -548,9 +548,9 @@ struct ReadCardView: View {
             .navigationTitle(L10n.t("Save card"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showSaveSheet = false } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("Cancel")) { showSaveSheet = false } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(L10n.t("Save")) {
                         saveCard()
                         showSaveSheet = false
                     }

@@ -43,7 +43,7 @@ struct SavedCardsView: View {
                         Button {
                             var copy = card
                             copy.id = UUID()
-                            copy.name = card.name + " 副本"
+                            copy.name = card.name + " " + L10n.t("Copy")
                             store.add(copy)
                         } label: {
                             AccentLabel(L10n.t("Duplicate card"), "plus.square.on.square")
@@ -62,6 +62,11 @@ struct SavedCardsView: View {
             }
         }
         .searchable(text: $search, prompt: L10n.t("name, UID or type"))
+        .refreshable {
+            Haptics.light()
+            try? await app.refreshSlots()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
         .navigationTitle(L10n.t("Saved cards"))
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -116,7 +121,8 @@ struct SavedCardsView: View {
             DocumentPicker(contentTypes: [.json, UTType(filenameExtension: "bin") ?? .data, .data]) { url in
                 if let data = try? Data(contentsOf: url) {
                     let count = store.importCards(from: data)
-                    message = count > 0 ? "✓ \(count) \(L10n.t("Imported"))" : L10n.t("No compatible cards found in file")
+                    if count > 0 { app.toast("✓ \(count) \(L10n.t("Imported"))") }
+                    else { app.toast(L10n.t("No compatible cards found in file"), isError: true) }
                 }
             }
         }
@@ -417,7 +423,7 @@ struct CardDetailView: View {
 
     private var applySheet: some View {
         NavigationStack {
-            List(0..<8, id: \.self) { slot in
+            List(0..<app.slotCount, id: \.self) { slot in
                 Button {
                     apply(to: slot)
                 } label: {
@@ -466,9 +472,9 @@ struct CardDetailView: View {
     private func duplicateCard() {
         var copy = card
         copy.id = UUID()
-        copy.name = card.name + " 副本"
+        copy.name = card.name + " " + L10n.t("Copy")
         store.add(copy)
-        message = L10n.t("Card updated")
+        app.toast(L10n.t("Copy"))
     }
 
     private var editSheet: some View {
@@ -762,6 +768,7 @@ struct DictionaryDetailView: View {
                 .font(.system(size: 13, design: .monospaced))
         }
         .navigationTitle(dictionary.name)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

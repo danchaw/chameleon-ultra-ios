@@ -18,7 +18,7 @@ struct ChameleonUltraApp: App {
                 // Widget deep link: chameleonultra://activate/N
                 .onOpenURL { url in
                     guard url.scheme == "chameleonultragf", url.host == "activate",
-                          let slot = Int(url.lastPathComponent), (0..<8).contains(slot) else { return }
+                          let slot = Int(url.lastPathComponent), (0..<16).contains(slot) else { return }
                     Task { await app.activateSlot(slot) }
                 }
                 // Any appearance/language change rebuilds the tree so every
@@ -60,6 +60,19 @@ struct RootTabView: View {
 
             NavigationStack { SettingsView() }
                 .tabItem { Label(L10n.t("Settings"), systemImage: "gearshape.fill") }
+        }
+        .appToast()
+        .tabBarMinimizeBehaviorIfAvailable()
+    }
+}
+
+extension View {
+    /// iOS 26: the tab bar collapses on scroll like other system surfaces.
+    @ViewBuilder func tabBarMinimizeBehaviorIfAvailable() -> some View {
+        if #available(iOS 26.0, *) {
+            self.tabBarMinimizeBehavior(.onScrollDown)
+        } else {
+            self
         }
     }
 }

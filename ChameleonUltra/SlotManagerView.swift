@@ -18,7 +18,7 @@ struct SlotManagerView: View {
             if let error {
                 Section { Text(error).foregroundStyle(.red) }
             }
-            ForEach(0..<8, id: \.self) { slot in
+            ForEach(0..<app.slotCount, id: \.self) { slot in
                 Section {
                     slotRow(slot, frequency: .hf)
                     slotRow(slot, frequency: .lf)

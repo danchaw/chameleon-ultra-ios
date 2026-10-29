@@ -26,13 +26,15 @@ final class AppModel: ObservableObject {
     var displayDeviceName: String { deviceNickname.isEmpty ? deviceName : deviceNickname }
 
     @Published var activeSlot = 0
-    @Published var slotTypes: [SlotTypes] = Array(repeating: SlotTypes(), count: 8)
-    @Published var slotEnabled: [EnabledSlotInfo] = Array(repeating: EnabledSlotInfo(), count: 8)
-    @Published var slotNames: [SlotNames] = Array(repeating: SlotNames(), count: 8)
+    /// Slots the connected device actually has (official: 8, Mocha firmware: 16).
+    @Published var slotCount = 8
+    @Published var slotTypes: [SlotTypes] = Array(repeating: SlotTypes(), count: 16)
+    @Published var slotEnabled: [EnabledSlotInfo] = Array(repeating: EnabledSlotInfo(), count: 16)
+    @Published var slotNames: [SlotNames] = Array(repeating: SlotNames(), count: 16)
 
-    /// User aliases for slots 0...7, stored per device address (app-side,
-    /// independent of the device's own tag nicknames).
-    @Published var slotAliases: [String] = Array(repeating: "", count: 8)
+    /// User aliases for the device's slots, stored per device address (app-side,
+    /// independent of the device's own tag nicknames). Fixed to 16 entries.
+    @Published var slotAliases: [String] = Array(repeating: "", count: 16)
     static let slotAliasesStoreKey = "deviceSlotAliases"
 
     /// Back button on the dashboard: show the device list page WITHOUT
@@ -41,7 +43,18 @@ final class AppModel: ObservableObject {
 
     @Published var dfuProgress: Double? = nil
     @Published var logLines: [String] = []
-    @Published var lastError: String?
+    @Published var lastError: String? {
+        didSet {
+            // Surface every model-level failure as the app-wide toast.
+            if let lastError, lastError != oldValue {
+                lastToast = Toast(text: lastError, isError: true)
+            }
+        }
+    }
+    /// Transient top banner (3 s), shown app-wide via `.appToast()`.
+    struct Toast: Equatable { let id = UUID(); let text: String; let isError: Bool }
+    @Published var lastToast: Toast?
+    func toast(_ text: String, isError: Bool = false) { lastToast = Toast(text: text, isError: isError) }
 
     let ble = BLEManager()
     let store = CardStore()
@@ -307,15 +320,15 @@ final class AppModel: ObservableObject {
     func loadSlotAliases(for address: String) -> [String] {
         let all = UserDefaults.standard.dictionary(forKey: Self.slotAliasesStoreKey) as? [String: [String]] ?? [:]
         var list = all[address] ?? []
-        while list.count < 8 { list.append("") }
-        return Array(list.prefix(8))
+        while list.count < 16 { list.append("") }
+        return Array(list.prefix(16))
     }
 
     func setSlotAlias(_ slot: Int, _ rawName: String) {
-        guard slot >= 0, slot < 8, !deviceKey.isEmpty else { return }
+        guard slot >= 0, slot < 16, !deviceKey.isEmpty else { return }
         var all = UserDefaults.standard.dictionary(forKey: Self.slotAliasesStoreKey) as? [String: [String]] ?? [:]
-        var list = all[deviceKey] ?? Array(repeating: "", count: 8)
-        while list.count < 8 { list.append("") }
+        var list = all[deviceKey] ?? Array(repeating: "", count: 16)
+        while list.count < 16 { list.append("") }
         list[slot] = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         all[deviceKey] = list
         UserDefaults.standard.set(all, forKey: Self.slotAliasesStoreKey)
@@ -498,9 +511,19 @@ final class AppModel: ObservableObject {
     func refreshSlots() async throws {
         guard let communicator else { return }
         activeSlot = try await communicator.getActiveSlot()
-        if let types = try? await communicator.getSlotTagTypes() { slotTypes = types }
-        if let enabled = try? await communicator.getEnabledSlots() { slotEnabled = enabled }
-        if let names = try? await communicator.getSlotTagNames() { slotNames = names }
+        func pad<T>(_ list: [T], _ fill: () -> T) -> [T] {
+            var l = list
+            while l.count < 16 { l.append(fill()) }
+            return l
+        }
+        if let types = try? await communicator.getSlotTagTypes() {
+            slotTypes = pad(types, SlotTypes.init)
+            // Official firmware answers 8 entries, Mocha firmware 16; never
+            // trust a smaller count than the device type advertises.
+            slotCount = max(ChameleonCommunicator.maxSlotCount / 2, min(16, types.count))
+        }
+        if let enabled = try? await communicator.getEnabledSlots() { slotEnabled = pad(enabled, EnabledSlotInfo.init) }
+        if let names = try? await communicator.getSlotTagNames() { slotNames = pad(names, SlotNames.init) }
         updateLiveActivity()
     }
 

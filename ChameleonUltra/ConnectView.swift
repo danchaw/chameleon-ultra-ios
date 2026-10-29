@@ -12,8 +12,6 @@ struct ConnectView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                ErrorBanner(message: $app.lastError)
-
                 if app.isConnected {
                     // Reached via the dashboard back button: stay connected,
                     // one tap re-enters the device page.
@@ -114,20 +112,18 @@ struct ConnectView: View {
                 }
 
                 if ble.devices.isEmpty && !isScanning {
-                    GlassCard {
-                        VStack(spacing: 8) {
-                            Label(L10n.t("No devices yet"), systemImage: "tray")
-                                .foregroundStyle(.secondary)
-                            Text(L10n.t("Power on your Chameleon and tap Scan. The device advertises as “ChameleonUltra…” (or CU-… in DFU mode)."))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
+                    EmptyState(icon: "antenna.radiowaves.left.and.right",
+                               title: L10n.t("No devices yet"),
+                               subtitle: L10n.t("Power on your Chameleon and tap Scan. The device advertises as “ChameleonUltra…” (or CU-… in DFU mode)."),
+                               actionTitle: L10n.t("Scan")) { toggleScan() }
                 }
             }
             .padding()
+        }
+        .refreshable {
+            if !isScanning { toggleScan() }
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if isScanning { toggleScan() }
         }
         .navigationTitle(L10n.t("Connect"))
         .onAppear {

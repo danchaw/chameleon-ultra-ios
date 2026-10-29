@@ -237,13 +237,17 @@ final class ChameleonCommunicator {
     }
 
 
+    /// Mocha firmware exposes up to 16 slots (official firmware: 8). Parse
+    /// defensively and always return fixed-size arrays so UI indices are safe.
+    static let maxSlotCount = 16
+
     func getSlotTagNames() async throws -> [SlotNames] {
         let data = try await sendCmd(.getAllSlotNicks).data
-        var slots = Array(repeating: SlotNames(), count: 8)
+        var slots = Array(repeating: SlotNames(), count: Self.maxSlotCount)
         let bytes = [UInt8](data)
         var i = 0
         var index = 0
-        while i < bytes.count && index < 8 {
+        while i < bytes.count && index < Self.maxSlotCount {
             let hfLen = Int(bytes[i]); i += 1
             if hfLen > 0 && i + hfLen <= bytes.count {
                 slots[index].hf = String(bytes: bytes[i..<(i + hfLen)], encoding: .utf8) ?? ""
@@ -277,7 +281,7 @@ final class ChameleonCommunicator {
         let data = try await sendCmd(.getSlotInfo).data
         var tags: [SlotTypes] = []
         var index = 0
-        for _ in 0..<8 {
+        for _ in 0..<Self.maxSlotCount {
             guard index + 4 <= data.count else { break }
             tags.append(SlotTypes(hf: TagType(rawValue: data.readU16(at: index)) ?? .unknown,
                                   lf: TagType(rawValue: data.readU16(at: index + 2)) ?? .unknown))
@@ -289,7 +293,7 @@ final class ChameleonCommunicator {
     func getEnabledSlots() async throws -> [EnabledSlotInfo] {
         let data = try await sendCmd(.getEnabledSlots).data
         var slots: [EnabledSlotInfo] = []
-        for slot in 0..<8 {
+        for slot in 0..<Self.maxSlotCount {
             slots.append(EnabledSlotInfo(hf: slot * 2 < data.count && data[data.startIndex + slot * 2] != 0,
                                          lf: slot * 2 + 1 < data.count && data[data.startIndex + slot * 2 + 1] != 0))
         }

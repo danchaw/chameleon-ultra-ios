@@ -218,7 +218,7 @@ struct FlashingView: View {
                                   systemImage: "arrow.down.circle.fill")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                         .disabled(busyPhase != .idle)
                     } else {
                         Button {
@@ -303,7 +303,7 @@ struct FlashingView: View {
                             Label(L10n.t("Select firmware package"), systemImage: "folder")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                     }
                 } else {
                     SegmentedProgress(progress: app.dfuProgress ?? 0)
@@ -450,7 +450,7 @@ struct FlashingView: View {
                         Label(L10n.t("Flash this firmware"), systemImage: "bolt.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .lgTile(prominent: true)
                     .disabled(busyPhase != .idle || stagedFirmware == nil)
                 } else {
                     if let fatal = report.fatal {

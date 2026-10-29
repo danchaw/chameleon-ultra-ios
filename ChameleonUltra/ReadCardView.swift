@@ -208,7 +208,7 @@ struct ReadCardView: View {
                         Label(readButtonTitle, systemImage: "play.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .lgTile(prominent: true)
                     .disabled(phase == .scanning || phase == .checkingKeys || phase == .dumping || continuous)
                 }
             }
@@ -283,7 +283,7 @@ struct ReadCardView: View {
                                 Label(L10n.t("Check keys & dump"), systemImage: "key.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .lgTile(prominent: true)
                             .disabled(phase == .checkingKeys)
                         }
 
@@ -312,7 +312,7 @@ struct ReadCardView: View {
                                 Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .lgTile(prominent: true)
 
                             Menu {
                                 Button {
@@ -349,7 +349,7 @@ struct ReadCardView: View {
                                 Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .lgTile(prominent: true)
                         }
                     }
                 }
@@ -475,7 +475,7 @@ struct ReadCardView: View {
                             Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                         .disabled(phase == .scanning)
                     }
                 }
@@ -496,7 +496,7 @@ struct ReadCardView: View {
                             Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                     }
                 }
             }
@@ -557,7 +557,8 @@ struct ReadCardView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private var defaultSaveNameContainsType: String {

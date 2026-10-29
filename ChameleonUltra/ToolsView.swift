@@ -75,7 +75,7 @@ struct SniffingView: View {
                             Label(running ? L10n.t("Sniffing…") : L10n.t("Start sniff"), systemImage: "record.circle")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                         .disabled(running || !app.isConnected)
                     }
                 }

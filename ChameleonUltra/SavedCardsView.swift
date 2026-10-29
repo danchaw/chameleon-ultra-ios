@@ -444,7 +444,8 @@ struct CardDetailView: View {
             .navigationTitle(L10n.t("Choose slot"))
             .navigationBarTitleDisplayMode(.inline)
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func apply(to slot: Int) {
@@ -503,7 +504,8 @@ struct CardDetailView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private var saveAsSheet: some View {
@@ -545,7 +547,8 @@ struct CardDetailView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func export(json: Bool) {

@@ -30,7 +30,7 @@ struct ConnectView: View {
                             Button(L10n.t("Enter device")) {
                                 app.showDeviceList = false
                             }
-                            .buttonStyle(.borderedProminent)
+                            .lgTile(prominent: true)
                         }
                     }
                 }
@@ -56,7 +56,7 @@ struct ConnectView: View {
                     } label: {
                         Label(isScanning ? L10n.t("Stop") : L10n.t("Scan"), systemImage: isScanning ? "stop.circle.fill" : "magnifyingglass")
                     }
-                    .buttonStyle(.bordered)
+                    .lgTile()
                     .disabled(!ble.bluetoothReady)
                 }
 
@@ -81,34 +81,33 @@ struct ConnectView: View {
                     Button {
                         connect(device)
                     } label: {
-                        GlassCard {
-                            HStack(spacing: 14) {
-                                DeviceImageView(device: device.deviceType)
-                                    .frame(height: 52)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 8) {
-                                        Text(app.displayName(for: device))
-                                            .font(.headline)
-                                            .foregroundStyle(.primary)
-                                        if device.isDFU {
-                                            Text("DFU")
-                                                .font(.caption2.bold())
-                                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                                .background(.orange.opacity(0.25), in: Capsule())
-                                                .foregroundStyle(.orange)
-                                        }
+                        HStack(spacing: 14) {
+                            DeviceImageView(device: device.deviceType)
+                                .frame(height: 52)
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text(app.displayName(for: device))
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                    if device.isDFU {
+                                        Text("DFU")
+                                            .font(.caption2.bold())
+                                            .padding(.horizontal, 6).padding(.vertical, 2)
+                                            .background(.orange.opacity(0.25), in: Capsule())
+                                            .foregroundStyle(.orange)
                                     }
-                                    Text(device.deviceType == .ultra ? "Chameleon Ultra" : "Chameleon Lite")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
-                                Spacer()
-                                Image(systemName: signalIcon(device.rssi))
-                                    .foregroundStyle(.tint)
+                                Text(device.deviceType == .ultra ? "Chameleon Ultra" : "Chameleon Lite")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
+                            Spacer()
+                            Image(systemName: signalIcon(device.rssi))
+                                .foregroundStyle(.tint)
+                                .lgIcon()
                         }
                     }
-                    .buttonStyle(.plain)
+                    .lgTile()
                 }
 
                 if ble.devices.isEmpty && !isScanning {

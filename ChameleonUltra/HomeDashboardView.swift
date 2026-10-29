@@ -10,16 +10,21 @@ struct HomeDashboardView: View {
     @State private var refreshTask: Task<Void, Never>?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                deviceCard
-                GlassCard { SlotChanger() }
-                GlassCard { geofenceCard }
-                quickActions
+        LGMorphScope {
+            ScrollView {
+                VStack(spacing: 16) {
+                    deviceCard
+                    SlotChanger()
+                        .lgCard()
+                    geofenceCard
+                        .lgCard()
+                    quickActions
+                }
+                .padding()
             }
-            .padding()
+            .navigationTitle(L10n.t("Device"))
+            .navigationBarTitleDisplayMode(.large)
         }
-        .navigationTitle("Chameleon \(app.deviceType.displayName)")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 // Back to the device list; the connection stays alive.
@@ -29,18 +34,21 @@ struct HomeDashboardView: View {
                     Image(systemName: "chevron.left")
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
-                    app.disconnect()
-                } label: {
-                    Image(systemName: "xmark.circle")
-                }
+            ToolbarItem(placement: .principal) {
+                statusPill
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    app.disconnect()
+                } label: {
+                    Image(systemName: "xmark.circle")
                 }
             }
         }
@@ -193,49 +201,70 @@ struct HomeDashboardView: View {
         .font(.subheadline)
     }
 
+    /// Fixed (non-lazy) grid so the shared GlassEffectContainer can morph
+    /// the highlighted tile between positions.
     private var quickActions: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            NavigationLink {
-                SlotManagerView()
-            } label: {
-                actionTile(L10n.t("Slot manager"), "square.grid.3x3.fill")
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                NavigationLink { SlotManagerView() } label: {
+                    actionTile(L10n.t("Slot manager"), "square.grid.3x3.fill")
+                }
+                NavigationLink { ToolsView() } label: {
+                    actionTile(L10n.t("Tools"), "wrench.and.screwdriver.fill")
+                }
+                Button { showEmulatorSettings = true } label: {
+                    actionTile(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
+                }
             }
-            NavigationLink {
-                ToolsView()
-            } label: {
-                actionTile(L10n.t("Tools"), "wrench.and.screwdriver.fill")
-            }
-            Button {
-                showEmulatorSettings = true
-            } label: {
-                actionTile(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
-            }
-            NavigationLink {
-                FlashingView(embedded: true)
-            } label: {
-                actionTile(L10n.t("Firmware update"), "arrow.down.doc.fill")
-            }
-            NavigationLink {
-                DeviceSettingsView()
-            } label: {
-                actionTile(L10n.t("Device settings"), "gearshape.2.fill")
+            HStack(spacing: 12) {
+                NavigationLink { FlashingView(embedded: true) } label: {
+                    actionTile(L10n.t("Firmware update"), "arrow.down.doc.fill")
+                }
+                NavigationLink { DeviceSettingsView() } label: {
+                    actionTile(L10n.t("Device settings"), "gearshape.2.fill")
+                }
+                NavigationLink { ReadCardView() } label: {
+                    actionTile(L10n.t("Read"), "creditcard.viewfinder", prominent: true)
+                }
+                .disabled(!app.isConnected)
             }
         }
-        .buttonStyle(.plain)
     }
 
-    private func actionTile(_ title: String, _ icon: String) -> some View {
+    private func actionTile(_ title: String, _ icon: String, prominent: Bool = false) -> some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 26))
-                .foregroundStyle(.tint)
+                .lgIcon()
             Text(title)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .lgTile(prominent: prominent)
+    }
+
+    /// Compact live status shown in the navigation bar; absorbs into the
+    /// bar chrome on scroll (iOS 26 large-title behaviour).
+    private var statusPill: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(.green)
+                .frame(width: 7, height: 7)
+            Text(app.displayDeviceName)
+                .font(.footnote.weight(.semibold))
+                .lineLimit(1)
+            if let battery = app.battery {
+                Text("\(battery.percent)%")
+                    .font(.footnote.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.green)
+                    .lgNumber()
+                    .animation(.snappy, value: battery.percent)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .lgChip()
     }
 
     private func refresh() {

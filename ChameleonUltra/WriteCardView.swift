@@ -114,7 +114,7 @@ struct WriteCardView: View {
                             Label(L10n.t("Write dump to card"), systemImage: "square.and.pencil")
                                 .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.borderedProminent)
+                        .lgTile(prominent: true)
                         .disabled(selectedCard == nil || writing)
                     }
                 }
@@ -191,7 +191,7 @@ struct WriteCardView: View {
                     Label(L10n.t("Write UID"), systemImage: "person.text.rectangle")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .lgTile(prominent: true)
                 .disabled(writing)
             }
         }
@@ -261,7 +261,7 @@ struct WriteCardView: View {
                         Label(L10n.t("Write to T55xx tag"), systemImage: "doc.on.doc.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .lgTile(prominent: true)
                     .disabled(selectedCard == nil || writing)
                 }
             }

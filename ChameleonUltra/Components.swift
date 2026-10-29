@@ -114,18 +114,19 @@ struct GlassCard<Content: View>: View {
     }
 }
 
-/// Native Liquid Glass on iOS 26+, the hand-rolled material fallback before it.
+/// Legacy wrapper around the v1.36 card surface — pages migrate to
+/// `.lgCard()`, this keeps old call sites compiling with the new look.
 struct GlassBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(Glass.regular.interactive(),
-                               in: .rect(cornerRadius: 22, style: .continuous))
+            content.glassEffect(Glass.clear,
+                                in: .rect(cornerRadius: 22, style: .continuous))
         } else {
             content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
+                        .strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
                 )
         }
     }
@@ -230,9 +231,8 @@ struct EmptyState: View {
             }
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .buttonStyle(.borderedProminent)
-                    .tint(themeAccent)
-                    .padding(.top, 4)
+                    .lgTile(prominent: true)
+                    .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity)
@@ -401,49 +401,72 @@ struct SlotChanger: View {
     @State private var animating = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.t("Emulation slot"))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            // 8 columns: official devices show one row, 16-slot Mocha firmware two.
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
-                ForEach(0..<app.slotCount, id: \.self) { slot in
-                    Button {
-                        guard !animating else { return }
-                        animating = true
-                        Task {
-                            await app.activateSlot(slot)
-                            Haptics.light()
-                            animating = false
-                        }
-                    } label: {
-                        VStack(spacing: 2) {
-                            Text("\(slot)")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(app.activeSlot == slot ? themeAccent : .primary)
-                            HStack(spacing: 3) {
-                                Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 4, height: 4)
-                                Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 4, height: 4)
+        LGMorphScope {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.t("Emulation slot"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                // 8 columns: official devices show one row, 16-slot Mocha firmware two.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+                    ForEach(0..<app.slotCount, id: \.self) { slot in
+                        Button {
+                            guard !animating else { return }
+                            animating = true
+                            Task {
+                                await app.activateSlot(slot)
+                                Haptics.light()
+                                animating = false
                             }
-                            Text(app.slotAliases[slot])
-                                .font(.system(size: 7))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.6)
-                                .foregroundStyle(.secondary)
-                                .frame(height: 9)
+                        } label: {
+                            VStack(spacing: 2) {
+                                Text("\(slot)")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(app.activeSlot == slot ? themeAccent : .primary)
+                                    .lgNumber()
+                                HStack(spacing: 3) {
+                                    Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 4, height: 4)
+                                    Circle().fill(app.slotEnabled[slot].lf ? .blue : Color(.systemGray4)).frame(width: 4, height: 4)
+                                }
+                                Text(app.slotAliases[slot])
+                                    .font(.system(size: 7))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
+                                    .foregroundStyle(.secondary)
+                                    .frame(height: 9)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(
+                                app.activeSlot == slot
+                                    ? AnyShapeStyle(themeAccent.opacity(0.10))
+                                    : AnyShapeStyle(Color(.systemBackground).opacity(0.35)),
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            )
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 5)
-                        .background(
-                            app.activeSlot == slot
-                                ? AnyShapeStyle(themeAccent.opacity(0.25))
-                                : AnyShapeStyle(Color(.systemBackground).opacity(0.5)),
-                            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        )
+                        .buttonStyle(.plain)
+                        .modifier(SlotCellGlass(active: app.activeSlot == slot))
+                        .accessibilityLabel("\(L10n.t("Slot")) \(slot)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(L10n.t("Slot")) \(slot)")
                 }
+            }
+        }
+    }
+
+    /// On iOS 26 the active cell carries a tinted glass with a stable morph
+    /// ID, so the highlight glides between slots instead of blinking
+    /// (Apple "Applying Liquid Glass", example 2).
+    private struct SlotCellGlass: ViewModifier {
+        let active: Bool
+        @Environment(\.lgNamespace) private var ns
+        @Environment(\.themeAccent) private var accent
+
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *), let ns, active {
+                content.glassEffect(Glass.regular.tint(accent.opacity(0.45)).interactive(),
+                                    in: .rect(cornerRadius: 9, style: .continuous))
+                    .glassEffectID("slot.active", in: ns)
+            } else {
+                content
             }
         }
     }

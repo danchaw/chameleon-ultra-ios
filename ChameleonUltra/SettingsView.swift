@@ -314,9 +314,6 @@ struct DeviceSettingsView: View {
             Button(L10n.t("Factory reset (erases everything)"), role: .destructive) {
                 Task {
                     try? await app.communicator?.factoryReset()
-                    // every slot is physically blank now — the fence ledger
-                    // must forget its claims or fences will "skip" forever
-                    app.clearAllSlotCards()
                 }
             }
             Button(L10n.t("Cancel"), role: .cancel) {}

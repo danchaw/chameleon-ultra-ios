@@ -17,7 +17,6 @@ struct HomeDashboardView: View {
                 deviceCard
                 GlassCard { SlotChanger() }
                 GlassCard { autoCycleCard }
-                GlassCard { geofenceCard }
                 quickActions
             }
             .padding()
@@ -115,80 +114,6 @@ struct HomeDashboardView: View {
         .onAppear { pollMs = Double(AutoPoll.intervalMs) }
         .onChange(of: pollMs) { _, value in
             UserDefaults.standard.set(Int(value), forKey: AutoPoll.intervalKey)
-        }
-    }
-
-    /// Electronic fence: entering a mapped region auto-loads its card.
-    private var geofenceCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(.tint)
-                Text(L10n.t("Electronic fence"))
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-            }
-            Toggle(L10n.t("Enable geofence"), isOn: Binding(
-                get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
-                set: {
-                    UserDefaults.standard.set($0, forKey: GeofenceManager.enabledKey)
-                    // Turning the fence on is user intent — the probe must not
-                    // be swallowed by the 30 s trigger dedupe.
-                    app.geofence.refreshMonitoring(force: $0)
-                }
-            ))
-            Toggle(L10n.t("Allow background triggers"), isOn: Binding(
-                get: { app.geofence.hasAlwaysAccess },
-                set: { want in
-                    if want {
-                        app.geofence.requestAlwaysAuthorization()
-                    } else {
-                        // iOS cannot revoke Always programmatically — send the
-                        // user to the Settings page for this app
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                }
-            ))
-            HStack(alignment: .top) {
-                Text(app.geofence.statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Button {
-                    app.geofence.refreshMonitoring(force: true)
-                } label: {
-                    Label(L10n.t("Check now"), systemImage: "location.viewpoint")
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-            // Full-width row: a 44 pt tap target beats a tiny capsule, and the
-            // count tells you at a glance how many fences exist.
-            NavigationLink {
-                GeoRegionsView()
-            } label: {
-                HStack(spacing: 8) {
-                    Text(L10n.t("Manage regions"))
-                        .font(.subheadline.weight(.medium))
-                    Text(String(format: L10n.t("%d"), GeoRegionStore.load().count))
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15), in: Capsule())
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-                .contentShape(Rectangle())
-                .frame(minHeight: 44)
-                .padding(.horizontal, 14)
-                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-            .buttonStyle(.plain)
         }
     }
 

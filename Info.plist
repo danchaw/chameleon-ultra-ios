@@ -39,12 +39,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
-		<string>location</string>
 	</array>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>用于电子围栏：进入设定的区域时自动把对应门禁卡写入变色龙设备。</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>用于电子围栏：进入设定的区域时自动把对应门禁卡写入变色龙设备（后台触发需要允许始终定位）。</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Chameleon Ultra GUI connects to your Chameleon Ultra / Lite device over Bluetooth LE to read, write and emulate NFC/RFID tags.</string>
 	<key>NSAccentColorName</key>

@@ -54,7 +54,7 @@ struct GeoRegionsView: View {
                             set: { on in
                                 GeoRegionStore.setEnabled(region.id, on)
                                 regions = GeoRegionStore.load()
-                                app.geofence.refreshMonitoring()
+                                app.geofence.refreshMonitoring(force: on)
                             }
                         ))
                         .labelsHidden()
@@ -87,13 +87,13 @@ struct GeoRegionsView: View {
         .sheet(isPresented: $showEditor) {
             GeoRegionEditorView(region: nil) {
                 regions = GeoRegionStore.load()
-                app.geofence.refreshMonitoring()
+                app.geofence.refreshMonitoring(force: true)
             }
         }
         .sheet(item: $editingRegion) { region in
             GeoRegionEditorView(region: region) {
                 regions = GeoRegionStore.load()
-                app.geofence.refreshMonitoring()
+                app.geofence.refreshMonitoring(force: true)
             }
         }
         .overlay {

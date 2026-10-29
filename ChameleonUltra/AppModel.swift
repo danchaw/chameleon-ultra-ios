@@ -180,6 +180,7 @@ final class AppModel: ObservableObject {
         guard let region = GeoRegionStore.load().first(where: { $0.id == regionId }),
               let card = store.cards.first(where: { $0.id == region.cardId }) else {
             appendLog("电子围栏：区域绑定的卡片已不存在")
+            geofence.statusText = L10n.t("Fence: bound card missing")
             return
         }
         if slotCardId(slot: activeSlot) == card.id {

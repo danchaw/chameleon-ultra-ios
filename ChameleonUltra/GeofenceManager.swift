@@ -30,14 +30,15 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// can all report the same region seconds apart.
     private var lastTrigger: (id: UUID, at: Date)?
 
-    @MainActor
-    private func fireEnter(_ id: UUID) {
+    @discardableResult
+    private func fireEnter(_ id: UUID, force: Bool = false) -> Bool {
         guard registered.contains(id),
-              GeoRegionStore.load().contains(where: { $0.id == id && $0.isEnabled }) else { return }
-        if let last = lastTrigger, last.id == id,
-           Date().timeIntervalSince(last.at) < 30 { return }
+              GeoRegionStore.load().contains(where: { $0.id == id && $0.isEnabled }) else { return false }
+        if !force, let last = lastTrigger, last.id == id,
+           Date().timeIntervalSince(last.at) < 30 { return false }
         lastTrigger = (id, Date())
         onRegionEnter?(id)
+        return true
     }
 
     /// One-shot current-location requests (the region editor and the fence
@@ -89,8 +90,29 @@ final class GeofenceManager: NSObject, ObservableObject {
         default:
             break
         }
-        locationCompletions.append(completion)
+        let box = FixOnce(completion)
+        locationCompletions.append { box.deliver($0) }
         manager.requestLocation()
+        // Indoor requestLocation can hang for minutes without ever answering;
+        // the fence must answer with a verdict, not with silence.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            box.deliver(nil)
+        }
+    }
+
+    /// Delivers at most once, so the watchdog and the real CLLocation callback
+    /// can race without double-firing the completion.
+    @MainActor
+    private final class FixOnce {
+        private var done = false
+        private let body: (CLLocation?) -> Void
+        init(_ body: @escaping (CLLocation?) -> Void) { self.body = body }
+        func deliver(_ fix: CLLocation?) {
+            if done { return }
+            done = true
+            body(fix)
+        }
     }
 
     /// Stop every currently monitored region.
@@ -102,8 +124,9 @@ final class GeofenceManager: NSObject, ObservableObject {
     }
 
     /// Rebuild all region monitoring from the store. Call after any settings
-    /// change or region edit.
-    func refreshMonitoring() {
+    /// change or region edit. `force: true` (user intent: toggle, save, manual
+    /// check) also bypasses the 30 s ENTER dedupe for the immediate probe.
+    func refreshMonitoring(force: Bool = false) {
         guard CLLocationManager.locationServicesEnabled() else {
             statusText = L10n.t("Location services are off")
             return
@@ -146,42 +169,51 @@ final class GeofenceManager: NSObject, ObservableObject {
         monitorLine = statusText
         // CoreLocation only fires ENTER on true transitions and may lag minutes,
         // so check "already inside" ourselves right now.
-        probeInsideNow()
+        probeInsideNow(force: force)
     }
 
     /// Re-arm after a fresh BLE connect: a fence that fired while the device
     /// was away (or while the probe had no fix) must write the card now.
     func refreshAfterConnect() {
         lastTrigger = nil
-        refreshMonitoring()
+        refreshMonitoring(force: true)
     }
 
-    /// One-shot position fix; applies any region whose TRUE radius contains us.
-    private func probeInsideNow() {
+    /// One-shot position fix; applies any region whose TRUE radius (plus the
+    /// fix's own accuracy, capped at 100 m) contains us, and always prints a
+    /// verdict so the user can tell WHERE the chain stopped.
+    private func probeInsideNow(force: Bool) {
         guard UserDefaults.standard.bool(forKey: Self.enabledKey), isAllowed else { return }
         let regions = GeoRegionStore.load().filter { $0.isEnabled && $0.radius > 0 }
         guard !regions.isEmpty else { return }
         requestFix { [weak self] fix in
             guard let self else { return }
-            guard let fix else {
-                self.statusText = self.monitorLine + " · " + L10n.t("No position fix — fence not checked")
+            guard let here = fix else {
+                self.statusText = "\(self.monitorLine) · " + L10n.t("No position fix — fence not checked")
                 return
             }
-            var inside = 0
+            var hits: [GeoRegion] = []
+            var nearest = Double.greatestFiniteMagnitude
             for r in regions {
-                let distance = fix.distance(from: CLLocation(latitude: r.centerLatitude,
+                let distance = here.distance(from: CLLocation(latitude: r.centerLatitude,
                                                               longitude: r.centerLongitude))
-                // Give the fix its own accuracy (capped) as slack: a fence
-                // drawn 100 m around "me" must not read as outside just
-                // because indoor GPS wobbles.
-                let slack = fix.horizontalAccuracy >= 0 ? min(fix.horizontalAccuracy, 100) : 0
-                if distance <= r.radius + slack {
-                    inside += 1
-                    self.fireEnter(r.id)
-                }
+                nearest = min(nearest, distance)
+                let slack = here.horizontalAccuracy >= 0 ? min(here.horizontalAccuracy, 100) : 0
+                if distance <= r.radius + slack { hits.append(r) }
             }
-            if inside == 0 {
-                self.statusText = self.monitorLine + " · " + L10n.t("Outside every region right now")
+            guard !hits.isEmpty else {
+                // Show how far we actually are — the fastest way to see whether
+                // the fence centre and the live fix disagree by more than the
+                // radius, which is the usual reason a "right on top" fence skips.
+                self.statusText = "\(self.monitorLine) · " + L10n.t("Outside every region right now")
+                    + "（" + L10n.tf("nearest %d m", Int(nearest)) + "）"
+                return
+            }
+            var anyFired = false
+            for r in hits where self.fireEnter(r.id, force: force) { anyFired = true }
+            if !anyFired {
+                // In range, but the trigger was deduped / not registered.
+                self.statusText = L10n.tf("In range, %d region(s) — already handled", hits.count)
             }
         }
     }
@@ -194,6 +226,10 @@ extension GeofenceManager: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
         Task { @MainActor in
+            // iOS re-delivers the CURRENT status on delegate attach / app launch.
+            // Acting on a non-change would run a second probe whose dedupe
+            // verdict can stomp on the first trigger's status line.
+            if self.authorization == status { return }
             self.authorization = status
             self.refreshMonitoring()
         }

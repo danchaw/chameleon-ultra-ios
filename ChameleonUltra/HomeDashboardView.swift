@@ -132,7 +132,9 @@ struct HomeDashboardView: View {
                 get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
                 set: {
                     UserDefaults.standard.set($0, forKey: GeofenceManager.enabledKey)
-                    app.geofence.refreshMonitoring()
+                    // Turning the fence on is user intent — the probe must not
+                    // be swallowed by the 30 s trigger dedupe.
+                    app.geofence.refreshMonitoring(force: $0)
                 }
             ))
             Toggle(L10n.t("Allow background triggers"), isOn: Binding(
@@ -149,9 +151,20 @@ struct HomeDashboardView: View {
                     }
                 }
             ))
-            Text(app.geofence.statusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(alignment: .top) {
+                Text(app.geofence.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button {
+                    app.geofence.refreshMonitoring(force: true)
+                } label: {
+                    Label(L10n.t("Check now"), systemImage: "location.viewpoint")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
             // Full-width row: a 44 pt tap target beats a tiny capsule, and the
             // count tells you at a glance how many fences exist.
             NavigationLink {

@@ -193,14 +193,10 @@ extension View {
         }
     }
 
-    /// Tint-driven hierarchical symbols (matches the glass controls).
+    /// Hierarchical symbol rendering (iOS 15+): the tint renders in graded
+    /// opacities, which matches the glass controls.
     func lgIcon() -> some View {
-        if #available(iOS 26.0, *) {
-            foregroundStyle(.tint)
-                .symbolRenderingMode(.hierarchical)
-        } else {
-            foregroundStyle(.hierarchical)
-        }
+        symbolRenderingMode(.hierarchical)
     }
 
     /// Rolling digits for counters/battery/percentages.

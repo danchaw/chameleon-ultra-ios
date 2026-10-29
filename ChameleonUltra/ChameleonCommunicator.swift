@@ -242,7 +242,7 @@ final class ChameleonCommunicator {
         let iv = try await sendCmd(.getPollingInterval, timeout: 2, retryOnTimeout: false)
         let sk = try await sendCmd(.getSlotPollingSkip, timeout: 2, retryOnTimeout: false)
         guard en.status == 0x68, iv.status == 0x68, sk.status == 0x68 else {
-            throw ChameleonError.invalidResponse
+            throw ChameleonError.invalidResponse("getPollingConfig")
         }
         return MochaPollingConfig(enabled: en.data.first == 1,
                                   intervalMs: iv.data.count >= 2 ? Int(iv.data.readU16(at: 0)) : 0,

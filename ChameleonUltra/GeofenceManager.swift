@@ -23,6 +23,9 @@ final class GeofenceManager: NSObject, ObservableObject {
     /// Fired when the phone enters a bound region.
     var onRegionEnter: ((UUID) -> Void)?
 
+    /// "Monitoring %d region(s)" line the probe results get appended to.
+    private var monitorLine = ""
+
     /// Dedupe ENTER triggers: requestState + didEnterRegion + the manual probe
     /// can all report the same region seconds apart.
     private var lastTrigger: (id: UUID, at: Date)?
@@ -37,9 +40,10 @@ final class GeofenceManager: NSObject, ObservableObject {
         onRegionEnter?(id)
     }
 
-    /// One-shot current-location request (the region editor uses it to open
-    /// the camera at the user's position instead of the whole world).
-    private var locationCompletion: ((CLLocationCoordinate2D?) -> Void)?
+    /// One-shot current-location requests (the region editor and the fence
+    /// probe can overlap; CoreLocation answers the manager once, so every
+    /// pending completion must receive the same fix).
+    private var locationCompletions: [(_ fix: CLLocation?) -> Void] = []
 
     override init() {
         super.init()
@@ -66,6 +70,14 @@ final class GeofenceManager: NSObject, ObservableObject {
 
     /// Single position fix; completion runs on main, nil on failure/denied.
     func requestCurrentLocation(_ completion: @escaping (CLLocationCoordinate2D?) -> Void) {
+        requestFix { completion($0?.coordinate) }
+    }
+
+    /// Like requestCurrentLocation but hands out the raw CLLocation, so the
+    /// fence probe can weigh horizontalAccuracy (indoor fixes are routinely
+    /// 50–150 m off — comparing them against a 100 m fence with zero
+    /// tolerance is why "fence centred on me" read as "outside").
+    func requestFix(_ completion: @escaping (CLLocation?) -> Void) {
         switch manager.authorizationStatus {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
@@ -77,7 +89,7 @@ final class GeofenceManager: NSObject, ObservableObject {
         default:
             break
         }
-        locationCompletion = completion
+        locationCompletions.append(completion)
         manager.requestLocation()
     }
 
@@ -131,9 +143,17 @@ final class GeofenceManager: NSObject, ObservableObject {
             registered.insert(region.id)
         }
         statusText = L10n.tf("Monitoring %d region(s)", regions.count)
+        monitorLine = statusText
         // CoreLocation only fires ENTER on true transitions and may lag minutes,
         // so check "already inside" ourselves right now.
         probeInsideNow()
+    }
+
+    /// Re-arm after a fresh BLE connect: a fence that fired while the device
+    /// was away (or while the probe had no fix) must write the card now.
+    func refreshAfterConnect() {
+        lastTrigger = nil
+        refreshMonitoring()
     }
 
     /// One-shot position fix; applies any region whose TRUE radius contains us.
@@ -141,13 +161,27 @@ final class GeofenceManager: NSObject, ObservableObject {
         guard UserDefaults.standard.bool(forKey: Self.enabledKey), isAllowed else { return }
         let regions = GeoRegionStore.load().filter { $0.isEnabled && $0.radius > 0 }
         guard !regions.isEmpty else { return }
-        requestCurrentLocation { [weak self] coord in
-            guard let self, let coord else { return }
-            let here = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
-            for r in regions
-            where here.distance(from: CLLocation(latitude: r.centerLatitude,
-                                                 longitude: r.centerLongitude)) <= r.radius {
-                self.fireEnter(r.id)
+        requestFix { [weak self] fix in
+            guard let self else { return }
+            guard let fix else {
+                self.statusText = self.monitorLine + " · " + L10n.t("No position fix — fence not checked")
+                return
+            }
+            var inside = 0
+            for r in regions {
+                let distance = fix.distance(from: CLLocation(latitude: r.centerLatitude,
+                                                              longitude: r.centerLongitude))
+                // Give the fix its own accuracy (capped) as slack: a fence
+                // drawn 100 m around "me" must not read as outside just
+                // because indoor GPS wobbles.
+                let slack = fix.horizontalAccuracy >= 0 ? min(fix.horizontalAccuracy, 100) : 0
+                if distance <= r.radius + slack {
+                    inside += 1
+                    self.fireEnter(r.id)
+                }
+            }
+            if inside == 0 {
+                self.statusText = self.monitorLine + " · " + L10n.t("Outside every region right now")
             }
         }
     }
@@ -166,19 +200,19 @@ extension GeofenceManager: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let coordinate = locations.last?.coordinate
+        let fix = locations.last
         Task { @MainActor in
-            guard let completion = self.locationCompletion else { return }
-            self.locationCompletion = nil
-            completion(coordinate)
+            let completions = self.locationCompletions
+            self.locationCompletions = []
+            for completion in completions { completion(fix) }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            guard let completion = self.locationCompletion else { return }
-            self.locationCompletion = nil
-            completion(nil)
+            let completions = self.locationCompletions
+            self.locationCompletions = []
+            for completion in completions { completion(nil) }
         }
     }
 

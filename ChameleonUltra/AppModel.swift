@@ -146,22 +146,55 @@ final class AppModel: ObservableObject {
 
     // MARK: - Electronic fence (region enter -> load bound card)
 
+    /// Which saved card the app last wrote into each device slot. The
+    /// firmware cannot report "which saved card sits in slot N", so this is
+    /// our own bookkeeping, updated at every choke point (applyCardToSlot and
+    /// the two slot-clear paths in SlotManagerView). Unknown or mismatched ->
+    /// the fence writes; a recorded match -> it skips the write.
+    static let slotCardMapKey = "slotCardMap"
+
+    func slotCardId(slot: Int) -> UUID? {
+        guard let map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String],
+              let raw = map[String(slot)] else { return nil }
+        return UUID(uuidString: raw)
+    }
+
+    private func rememberSlotCard(_ card: CardSave, slot: Int) {
+        var map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String] ?? [:]
+        map[String(slot)] = card.id.uuidString
+        UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
+    }
+
+    func clearSlotCard(_ slot: Int) {
+        var map = UserDefaults.standard.dictionary(forKey: Self.slotCardMapKey) as? [String: String] ?? [:]
+        guard map.removeValue(forKey: String(slot)) != nil else { return }
+        UserDefaults.standard.set(map, forKey: Self.slotCardMapKey)
+    }
+
     private func handleRegionEnter(_ regionId: UUID) {
-        guard isConnected, let communicator else {
+        guard isConnected, communicator != nil else {
             appendLog("电子围栏：进入区域，但设备未连接")
             geofence.statusText = L10n.t("Fence: device not connected")
             return
         }
         guard let region = GeoRegionStore.load().first(where: { $0.id == regionId }),
-              let card = store.cards.first(where: { $0.id == region.cardId }) else { return }
+              let card = store.cards.first(where: { $0.id == region.cardId }) else {
+            appendLog("电子围栏：区域绑定的卡片已不存在")
+            return
+        }
+        if slotCardId(slot: activeSlot) == card.id {
+            appendLog("电子围栏：当前卡槽已是「\(card.name)」，无需重复写入")
+            geofence.statusText = L10n.t("Fence: active card already matches")
+            return
+        }
         Task { @MainActor in
             do {
                 try await applyCardToSlot(card, slot: activeSlot)
-                try? await refreshSlots()
-                appendLog("电子围栏：已载入「\(card.name)」（\(region.name)）")
+                appendLog("电子围栏：已载入「\(card.name)」到卡槽 \(activeSlot + 1)（\(region.name)）")
                 geofence.statusText = "\(L10n.t("Fence: card loaded"))「\(card.name)」"
             } catch {
                 appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
+                geofence.statusText = "\(L10n.t("Fence: card load failed")) \(error.localizedDescription)"
                 lastError = error.localizedDescription
             }
         }
@@ -592,6 +625,8 @@ final class AppModel: ObservableObject {
             // auto cycle picks up where it left off on a fresh connection
             if autoCycleEnabled { startCardCycle() }
             await refreshDeviceAutoPoll()
+            // a fence that was already "inside" must apply its card now
+            geofence.refreshAfterConnect()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
         } catch {
             if cancelRequested { return }
@@ -697,6 +732,7 @@ final class AppModel: ObservableObject {
         }
 
         try await communicator.enableSlot(slot, frequency: frequency, status: true)
+        rememberSlotCard(card, slot: slot)
         try await refreshSlots()
     }
 

@@ -28,6 +28,9 @@ final class AppModel: ObservableObject {
     @Published var activeSlot = 0
     /// Slots the connected device actually has (official: 8, Mocha firmware: 16).
     @Published var slotCount = 8
+    /// True when the connected device runs the Mocha custom firmware
+    /// (field-triggered slot polling, opcodes 1100-1108).
+    @Published var mochaSupported = false
     @Published var slotTypes: [SlotTypes] = Array(repeating: SlotTypes(), count: 16)
     @Published var slotEnabled: [EnabledSlotInfo] = Array(repeating: EnabledSlotInfo(), count: 16)
     @Published var slotNames: [SlotNames] = Array(repeating: SlotNames(), count: 16)
@@ -481,6 +484,13 @@ final class AppModel: ObservableObject {
             showDeviceList = false
             updateLiveActivity()
             appendLog("Connected to Chameleon \(deviceType.displayName) (fw \(numToVersionCode(version.version)))")
+            // Mocha custom firmware? (official answers 0x67 -> empty identity)
+            if let id = try? await communicator.getMochaIdentity(), id.hasPrefix("Mocha") {
+                mochaSupported = true
+                appendLog("Mocha firmware detected: \(id)")
+            } else {
+                mochaSupported = false
+            }
             // fence re-check on every fresh connection (clears the 30 s dedup
             // window so an already-inside region writes immediately)
             geofence.refreshAfterConnect()
@@ -670,6 +680,7 @@ final class AppModel: ObservableObject {
 
     private func handleDisconnect() {
         communicator = nil
+        mochaSupported = false
         if connectionState == .dfuMode {
             appendLog("DFU connection lost")
         }

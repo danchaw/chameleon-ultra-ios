@@ -30,12 +30,17 @@ struct LGCardModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             // Large content surfaces use the CLEAR variant: lighter than the
             // controls riding on top of them (HIG: don't glass everything).
-            var glass = Glass.clear
-            if interactive { glass = glass.interactive() }
-            content
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(glass, in: .rect(cornerRadius: lgCardRadius, style: .continuous))
+            if interactive {
+                content
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassEffect(Glass.clear.interactive(), in: .rect(cornerRadius: lgCardRadius, style: .continuous))
+            } else {
+                content
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassEffect(Glass.clear, in: .rect(cornerRadius: lgCardRadius, style: .continuous))
+            }
         } else {
             content
                 .padding(16)
@@ -82,11 +87,15 @@ struct LGTileStyle: ButtonStyle {
 
         func body(content: Content) -> some View {
             if #available(iOS 26.0, *) {
-                var glass = Glass.regular.interactive()
-                if prominent { glass = glass.tint(accent.opacity(0.6)) }
-                content
-                    .glassEffect(glass, in: .rect(cornerRadius: lgTileRadius, style: .continuous))
-                    .opacity(pressed ? 0.85 : 1)
+                if prominent {
+                    content
+                        .glassEffect(Glass.regular.interactive().tint(accent.opacity(0.6)), in: .rect(cornerRadius: lgTileRadius, style: .continuous))
+                        .opacity(pressed ? 0.85 : 1)
+                } else {
+                    content
+                        .glassEffect(Glass.regular.interactive(), in: .rect(cornerRadius: lgTileRadius, style: .continuous))
+                        .opacity(pressed ? 0.85 : 1)
+                }
             } else {
                 content
                     .background(
@@ -184,11 +193,11 @@ extension View {
         }
     }
 
-    /// Layered coloured symbols on iOS 26 (WWDC25 "Give your app that
-    /// iOS 26 style"); hierarchical style elsewhere.
+    /// Tint-driven hierarchical symbols (matches the glass controls).
     func lgIcon() -> some View {
         if #available(iOS 26.0, *) {
-            foregroundStyle(.layered)
+            foregroundStyle(.tint)
+                .symbolRenderingMode(.hierarchical)
         } else {
             foregroundStyle(.hierarchical)
         }

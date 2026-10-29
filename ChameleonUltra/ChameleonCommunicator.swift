@@ -220,6 +220,57 @@ final class ChameleonCommunicator {
         Int(try await sendCmd(.getActiveSlot).data.first ?? 0)
     }
 
+    // MARK: - Mocha firmware slot-polling control (opcodes 1100-1108)
+    // Official firmware answers these with STATUS_INVALID_CMD (0x67), which
+    // `sendCmd` surfaces as an error -> callers treat them as "unsupported".
+    struct MochaPollingConfig: Equatable {
+        var enabled: Bool
+        var intervalMs: Int
+        var skipMask: Int      // bit i = slot i skipped while polling
+    }
+
+    /// Returns e.g. "Mocha/1;slots=16;base=5c99d4a" on the custom firmware,
+    /// "" on official firmware (status != STATUS_SUCCESS or empty payload).
+    func getMochaIdentity() async throws -> String {
+        let resp = try await sendCmd(.getMochaIdentity, timeout: 2, retryOnTimeout: false)
+        guard resp.status == 0x68, !resp.data.isEmpty else { return "" }
+        return String(bytes: resp.data, encoding: .utf8) ?? ""
+    }
+
+    func getPollingConfig() async throws -> MochaPollingConfig {
+        let en = try await sendCmd(.getPollingEnable, timeout: 2, retryOnTimeout: false)
+        let iv = try await sendCmd(.getPollingInterval, timeout: 2, retryOnTimeout: false)
+        let sk = try await sendCmd(.getSlotPollingSkip, timeout: 2, retryOnTimeout: false)
+        guard en.status == 0x68, iv.status == 0x68, sk.status == 0x68 else {
+            throw ChameleonError.invalidResponse
+        }
+        return MochaPollingConfig(enabled: en.data.first == 1,
+                                  intervalMs: iv.data.count >= 2 ? Int(iv.data.readU16(at: 0)) : 0,
+                                  skipMask: sk.data.count >= 2 ? Int(sk.data.readU16(at: 0)) : 0)
+    }
+
+    func setPollingEnabled(_ on: Bool) async throws {
+        let resp = try await sendCmd(.setPollingEnable, data: Data([on ? 1 : 0]), timeout: 2, retryOnTimeout: false)
+        guard resp.status == 0x68 || resp.status == 0 else {
+            throw ChameleonError.invalidResponse("setPollingEnable status \(resp.status)")
+        }
+    }
+
+    func setPollingIntervalMs(_ ms: Int) async throws {
+        let v = min(max(ms, 100), 5000)
+        let resp = try await sendCmd(.setPollingInterval, data: Data([UInt8(v >> 8), UInt8(v & 0xFF)]), timeout: 2, retryOnTimeout: false)
+        guard resp.status == 0x68 || resp.status == 0 else {
+            throw ChameleonError.invalidResponse("setPollingInterval status \(resp.status)")
+        }
+    }
+
+    func setPollingSkipMask(_ mask: Int) async throws {
+        let resp = try await sendCmd(.setSlotPollingSkip, data: Data([UInt8((mask >> 8) & 0xFF), UInt8(mask & 0xFF)]), timeout: 2, retryOnTimeout: false)
+        guard resp.status == 0x68 || resp.status == 0 else {
+            throw ChameleonError.invalidResponse("setSlotPollingSkip status \(resp.status)")
+        }
+    }
+
     func setSlotType(_ slot: Int, type: TagType) async throws {
         try await sendCmd(.setSlotTagType, data: Data([UInt8(slot)] + type.rawValue.bytesBE))
     }

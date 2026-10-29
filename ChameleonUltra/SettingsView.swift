@@ -190,6 +190,7 @@ struct DeviceSettingsView: View {
 
     var body: some View {
         Form {
+            mochaPollingSection
             if let currentAnimation = animation {
                 Picker(L10n.t("LED animation"), selection: Binding(
                     get: { animation ?? currentAnimation },
@@ -297,6 +298,107 @@ struct DeviceSettingsView: View {
             aLongPress = try? await communicator.getButtonConfig(.a, long: true)
             bLongPress = try? await communicator.getButtonConfig(.b, long: true)
             longPressThreshold = try? await communicator.getLongPressThreshold()
+            // Custom-firmware slot polling panel
+            if app.mochaSupported, let cfg = try? await communicator.getPollingConfig() {
+                mochaEnabled = cfg.enabled
+                mochaInterval = cfg.intervalMs
+                mochaSkipMask = cfg.skipMask
+            }
+        }
+    }
+
+    // MARK: Mocha slot-polling panel (custom firmware only)
+    @State private var mochaEnabled = false
+    @State private var mochaInterval = 1000
+    @State private var mochaSkipMask = 0
+
+    @ViewBuilder
+    private var mochaPollingSection: some View {
+        if app.mochaSupported {
+            Section {
+                Toggle(L10n.t("Field-triggered slot polling"), isOn: Binding(
+                    get: { mochaEnabled },
+                    set: { on in
+                        mochaEnabled = on
+                        Haptics.light()
+                        Task {
+                            do { try await app.communicator?.setPollingEnabled(on) }
+                            catch { app.lastError = error.localizedDescription }
+                        }
+                    }))
+                if mochaEnabled {
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text(L10n.t("Slow"))
+                                .font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(L10n.t("Fast"))
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                        Slider(value: Binding(
+                            get: { Double(5100 - mochaInterval) },
+                            set: { mochaInterval = Int(5100 - $0); scheduleIntervalSync() }),
+                               in: 100...5000, step: 100)
+                    }
+                    HStack {
+                        Text(L10n.t("Interval"))
+                        Spacer()
+                        Text("\(mochaInterval) ms").monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    // Per-slot skip chips
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L10n.t("Slots polled"))
+                            .font(.subheadline)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+                            ForEach(0..<app.slotCount, id: \.self) { slot in
+                                let skipped = (mochaSkipMask >> slot) & 1 == 1
+                                Button {
+                                    mochaSkipMask ^= (1 << slot)
+                                    Haptics.light()
+                                    scheduleSkipSync()
+                                } label: {
+                                    Text("\(slot + 1)")
+                                        .font(.footnote.weight(.semibold))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 6)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(skipped ? .gray.opacity(0.35) : .green)
+                            }
+                        }
+                        Text(L10n.t("Tap a slot to keep it out of the rotation"))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text(L10n.t("Device-side polling"))
+            } footer: {
+                Text(L10n.t("Polling runs inside the firmware: while a reader field is present the device cycles its enabled slots, stops on a match and restores the original slot when the reader leaves."))
+            }
+        }
+    }
+
+    private static var intervalSyncTask: Task<Void, Never>?
+    private func scheduleIntervalSync() {
+        Self.intervalSyncTask?.cancel()
+        let ms = mochaInterval
+        Self.intervalSyncTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            do { try await app.communicator?.setPollingIntervalMs(ms) }
+            catch { app.lastError = error.localizedDescription }
+        }
+    }
+
+    private static var skipSyncTask: Task<Void, Never>?
+    private func scheduleSkipSync() {
+        Self.skipSyncTask?.cancel()
+        let mask = mochaSkipMask
+        Self.skipSyncTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            do { try await app.communicator?.setPollingSkipMask(mask) }
+            catch { app.lastError = error.localizedDescription }
         }
     }
 

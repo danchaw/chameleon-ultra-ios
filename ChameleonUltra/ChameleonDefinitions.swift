@@ -149,7 +149,15 @@ enum ChameleonCommand: UInt16 {
     case mf1GetPrngType = 4040
     case mf1SetPrngType = 4041
 
-    // device-side auto slot polling — custom firmware only
+    // Mocha custom-firmware slot polling (official firmware answers 0x67
+    // STATUS_INVALID_CMD -> treated as unsupported by the callers).
+    case getMochaIdentity = 1100
+    case getPollingEnable = 1101
+    case setPollingEnable = 1102
+    case getPollingInterval = 1103
+    case setPollingInterval = 1104
+    case getSlotPollingSkip = 1107
+    case setSlotPollingSkip = 1108
 
     // lf emulator
     case setEM410XemulatorID = 5000

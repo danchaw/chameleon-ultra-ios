@@ -14,7 +14,8 @@ struct HomeDashboardView: View {
             VStack(spacing: 16) {
                 deviceCard
                 GlassCard { SlotChanger() }
-                GlassCard { geofenceCard }                quickActions
+                GlassCard { geofenceCard }
+                quickActions
             }
             .padding()
         }

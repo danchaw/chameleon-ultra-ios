@@ -187,7 +187,7 @@ final class AppModel: ObservableObject {
     }
 
     private func handleRegionEnter(_ regionId: UUID, forceWrite: Bool = false) {
-        guard isConnected, communicator != nil else {
+        guard isConnected, let communicator else {
             appendLog("电子围栏：进入区域，但设备未连接")
             geofence.statusText = L10n.t("Fence: device not connected")
             return
@@ -198,18 +198,24 @@ final class AppModel: ObservableObject {
             geofence.statusText = L10n.t("Fence: bound card missing")
             return
         }
-        if !forceWrite, slotCardStamp(slot: activeSlot) == cardStamp(card) {
-            appendLog("电子围栏：当前卡槽已是「\(card.name)」，无需重复写入")
-            geofence.statusText = L10n.t("Fence: active card already matches")
-                + "（\(L10n.t("Slot")) \(activeSlot + 1) · \(card.name)）"
-            return
-        }
         Task { @MainActor in
+            // The device's own buttons switch the active slot without telling
+            // the app — always re-read the LIVE slot before deciding or
+            // writing, or the fence writes to a stale slot and the card the
+            // user is looking at stays empty forever.
+            if let live = try? await communicator.getActiveSlot() { activeSlot = live }
+            let slot = activeSlot
+            if !forceWrite, slotCardStamp(slot: slot) == cardStamp(card) {
+                appendLog("电子围栏：卡槽 \(slot + 1) 已是「\(card.name)」，无需重复写入")
+                geofence.statusText = L10n.t("Fence: active card already matches")
+                    + "（\(L10n.t("Slot")) \(slot + 1) · \(card.name)）"
+                return
+            }
             do {
-                try await applyCardToSlot(card, slot: activeSlot)
-                appendLog("电子围栏：已载入「\(card.name)」到卡槽 \(activeSlot + 1)（\(region.name)）")
+                try await applyCardToSlot(card, slot: slot)
+                appendLog("电子围栏：已载入「\(card.name)」到卡槽 \(slot + 1)（\(region.name)）")
                 geofence.statusText = "\(L10n.t("Fence: card loaded"))「\(card.name)」"
-                    + "（\(L10n.t("Slot")) \(activeSlot + 1)）"
+                    + "（\(L10n.t("Slot")) \(slot + 1)）"
             } catch {
                 appendLog("电子围栏：载入「\(card.name)」失败 \(error.localizedDescription)")
                 geofence.statusText = "\(L10n.t("Fence: card load failed")) \(error.localizedDescription)"

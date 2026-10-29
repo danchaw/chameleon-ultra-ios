@@ -118,7 +118,7 @@ struct GlassCard<Content: View>: View {
 struct GlassBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(GlassEffect(.regular, interactive: true),
+            content.glassEffect(Glass.regular.interactive(),
                                in: .rect(cornerRadius: 22, style: .continuous))
         } else {
             content
@@ -189,7 +189,7 @@ struct ToastModifier: ViewModifier {
 private struct ModificationIndicatorChrome: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(GlassEffect(.regular), in: .capsule)
+            content.glassEffect(Glass.regular, in: .capsule)
         } else {
             content
                 .background(.regularMaterial, in: Capsule())

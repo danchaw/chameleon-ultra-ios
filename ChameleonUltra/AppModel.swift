@@ -160,20 +160,31 @@ final class AppModel: ObservableObject {
     // the phone walks away. Stock firmware rejects 4045/4046 -> unsupported.
     @Published var deviceAutoPollEnabled = false
     @Published var deviceAutoPollSupported = false
+    /// Raw outcome of the last 4046 probe / 4045 write — surfaced in the
+    /// device settings page so "not supported" is never a silent verdict.
+    @Published var deviceAutoPollProbe: String?
+
+    private func deviceProbeLine(_ detail: String) -> String {
+        let fw = firmwareVersion.map { numToVersionCode($0) } ?? "?"
+        return "固件 \(fw) · git \(gitCommit.isEmpty ? "?" : gitCommit) · \(detail)"
+    }
 
     func refreshDeviceAutoPoll() async {
         guard isConnected, let communicator else {
             deviceAutoPollSupported = false
             deviceAutoPollEnabled = false
+            deviceAutoPollProbe = L10n.t("Not connected")
             return
         }
         do {
             let status = try await communicator.getAutoPollStatus()
             deviceAutoPollSupported = true
             deviceAutoPollEnabled = status.enabled
+            deviceAutoPollProbe = deviceProbeLine("4046 OK enable=\(status.enabled ? 1 : 0) interval=\(status.intervalMs)ms laps=\(status.maxLaps) rotating=\(status.rotating ? 1 : 0)")
         } catch {
             deviceAutoPollSupported = false
             deviceAutoPollEnabled = false
+            deviceAutoPollProbe = deviceProbeLine("4046 \(error.localizedDescription)")
         }
     }
 
@@ -183,9 +194,11 @@ final class AppModel: ObservableObject {
             try await communicator.setAutoPoll(enable: on, intervalMs: AutoPoll.intervalMs, maxLaps: AutoPoll.maxLaps)
             deviceAutoPollSupported = true
             deviceAutoPollEnabled = on
+            deviceAutoPollProbe = deviceProbeLine("4045 OK enable=\(on ? 1 : 0)")
             appendLog(on ? "Device-side slot polling enabled" : "Device-side slot polling disabled")
         } catch {
             deviceAutoPollEnabled = false
+            deviceAutoPollProbe = deviceProbeLine("4045 \(error.localizedDescription)")
             lastError = L10n.t("Device-side polling requires the custom firmware")
         }
     }
@@ -746,6 +759,7 @@ final class AppModel: ObservableObject {
         dfuProgress = nil
         deviceAutoPollSupported = false
         deviceAutoPollEnabled = false
+        deviceAutoPollProbe = nil
         updateLiveActivity()
         stopCardCycle()
     }

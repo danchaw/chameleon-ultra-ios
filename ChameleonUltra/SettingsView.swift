@@ -259,6 +259,22 @@ struct DeviceSettingsView: View {
                      : L10n.t("Current firmware does not support this — flash the custom firmware first."))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                HStack {
+                    if let probe = app.deviceAutoPollProbe {
+                        Text(probe)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .textSelection(.enabled)
+                    }
+                    Spacer(minLength: 0)
+                    Button(L10n.t("Re-check device polling")) {
+                        Task { await app.refreshDeviceAutoPoll() }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(!app.isConnected)
+                }
             } header: {
                 Text(L10n.t("Auto slot polling"))
             } footer: {
@@ -322,6 +338,9 @@ struct DeviceSettingsView: View {
         }
         .task {
             guard let communicator = app.communicator else { return }
+            // re-probe every time the page opens so the support verdict and
+            // the diagnostic line reflect the firmware actually running now
+            await app.refreshDeviceAutoPoll()
             animation = try? await communicator.getAnimationMode()
             wakeTime = try? await communicator.getSleepTimeout()
             pairing = try? await communicator.isBLEPairEnabled()

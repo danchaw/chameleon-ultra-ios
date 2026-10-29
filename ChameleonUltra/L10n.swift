@@ -51,6 +51,8 @@ enum L10n {
         "No enabled slots to poll": "没有已开启的卡槽可轮询",
         "Device-side polling": "设备端轮询",
         "Device-side polling requires the custom firmware": "设备端轮询需要配套自定义固件（刷入后生效）",
+        "Not connected": "未连接设备",
+        "Re-check device polling": "重新检测",
         "Runs inside the device firmware — keeps polling slots after the phone is gone.": "在设备固件内运行——断开手机也继续：检测到读头反复认证时自动轮巡已开启的卡槽，命中即停。",
         "Current firmware does not support this — flash the custom firmware first.": "当前固件不支持此功能——请先刷入配套自定义固件。",
         "Poll rounds": "轮巡圈数",

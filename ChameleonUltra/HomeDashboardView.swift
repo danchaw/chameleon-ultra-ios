@@ -27,34 +27,31 @@ struct HomeDashboardView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                // One capsule does both jobs: it shows live status (dot +
-                // name + battery) and tapping it returns to the device list;
-                // the connection stays alive either way.
-                Button {
-                    app.showDeviceList = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
-                            .font(.body.weight(.semibold))
-                        Circle()
-                            .fill(.green)
-                            .frame(width: 7, height: 7)
-                        Text(app.displayDeviceName)
-                            .font(.footnote.weight(.semibold))
-                            .lineLimit(1)
-                        if let battery = app.battery {
-                            Text("\(battery.percent)%")
-                                .font(.footnote.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(.green)
-                                .lgNumber()
-                                .animation(.snappy, value: battery.percent)
-                        }
+                // One capsule does both jobs: live status (dot + name +
+                // battery) and tap-to-return to the device list; the BLE
+                // connection stays alive either way.
+                //
+                // On iOS 26 we deliberately do NOT draw our own glass pill:
+                // a plain bar Button gets the *system* capsule — the exact
+                // same mechanism (and size) as the refresh/exit buttons.
+                if #available(iOS 26.0, *) {
+                    Button {
+                        app.showDeviceList = true
+                    } label: {
+                        principalChipLabel
                     }
-                    .padding(.horizontal, 10)
-                    .frame(height: 34)
-                    .lgChip()
+                    .buttonStyle(.borderless)
+                } else {
+                    Button {
+                        app.showDeviceList = true
+                    } label: {
+                        principalChipLabel
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .lgChip()
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -159,6 +156,31 @@ struct HomeDashboardView: View {
                 .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    /// Dot + chevron + name + battery strip shared by the principal
+    /// toolbar capsule (iOS 26 lets the bar glass it; older hosts add
+    /// their own capsule via lgChip()).
+    private var principalChipLabel: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "chevron.left")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+            Circle()
+                .fill(.green)
+                .frame(width: 7, height: 7)
+            Text(app.displayDeviceName)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            if let battery = app.battery {
+                Text("\(battery.percent)%")
+                    .font(.footnote.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.green)
+                    .lgNumber()
+                    .animation(.snappy, value: battery.percent)
+            }
         }
     }
 

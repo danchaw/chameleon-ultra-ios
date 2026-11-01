@@ -50,8 +50,9 @@ struct HomeDashboardView: View {
                                 .animation(.snappy, value: battery.percent)
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 2)
+                    .frame(height: 22)
                     .lgChip()
                 }
                 .buttonStyle(.plain)

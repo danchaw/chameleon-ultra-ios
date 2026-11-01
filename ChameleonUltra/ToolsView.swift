@@ -13,7 +13,7 @@ struct ToolsView: View {
                     SniffingView(isLF: true)
                 } label: {
                     Label(L10n.t("LF sniffing (125 kHz)"), systemImage: "waveform.path")
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(.tint)
                 }
                 NavigationLink {
                     SniffingView(isLF: false)

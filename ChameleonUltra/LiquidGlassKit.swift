@@ -98,14 +98,20 @@ struct LGTileStyle: ButtonStyle {
                 }
             } else {
                 content
+                    // Frosted glass on iOS 17–25 too (not a flat grey card):
+                    // accent wash under a material blur for prominent tiles.
                     .background(
-                        prominent ? AnyShapeStyle(accent.opacity(pressed ? 0.28 : 0.20))
-                                  : AnyShapeStyle(Color(.secondarySystemBackground)),
+                        prominent ? AnyShapeStyle(accent.opacity(pressed ? 0.30 : 0.22))
+                                  : AnyShapeStyle(Color.clear),
+                        in: RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
+                    )
+                    .background(
+                        .regularMaterial,
                         in: RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
-                            .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
+                            .strokeBorder(.white.opacity(pressed ? 0.22 : 0.14), lineWidth: 0.5)
                     )
             }
         }

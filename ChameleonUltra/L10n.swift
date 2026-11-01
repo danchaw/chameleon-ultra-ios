@@ -152,6 +152,8 @@ enum L10n {
         "Card type": "卡片类型",
         "Gen1 (magic, no auth)": "Gen1（魔术卡，免鉴权）",
         "Gen2 (keyed)": "Gen2（密钥写入）",
+        "Magic-card mode, no keys needed - writes UID and dump directly.": "魔术卡模式：免密钥，可直接写 UID 与整卡数据。",
+        "Classic mode - needs Key A to authenticate before writing.": "普通卡模式：写入前需要 A 密钥认证。",
         "Key A": "密钥 A",
         "Write dump to card": "将转储写入卡片",
         "No saved Mifare Classic cards. Read one first.": "暂无已保存的 Mifare Classic 卡片，请先读卡。",

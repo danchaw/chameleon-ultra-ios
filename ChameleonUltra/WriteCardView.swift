@@ -75,6 +75,42 @@ struct WriteCardView: View {
         }
     }
 
+    /// One clearly-labelled radio row per Gen mode (a two-word segmented
+    /// control hid the difference between the write strategies).
+    private func magicOption(_ type: MagicType, icon: String, desc: String) -> some View {
+        Button {
+            Haptics.light()
+            magicType = type
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: magicType == type ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(magicType == type ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                    .font(.system(size: 18))
+                Image(systemName: icon)
+                    .foregroundStyle(.tint)
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 26, height: 26)
+                    .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t(type.rawValue))
+                        .font(.subheadline.weight(.semibold))
+                    Text(desc)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(magicType == type ? AnyShapeStyle(.tint.opacity(0.10)) : AnyShapeStyle(.quaternary.opacity(0.35))))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(magicType == type ? AnyShapeStyle(.tint.opacity(0.6)) : AnyShapeStyle(.clear), lineWidth: 1.5))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Mifare dump
 
     private var mifareDumpSection: some View {
@@ -93,10 +129,12 @@ struct WriteCardView: View {
                         }
                         .pickerStyle(.menu)
 
-                        Picker(L10n.t("Card type"), selection: $magicType) {
-                            ForEach(MagicType.allCases) { Text(L10n.t($0.rawValue)).tag($0) }
+                        VStack(spacing: 8) {
+                            magicOption(.gen1, icon: "wand.and.stars",
+                                        desc: L10n.t("Magic-card mode, no keys needed - writes UID and dump directly."))
+                            magicOption(.gen2, icon: "key.horizontal.fill",
+                                        desc: L10n.t("Classic mode - needs Key A to authenticate before writing."))
                         }
-                        .pickerStyle(.segmented)
 
                         if magicType == .gen2 {
                             HStack {

@@ -245,6 +245,8 @@ extension View {
 private struct LGLargeGlassRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .glassEffect(Glass.regular.interactive(),

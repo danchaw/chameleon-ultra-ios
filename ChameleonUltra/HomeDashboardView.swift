@@ -51,7 +51,7 @@ struct HomeDashboardView: View {
                         }
                     }
                     .padding(.horizontal, 10)
-                    .frame(height: 30)
+                    .frame(height: 34)
                     .lgChip()
                 }
                 .buttonStyle(.plain)

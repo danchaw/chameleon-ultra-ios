@@ -29,46 +29,44 @@ struct HomeDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 // Status capsule (dot + name + battery); tapping returns to
-                // the device list, BLE stays connected. All three bar
-                // controls draw the SAME hand-built 34pt capsule below, so
-                // their heights match exactly on every iOS version — the
-                // system's bar glass is not available/consistent here.
+                // the device list, BLE stays connected. Hand-built 34pt
+                // capsules so heights match on every iOS version. The capsule
+                // itself stays NEUTRAL (theme tint on the icons only) per
+                // user design call on v1.36.14.
                 Button {
                     app.showDeviceList = true
                 } label: {
                     principalChipLabel
                         .padding(.horizontal, 10)
                         .frame(height: 34)
-                        .lgChip(accent)
+                        .lgChip()
                 }
                 .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    refresh()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .foregroundStyle(accent)
-                        .frame(height: 20)
-                        .padding(.horizontal, 7)
-                        .frame(height: 34)
-                        .lgChip(accent)
-                        .padding(.leading, 6)
+                // Refresh + exit share ONE capsule; icons tinted.
+                HStack(spacing: 4) {
+                    Button {
+                        refresh()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(accent)
+                            .frame(height: 20)
+                            .padding(.horizontal, 7)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        app.disconnect()
+                    } label: {
+                        Image(systemName: "xmark.circle")
+                            .foregroundStyle(accent)
+                            .frame(height: 20)
+                            .padding(.horizontal, 7)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    app.disconnect()
-                } label: {
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(accent)
-                        .frame(height: 20)
-                        .padding(.horizontal, 7)
-                        .frame(height: 34)
-                        .lgChip(accent)
-                }
-                .buttonStyle(.plain)
+                .frame(height: 34)
+                .lgChip()
             }
         }
         .sheet(isPresented: $showEmulatorSettings) {
@@ -162,9 +160,9 @@ struct HomeDashboardView: View {
         }
     }
 
-    /// Dot + chevron + name + battery strip shared by the principal
-    /// toolbar capsule (iOS 26 lets the bar glass it; older hosts add
-    /// their own capsule via lgChip()).
+    /// Dot + chevron + name + battery strip for the principal capsule. The
+    /// capsule background stays neutral; only the chevron ("back" icon) picks
+    /// up the theme tint. Refresh + exit share one other neutral capsule.
     private var principalChipLabel: some View {
         HStack(spacing: 6) {
             Image(systemName: "chevron.left")
@@ -175,7 +173,7 @@ struct HomeDashboardView: View {
                 .frame(width: 7, height: 7)
             Text(app.displayDeviceName)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
             if let battery = app.battery {
                 Text("\(battery.percent)%")

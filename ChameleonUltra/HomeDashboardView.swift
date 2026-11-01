@@ -45,7 +45,7 @@ struct HomeDashboardView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button(role: .destructive) {
+                Button {
                     app.disconnect()
                 } label: {
                     Image(systemName: "xmark.circle")
@@ -201,34 +201,45 @@ struct HomeDashboardView: View {
         .font(.subheadline)
     }
 
-    /// Large glass tiles (option A): two per row, icon chip + title + one-line
-    /// description; Device settings spans the last row. Reader lives in the
-    /// tab bar, so there is no Read tile.
+    /// Quick entries on ONE white card, same idiom as the slot strip and the
+    /// electronic-fence card above: a two-column grid of inner white blocks;
+    /// Device settings spans the third row.
     private var quickActions: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                NavigationLink { SlotManagerView() } label: {
-                    bigTile(L10n.t("Slot manager"), L10n.t("Slot status & writing"), "square.grid.3x3.fill")
-                }
-                NavigationLink { ToolsView() } label: {
-                    bigTile(L10n.t("Tools"), L10n.t("Key dictionaries & sniffing"), "wrench.and.screwdriver.fill")
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "square.grid.2x2")
+                    .foregroundStyle(.tint)
+                Text(L10n.t("Quick actions"))
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
             }
-            HStack(spacing: 12) {
-                Button { showEmulatorSettings = true } label: {
-                    bigTile(L10n.t("Emulator"), L10n.t("MF1 emulation behaviour"), "waveform.path.ecg.rectangle")
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    NavigationLink { SlotManagerView() } label: {
+                        quickBlock(L10n.t("Slot manager"), L10n.t("Slot status & writing"), "square.grid.3x3.fill")
+                    }
+                    NavigationLink { ToolsView() } label: {
+                        quickBlock(L10n.t("Tools"), L10n.t("Key dictionaries & sniffing"), "wrench.and.screwdriver.fill")
+                    }
                 }
-                NavigationLink { FlashingView(embedded: true) } label: {
-                    bigTile(L10n.t("Firmware update"), L10n.t("OTA and local flashing"), "arrow.down.doc.fill")
+                HStack(spacing: 10) {
+                    Button { showEmulatorSettings = true } label: {
+                        quickBlock(L10n.t("Emulator"), L10n.t("MF1 emulation behaviour"), "waveform.path.ecg.rectangle")
+                    }
+                    NavigationLink { FlashingView(embedded: true) } label: {
+                        quickBlock(L10n.t("Firmware update"), L10n.t("OTA and local flashing"), "arrow.down.doc.fill")
+                    }
                 }
-            }
-            NavigationLink { DeviceSettingsView() } label: {
-                bigTile(L10n.t("Device settings"), L10n.t("LED, buttons & polling"), "gearshape.2.fill")
+                NavigationLink { DeviceSettingsView() } label: {
+                    quickBlock(L10n.t("Device settings"), L10n.t("LED, buttons & polling"), "gearshape.2.fill")
+                }
             }
         }
+        .buttonStyle(.plain)
+        .lgCard()
     }
 
-    private func bigTile(_ title: String, _ subtitle: String, _ icon: String) -> some View {
+    private func quickBlock(_ title: String, _ subtitle: String, _ icon: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
@@ -246,10 +257,11 @@ struct HomeDashboardView: View {
                 .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 4)
-        .lgTile()
+        .padding(12)
+        .frame(minHeight: 88, alignment: .topLeading)
+        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(Rectangle())
     }
-
     /// Compact live status shown in the navigation bar; absorbs into the
     /// bar chrome on scroll (iOS 26 large-title behaviour).
     private var statusPill: some View {

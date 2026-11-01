@@ -121,13 +121,24 @@ struct LGTileStyle: ButtonStyle {
 // MARK: - Chip surface (inline pill / badge)
 
 struct LGChipModifier: ViewModifier {
+    /// Optional theme tint: the glass picks up a coloured sheen (26) or a
+    /// soft accent wash + stroke (fallback).
+    var tint: Color? = nil
+
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
-            content.glassEffect(Glass.regular, in: .capsule)
+            if let tint {
+                content.glassEffect(Glass.regular.tint(tint.opacity(0.45)).interactive(),
+                                    in: .capsule)
+            } else {
+                content.glassEffect(Glass.regular, in: .capsule)
+            }
         } else {
             content
                 .background(.regularMaterial, in: Capsule())
-                .overlay(Capsule().strokeBorder(.white.opacity(0.14), lineWidth: 0.5))
+                .background(tint.map { c in Capsule().fill(c.opacity(0.14)) })
+                .overlay(Capsule().strokeBorder((tint ?? .white).opacity(tint == nil ? 0.14 : 0.35),
+                                                lineWidth: 0.5))
         }
     }
 }
@@ -181,7 +192,7 @@ extension View {
         modifier(LGCardModifier(interactive: interactive))
     }
 
-    func lgChip() -> some View { modifier(LGChipModifier()) }
+    func lgChip(_ tint: Color? = nil) -> some View { modifier(LGChipModifier(tint: tint)) }
 
     /// Tiles/buttons: native context-aware glass button styles on iOS 26
     /// (`.glass` / `.glassProminent` — the pressed-absorb behaviour is free),

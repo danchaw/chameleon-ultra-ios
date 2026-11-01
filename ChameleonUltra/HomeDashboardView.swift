@@ -4,6 +4,7 @@ import UIKit
 /// Connected dashboard (port of `gui/page/home.dart`).
 struct HomeDashboardView: View {
     @EnvironmentObject var app: AppModel
+    @Environment(\.themeAccent) private var accent
     @State private var showEmulatorSettings = false
     @State private var showRenameAlert = false
     @State private var renameText = ""
@@ -38,31 +39,32 @@ struct HomeDashboardView: View {
                     principalChipLabel
                         .padding(.horizontal, 10)
                         .frame(height: 34)
-                        .lgChip()
+                        .lgChip(accent)
                 }
                 .buttonStyle(.plain)
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing, spacing: 12) {
                 Button {
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(accent)
                         .frame(height: 20)
                         .padding(.horizontal, 7)
                         .frame(height: 34)
-                        .lgChip()
+                        .lgChip(accent)
                 }
                 .buttonStyle(.plain)
-            }
-            ToolbarItem(placement: .topBarTrailing) {
+
                 Button {
                     app.disconnect()
                 } label: {
                     Image(systemName: "xmark.circle")
+                        .foregroundStyle(accent)
                         .frame(height: 20)
                         .padding(.horizontal, 7)
                         .frame(height: 34)
-                        .lgChip()
+                        .lgChip(accent)
                 }
                 .buttonStyle(.plain)
             }
@@ -165,13 +167,13 @@ struct HomeDashboardView: View {
         HStack(spacing: 6) {
             Image(systemName: "chevron.left")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(accent)
             Circle()
                 .fill(.green)
                 .frame(width: 7, height: 7)
             Text(app.displayDeviceName)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(accent)
                 .lineLimit(1)
             if let battery = app.battery {
                 Text("\(battery.percent)%")

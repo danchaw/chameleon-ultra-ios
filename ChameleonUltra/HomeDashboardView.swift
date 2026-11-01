@@ -27,15 +27,34 @@ struct HomeDashboardView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                // Back to the device list; the connection stays alive.
+                // One capsule does both jobs: it shows live status (dot +
+                // name + battery) and tapping it returns to the device list;
+                // the connection stays alive either way.
                 Button {
                     app.showDeviceList = true
                 } label: {
-                    Image(systemName: "chevron.left")
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.footnote.weight(.semibold))
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 7, height: 7)
+                        Text(app.displayDeviceName)
+                            .font(.footnote.weight(.semibold))
+                            .lineLimit(1)
+                        if let battery = app.battery {
+                            Text("\(battery.percent)%")
+                                .font(.footnote.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(.green)
+                                .lgNumber()
+                                .animation(.snappy, value: battery.percent)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .lgChip()
                 }
-            }
-            ToolbarItem(placement: .principal) {
-                statusPill
+                .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -262,29 +281,6 @@ struct HomeDashboardView: View {
         .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .contentShape(Rectangle())
     }
-    /// Compact live status shown in the navigation bar; absorbs into the
-    /// bar chrome on scroll (iOS 26 large-title behaviour).
-    private var statusPill: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(.green)
-                .frame(width: 7, height: 7)
-            Text(app.displayDeviceName)
-                .font(.footnote.weight(.semibold))
-                .lineLimit(1)
-            if let battery = app.battery {
-                Text("\(battery.percent)%")
-                    .font(.footnote.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.green)
-                    .lgNumber()
-                    .animation(.snappy, value: battery.percent)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .lgChip()
-    }
-
     private func refresh() {
         refreshTask?.cancel()
         refreshTask = Task {

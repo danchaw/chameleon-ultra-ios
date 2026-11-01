@@ -107,7 +107,7 @@ struct ConnectView: View {
                                 .lgIcon()
                         }
                     }
-                    .lgTile()
+                    .lgRow()
                 }
 
                 if ble.devices.isEmpty && !isScanning {

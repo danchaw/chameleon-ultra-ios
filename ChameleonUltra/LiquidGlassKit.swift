@@ -199,6 +199,18 @@ extension View {
         }
     }
 
+    /// Full-width device/list ROWS: always a rounded rectangle — the plain
+    /// `.glass` button style is context-aware and can render wide rows as
+    /// giant capsules, which is exactly what we don't want here.
+    @ViewBuilder
+    func lgRow() -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(LGLargeGlassRowStyle())
+        } else {
+            buttonStyle(LGTileStyle(prominent: false))
+        }
+    }
+
     /// Hierarchical symbol rendering (iOS 15+): the tint renders in graded
     /// opacities, which matches the glass controls.
     func lgIcon() -> some View {
@@ -225,4 +237,18 @@ struct LGMorphScope<Content: View>: View {
 
 extension View {
     func lgMorphShape(_ id: String) -> some View { modifier(LGMorphID(id: id)) }
+}
+
+// MARK: - Row glass (iOS 26)
+
+@available(iOS 26.0, *)
+private struct LGLargeGlassRowStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .glassEffect(Glass.regular.interactive(),
+                         in: .rect(cornerRadius: lgTileRadius, style: .continuous))
+            .opacity(configuration.isPressed ? 0.85 : 1)
+    }
 }

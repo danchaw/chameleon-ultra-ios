@@ -35,7 +35,7 @@ struct HomeDashboardView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "chevron.left")
-                            .font(.footnote.weight(.semibold))
+                            .font(.body.weight(.semibold))
                         Circle()
                             .fill(.green)
                             .frame(width: 7, height: 7)
@@ -50,9 +50,8 @@ struct HomeDashboardView: View {
                                 .animation(.snappy, value: battery.percent)
                         }
                     }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 2)
-                    .frame(height: 22)
+                    .padding(.horizontal, 10)
+                    .frame(height: 30)
                     .lgChip()
                 }
                 .buttonStyle(.plain)

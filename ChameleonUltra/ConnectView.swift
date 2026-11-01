@@ -6,6 +6,9 @@ struct ConnectView: View {
     @State private var isScanning = false
     @AppStorage("autoScan") private var autoScan = false
     @AppStorage("autoConnectFirst") private var autoConnectFirst = false
+    /// Scan was live when the user switched tabs — resume it on return so
+    /// the scanning UI doesn't silently die (user report on v1.36.13).
+    @State private var resumeScanOnAppear = false
 
     private var ble: BLEManager { app.ble }
 
@@ -126,16 +129,24 @@ struct ConnectView: View {
         }
         .navigationTitle(L10n.t("Connect"))
         .onAppear {
-            if autoScan {
-                toggleScan()
-            }
+            // Re-entering this tab (or coming back from the dashboard) must
+            // SHOW scanning again: the old onDisappear killed the radio but
+            // left isScanning stuck true, so toggleScan() then "stopped" a
+            // scan that was already dead and the UI never re-entered the
+            // scanning state.
+            if autoScan || resumeScanOnAppear, !isScanning { toggleScan() }
+            resumeScanOnAppear = false
             // Bluetooth may not be powered on yet – retry once shortly after.
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
                 if autoScan && ble.state == .idle && !isScanning { toggleScan() }
             }
         }
-        .onDisappear { ble.stopScan() }
+        .onDisappear {
+            if isScanning { resumeScanOnAppear = true }
+            ble.stopScan()
+            isScanning = false
+        }
     }
 
     private var sortedDevices: [DiscoveredDevice] {

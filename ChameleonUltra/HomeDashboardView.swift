@@ -26,7 +26,7 @@ struct HomeDashboardView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .principal) {
                 // One capsule does both jobs: it shows live status (dot +
                 // name + battery) and tapping it returns to the device list;
                 // the connection stays alive either way.

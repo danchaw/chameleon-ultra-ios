@@ -27,45 +27,44 @@ struct HomeDashboardView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                // One capsule does both jobs: live status (dot + name +
-                // battery) and tap-to-return to the device list; the BLE
-                // connection stays alive either way.
-                //
-                // On iOS 26 we deliberately do NOT draw our own glass pill:
-                // a plain bar Button gets the *system* capsule — the exact
-                // same mechanism (and size) as the refresh/exit buttons.
-                if #available(iOS 26.0, *) {
-                    Button {
-                        app.showDeviceList = true
-                    } label: {
-                        principalChipLabel
-                    }
-                    .buttonStyle(.borderless)
-                } else {
-                    Button {
-                        app.showDeviceList = true
-                    } label: {
-                        principalChipLabel
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 3)
-                            .lgChip()
-                    }
-                    .buttonStyle(.plain)
+                // Status capsule (dot + name + battery); tapping returns to
+                // the device list, BLE stays connected. All three bar
+                // controls draw the SAME hand-built 34pt capsule below, so
+                // their heights match exactly on every iOS version — the
+                // system's bar glass is not available/consistent here.
+                Button {
+                    app.showDeviceList = true
+                } label: {
+                    principalChipLabel
+                        .padding(.horizontal, 10)
+                        .frame(height: 34)
+                        .lgChip()
                 }
+                .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
+                        .frame(height: 20)
+                        .padding(.horizontal, 7)
+                        .frame(height: 34)
+                        .lgChip()
                 }
+                .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     app.disconnect()
                 } label: {
                     Image(systemName: "xmark.circle")
+                        .frame(height: 20)
+                        .padding(.horizontal, 7)
+                        .frame(height: 34)
+                        .lgChip()
                 }
+                .buttonStyle(.plain)
             }
         }
         .sheet(isPresented: $showEmulatorSettings) {

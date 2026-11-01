@@ -61,6 +61,7 @@ enum L10n {
         "Saved cards": "已保存的卡片",
         "Firmware update": "固件更新",
         "Device settings": "设备设置",
+        "Quick actions": "快捷功能",
         "Dictionaries": "字典",
         "New dictionary": "新建字典",
         "Protocol log": "协议日志",

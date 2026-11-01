@@ -201,49 +201,58 @@ struct HomeDashboardView: View {
         .font(.subheadline)
     }
 
-    /// Fixed (non-lazy) grid so the shared GlassEffectContainer can morph
-    /// the highlighted tile between positions.
+    /// Quick entries as one glass card, matching the sections above. The
+    /// reader tab covers card reading, so no Read tile here.
     private var quickActions: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                NavigationLink { SlotManagerView() } label: {
-                    actionTile(L10n.t("Slot manager"), "square.grid.3x3.fill")
-                }
-                NavigationLink { ToolsView() } label: {
-                    actionTile(L10n.t("Tools"), "wrench.and.screwdriver.fill")
-                }
-                Button { showEmulatorSettings = true } label: {
-                    actionTile(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
-                }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "square.grid.2x2")
+                    .foregroundStyle(.tint)
+                Text(L10n.t("Quick actions"))
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
             }
-            HStack(spacing: 12) {
-                NavigationLink { FlashingView(embedded: true) } label: {
-                    actionTile(L10n.t("Firmware update"), "arrow.down.doc.fill")
-                }
-                NavigationLink { DeviceSettingsView() } label: {
-                    actionTile(L10n.t("Device settings"), "gearshape.2.fill")
-                }
-                NavigationLink { ReadCardView() } label: {
-                    actionTile(L10n.t("Read"), "creditcard.viewfinder", prominent: true)
-                }
-                .disabled(!app.isConnected)
+            .padding(.bottom, 2)
+            NavigationLink { SlotManagerView() } label: {
+                actionRow(L10n.t("Slot manager"), "square.grid.3x3.fill")
+            }
+            Divider()
+            NavigationLink { ToolsView() } label: {
+                actionRow(L10n.t("Tools"), "wrench.and.screwdriver.fill")
+            }
+            Divider()
+            Button { showEmulatorSettings = true } label: {
+                actionRow(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
+            }
+            Divider()
+            NavigationLink { FlashingView(embedded: true) } label: {
+                actionRow(L10n.t("Firmware update"), "arrow.down.doc.fill")
+            }
+            Divider()
+            NavigationLink { DeviceSettingsView() } label: {
+                actionRow(L10n.t("Device settings"), "gearshape.2.fill")
             }
         }
+        .buttonStyle(.plain)
+        .lgCard()
     }
 
-    private func actionTile(_ title: String, _ icon: String, prominent: Bool = false) -> some View {
-        VStack(spacing: 8) {
+    private func actionRow(_ title: String, _ icon: String) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 26))
-                .lgIcon()
+                .font(.system(size: 19))
+                .foregroundStyle(.tint)
+                .frame(width: 26)
             Text(title)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
+                .font(.subheadline)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .lgTile(prominent: prominent)
+        .contentShape(Rectangle())
+        .frame(minHeight: 40)
     }
-
     /// Compact live status shown in the navigation bar; absorbs into the
     /// bar chrome on scroll (iOS 26 large-title behaviour).
     private var statusPill: some View {

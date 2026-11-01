@@ -201,58 +201,55 @@ struct HomeDashboardView: View {
         .font(.subheadline)
     }
 
-    /// Quick entries as one glass card, matching the sections above. The
-    /// reader tab covers card reading, so no Read tile here.
+    /// Large glass tiles (option A): two per row, icon chip + title + one-line
+    /// description; Device settings spans the last row. Reader lives in the
+    /// tab bar, so there is no Read tile.
     private var quickActions: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "square.grid.2x2")
-                    .foregroundStyle(.tint)
-                Text(L10n.t("Quick actions"))
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                NavigationLink { SlotManagerView() } label: {
+                    bigTile(L10n.t("Slot manager"), L10n.t("Slot status & writing"), "square.grid.3x3.fill")
+                }
+                NavigationLink { ToolsView() } label: {
+                    bigTile(L10n.t("Tools"), L10n.t("Key dictionaries & sniffing"), "wrench.and.screwdriver.fill")
+                }
             }
-            .padding(.bottom, 2)
-            NavigationLink { SlotManagerView() } label: {
-                actionRow(L10n.t("Slot manager"), "square.grid.3x3.fill")
+            HStack(spacing: 12) {
+                Button { showEmulatorSettings = true } label: {
+                    bigTile(L10n.t("Emulator"), L10n.t("MF1 emulation behaviour"), "waveform.path.ecg.rectangle")
+                }
+                NavigationLink { FlashingView(embedded: true) } label: {
+                    bigTile(L10n.t("Firmware update"), L10n.t("OTA and local flashing"), "arrow.down.doc.fill")
+                }
             }
-            Divider()
-            NavigationLink { ToolsView() } label: {
-                actionRow(L10n.t("Tools"), "wrench.and.screwdriver.fill")
-            }
-            Divider()
-            Button { showEmulatorSettings = true } label: {
-                actionRow(L10n.t("Emulator"), "waveform.path.ecg.rectangle")
-            }
-            Divider()
-            NavigationLink { FlashingView(embedded: true) } label: {
-                actionRow(L10n.t("Firmware update"), "arrow.down.doc.fill")
-            }
-            Divider()
             NavigationLink { DeviceSettingsView() } label: {
-                actionRow(L10n.t("Device settings"), "gearshape.2.fill")
+                bigTile(L10n.t("Device settings"), L10n.t("LED, buttons & polling"), "gearshape.2.fill")
             }
         }
-        .buttonStyle(.plain)
-        .lgCard()
     }
 
-    private func actionRow(_ title: String, _ icon: String) -> some View {
-        HStack(spacing: 12) {
+    private func bigTile(_ title: String, _ subtitle: String, _ icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon)
-                .font(.system(size: 19))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.tint)
-                .frame(width: 26)
+                .frame(width: 30, height: 30)
+                .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
             Text(title)
-                .font(.subheadline)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
         }
-        .contentShape(Rectangle())
-        .frame(minHeight: 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
+        .lgTile()
     }
+
     /// Compact live status shown in the navigation bar; absorbs into the
     /// bar chrome on scroll (iOS 26 large-title behaviour).
     private var statusPill: some View {

@@ -27,46 +27,32 @@ struct HomeDashboardView: View {
             .navigationBarTitleDisplayMode(.large)
         }
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                // Status capsule (dot + name + battery); tapping returns to
-                // the device list, BLE stays connected. Hand-built 34pt
-                // capsules so heights match on every iOS version. The capsule
-                // itself stays NEUTRAL (theme tint on the icons only) per
-                // user design call on v1.36.14.
+            ToolbarItem(placement: .topBarLeading) {
+                // Back/status capsule at the far left. NO hand-built glass
+                // here: the bar (iOS 26) draws ONE system capsule around the
+                // label — our own lgChip on top used to read as "two layers".
                 Button {
                     app.showDeviceList = true
                 } label: {
                     principalChipLabel
-                        .padding(.horizontal, 10)
-                        .frame(height: 34)
-                        .lgChip()
                 }
-                .buttonStyle(.plain)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                // Refresh + exit share ONE capsule; icons tinted.
-                HStack(spacing: 4) {
+                // Refresh + exit share one system capsule; icons tinted.
+                HStack(spacing: 6) {
                     Button {
                         refresh()
                     } label: {
                         Image(systemName: "arrow.clockwise")
                             .foregroundStyle(accent)
-                            .frame(height: 20)
-                            .padding(.horizontal, 7)
                     }
-                    .buttonStyle(.plain)
                     Button {
                         app.disconnect()
                     } label: {
                         Image(systemName: "xmark.circle")
                             .foregroundStyle(accent)
-                            .frame(height: 20)
-                            .padding(.horizontal, 7)
                     }
-                    .buttonStyle(.plain)
                 }
-                .frame(height: 34)
-                .lgChip()
             }
         }
         .sheet(isPresented: $showEmulatorSettings) {

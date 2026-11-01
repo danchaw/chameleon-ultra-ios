@@ -43,7 +43,7 @@ struct HomeDashboardView: View {
                 }
                 .buttonStyle(.plain)
             }
-            ToolbarItemGroup(placement: .topBarTrailing, spacing: 12) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     refresh()
                 } label: {
@@ -53,9 +53,11 @@ struct HomeDashboardView: View {
                         .padding(.horizontal, 7)
                         .frame(height: 34)
                         .lgChip(accent)
+                        .padding(.leading, 6)
                 }
                 .buttonStyle(.plain)
-
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     app.disconnect()
                 } label: {

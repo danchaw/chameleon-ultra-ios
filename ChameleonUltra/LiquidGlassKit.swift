@@ -33,8 +33,9 @@ struct LGCardModifier: ViewModifier {
 
 /// iOS 26: the OS glass button styles (free absorb-on-press physics).
 /// iOS 17–25: the OS bordered styles, stretched to fill — everything the
-/// system draws, nothing hand-frosted.
-private struct FillLabelStyle<S: ButtonStyle>: ButtonStyle {
+/// system draws, nothing hand-frosted. (Bordered*/Prominent are
+/// PrimitiveButtonStyle, so the wrapper is too.)
+private struct FillLabelStyle<S: PrimitiveButtonStyle>: PrimitiveButtonStyle {
     let base: S
     func makeBody(configuration: Configuration) -> some View {
         base.makeBody(configuration: configuration)
@@ -56,10 +57,10 @@ extension View {
             // (BorderedButtonStyle itself has no .controlSize chain).
             if prominent {
                 controlSize(.large)
-                    .buttonStyle(FillLabelStyle(base: BorderedProminentButtonStyle()))
+                    .buttonStyle(FillLabelStyle(base: .borderedProminent))
             } else {
                 controlSize(.large)
-                    .buttonStyle(FillLabelStyle(base: BorderedButtonStyle()))
+                    .buttonStyle(FillLabelStyle(base: .bordered))
             }
         }
     }

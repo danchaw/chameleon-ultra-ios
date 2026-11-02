@@ -121,6 +121,7 @@ struct HomeDashboardView: View {
                     app.geofence.refreshMonitoring(force: true)
                 }
                 .font(.footnote.weight(.semibold))
+                .foregroundStyle(.primary)
             }
         }
     }

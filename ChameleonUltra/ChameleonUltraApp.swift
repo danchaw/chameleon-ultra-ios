@@ -116,6 +116,7 @@ struct HomeEntryPoint: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                        .foregroundStyle(.primary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)

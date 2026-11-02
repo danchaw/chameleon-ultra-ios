@@ -103,6 +103,7 @@ struct FlashingView: View {
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
+                            .foregroundStyle(.primary)
                         }
                     }
                 }
@@ -229,6 +230,7 @@ struct FlashingView: View {
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
+                        .foregroundStyle(.primary)
                         .disabled(busyPhase != .idle)
                     }
 
@@ -241,6 +243,7 @@ struct FlashingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .foregroundStyle(.primary)
                 } else if let checkError = firmware.checkError {
                     VStack(alignment: .leading, spacing: 8) {
                         Label(checkError, systemImage: "wifi.exclamationmark")
@@ -252,6 +255,7 @@ struct FlashingView: View {
                             Label(L10n.t("Retry"), systemImage: "arrow.clockwise")
                         }
                         .buttonStyle(.bordered)
+                        .foregroundStyle(.primary)
                     }
                 }
 
@@ -264,6 +268,7 @@ struct FlashingView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .foregroundStyle(.primary)
                 // unified accent color
                 .disabled(busyPhase != .idle)
 
@@ -274,6 +279,7 @@ struct FlashingView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .foregroundStyle(.primary)
                 .disabled(busyPhase != .idle)
             }
         }
@@ -489,6 +495,7 @@ struct FlashingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .foregroundStyle(.primary)
                     .tint(.red)
                     .disabled(busyPhase != .idle || stagedFirmware == nil)
                 }

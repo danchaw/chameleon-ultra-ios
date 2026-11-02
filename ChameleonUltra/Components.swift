@@ -419,7 +419,7 @@ struct SlotChanger: View {
                             VStack(spacing: 2) {
                                 Text("\(slot)")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(app.activeSlot == slot ? themeAccent : .primary)
+                                    .foregroundStyle(.primary)
                                     .lgNumber()
                                 HStack(spacing: 3) {
                                     Circle().fill(app.slotEnabled[slot].hf ? .green : Color(.systemGray4)).frame(width: 4, height: 4)

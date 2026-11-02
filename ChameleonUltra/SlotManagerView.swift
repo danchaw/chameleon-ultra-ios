@@ -129,7 +129,7 @@ struct SlotManagerView: View {
                         } label: {
                             Label(L10n.t("Clear"), systemImage: "xmark")
                         }
-                        .tint(themeAccent)
+                        .foregroundStyle(.primary)
                     }
                 } label: {
                     // unconfigured slots always show "无卡片", never blank

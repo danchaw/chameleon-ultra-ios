@@ -365,6 +365,7 @@ struct DeviceSettingsView: View {
                                         .padding(.vertical, 6)
                                 }
                                 .buttonStyle(.bordered)
+                                .foregroundStyle(.primary)
                                 .tint(skipped ? .gray.opacity(0.35) : .green)
                             }
                         }

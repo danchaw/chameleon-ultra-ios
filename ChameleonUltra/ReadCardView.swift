@@ -134,6 +134,7 @@ struct ReadCardView: View {
                                     .font(.caption.weight(.semibold))
                             }
                             .buttonStyle(.bordered)
+                            .foregroundStyle(.primary)
                             .controlSize(.small)
                         }
                     }
@@ -233,6 +234,7 @@ struct ReadCardView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .foregroundStyle(.primary)
             } header: {
                 Text("ISO14443A")
             }
@@ -300,6 +302,7 @@ struct ReadCardView: View {
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.bordered)
+                            .foregroundStyle(.primary)
                         }
             } header: {
                 Text(L10n.t("Key recovery"))

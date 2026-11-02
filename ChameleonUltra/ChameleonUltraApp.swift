@@ -43,23 +43,28 @@ struct RootTabView: View {
     @EnvironmentObject var app: AppModel
 
     var body: some View {
-        TabView {
+        TabView(selection: $app.selectedTab) {
             NavigationStack { HomeEntryPoint() }
                 .tabItem { Label(L10n.t("Home"), systemImage: "house.fill") }
+                .tag(0)
 
             NavigationStack { ReadCardView() }
                 .tabItem { Label(L10n.t("Read"), systemImage: "creditcard.viewfinder") }
                 .disabled(!app.isConnected)
+                .tag(1)
 
             NavigationStack { SavedCardsView() }
                 .tabItem { Label(L10n.t("Cards"), systemImage: "rectangle.stack.fill") }
+                .tag(2)
 
             NavigationStack { WriteCardView() }
                 .tabItem { Label(L10n.t("Write"), systemImage: "square.and.pencil") }
                 .disabled(!app.isConnected)
+                .tag(3)
 
             NavigationStack { SettingsView() }
                 .tabItem { Label(L10n.t("Settings"), systemImage: "gearshape.fill") }
+                .tag(4)
         }
         .appToast()
         .tabBarMinimizeBehaviorIfAvailable()

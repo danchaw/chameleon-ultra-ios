@@ -25,6 +25,10 @@ final class AppModel: ObservableObject {
 
     var displayDeviceName: String { deviceNickname.isEmpty ? deviceName : deviceNickname }
 
+    /// Root tab index (0 Home / 1 Read / 2 Cards / 3 Write / 4 Settings).
+    /// The dashboard's task rows jump straight to the tool they name.
+    @Published var selectedTab = 0
+
     @Published var activeSlot = 0
     /// Slots the connected device actually has (official: 8, Mocha firmware: 16).
     @Published var slotCount = 8

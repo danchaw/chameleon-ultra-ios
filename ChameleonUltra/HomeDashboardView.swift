@@ -12,16 +12,12 @@ struct HomeDashboardView: View {
 
     var body: some View {
         LGMorphScope {
-            ScrollView {
-                VStack(spacing: 16) {
-                    deviceCard
-                    SlotChanger()
-                        .lgCard()
-                    geofenceCard
-                        .lgCard()
-                    quickActions
-                }
-                .padding()
+            List {
+                heroSection
+                slotsSection
+                taskSection
+                fenceSection
+                moreSection
             }
             .navigationTitle(L10n.t("Device"))
             .navigationBarTitleDisplayMode(.large)
@@ -74,76 +70,57 @@ struct HomeDashboardView: View {
     }
 
     /// Electronic fence: entering a mapped region auto-loads its card.
-    private var geofenceCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "mappin.and.ellipse")
-                    .foregroundStyle(.tint)
-                Text(L10n.t("Electronic fence"))
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-            }
+    /// Fence as native rows; its verdict lives in the section footer, always
+    /// readable, never inside a hand-built card.
+    private var fenceSection: some View {
+        Section {
             Toggle(L10n.t("Enable geofence"), isOn: Binding(
                 get: { UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) },
                 set: {
                     UserDefaults.standard.set($0, forKey: GeofenceManager.enabledKey)
-                    // Turning the fence on is user intent 鈥?the probe must not
+                    Haptics.selection()
+                    // Turning the fence on is user intent — the probe must not
                     // be swallowed by the 30 s trigger dedupe.
                     app.geofence.refreshMonitoring(force: $0)
                 }
             ))
-            Toggle(L10n.t("Allow background triggers"), isOn: Binding(
-                get: { app.geofence.hasAlwaysAccess },
-                set: { want in
-                    if want {
-                        app.geofence.requestAlwaysAuthorization()
-                    } else {
-                        // iOS cannot revoke Always programmatically 鈥?send the
-                        // user to the Settings page for this app
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
+            if UserDefaults.standard.bool(forKey: GeofenceManager.enabledKey) {
+                Toggle(L10n.t("Allow background triggers"), isOn: Binding(
+                    get: { app.geofence.hasAlwaysAccess },
+                    set: { want in
+                        if want {
+                            app.geofence.requestAlwaysAuthorization()
+                        } else {
+                            // iOS cannot revoke Always programmatically — send the
+                            // user to the Settings page for this app
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
                         }
                     }
+                ))
+                NavigationLink {
+                    GeoRegionsView()
+                } label: {
+                    HStack {
+                        Text(L10n.t("Manage regions"))
+                        Spacer()
+                        Text(String(format: L10n.t("%d"), GeoRegionStore.load().count))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            ))
+            }
+        } header: {
+            Text(L10n.t("Electronic fence"))
+        } footer: {
             HStack(alignment: .top) {
                 Text(app.geofence.statusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button {
+                Button(L10n.t("Check now")) {
                     app.geofence.refreshMonitoring(force: true)
-                } label: {
-                    Label(L10n.t("Check now"), systemImage: "location.viewpoint")
-                        .font(.caption.weight(.semibold))
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .font(.footnote.weight(.semibold))
             }
-            // Full-width row: a 44 pt tap target beats a tiny capsule, and the
-            // count tells you at a glance how many fences exist.
-            NavigationLink {
-                GeoRegionsView()
-            } label: {
-                HStack(spacing: 8) {
-                    Text(L10n.t("Manage regions"))
-                        .font(.subheadline.weight(.medium))
-                    Text(String(format: L10n.t("%d"), GeoRegionStore.load().count))
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(.tint.opacity(0.15), in: Capsule())
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-                .contentShape(Rectangle())
-                .frame(minHeight: 44)
-                .padding(.horizontal, 14)
-                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-            .buttonStyle(.plain)
         }
     }
 
@@ -172,50 +149,85 @@ struct HomeDashboardView: View {
         }
     }
 
-    private var deviceCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 16) {
-                    DeviceImageView(device: app.deviceType)
-                        .frame(height: 88)
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "battery")
-                                .foregroundStyle(.tint)
-                            Text(app.displayDeviceName)
-                                .font(.headline)
-                            Button {
-                                renameText = app.deviceNickname
-                                showRenameAlert = true
-                            } label: {
-                                Image(systemName: "pencil.line")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(L10n.t("Rename device"))
+    /// Hero: what is connected and how it is doing — one glance, large type.
+    private var heroSection: some View {
+        Section {
+            HStack(spacing: 14) {
+                DeviceImageView(device: app.deviceType)
+                    .frame(width: 56, height: 72)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(app.displayDeviceName)
+                            .font(.title2.bold())
+                            .lineLimit(1)
+                        Button {
+                            renameText = app.deviceNickname
+                            showRenameAlert = true
+                        } label: {
+                            Image(systemName: "pencil.line")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
-                        Text("Chameleon \(app.deviceType.displayName)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if let battery = app.battery {
-                            Text("\(battery.percent)% · \(String(format: "%.2f", Double(battery.voltage) / 1000)) V")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(.green)
-                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("Rename device"))
                     }
-                    Spacer()
+                    Text("Chameleon \(app.deviceType.displayName)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if let battery = app.battery {
+                        HStack(spacing: 5) {
+                            Image(systemName: "battery.75")
+                                .font(.caption)
+                            Text("\(battery.percent)% · \(String(format: "%.2f", Double(battery.voltage) / 1000)) V")
+                                .font(.subheadline.weight(.medium).monospacedDigit())
+                        }
+                        .foregroundStyle(.green)
+                        .appleSpring(value: battery.percent)
+                    }
                 }
-
-                Divider()
-
-                infoRow(L10n.t("Firmware"), app.firmwareVersion.map { numToVersionCode($0) } ?? "—")
-                if !app.gitCommit.isEmpty {
-                    infoRow("Git", String(app.gitCommit.prefix(12)))
-                }
-                infoRow(L10n.t("Chip ID"), app.chipID)
-                infoRow(L10n.t("BLE address"), app.bleAddress)
+                Spacer(minLength: 0)
             }
+            .padding(.vertical, 2)
+
+            infoRow(L10n.t("Firmware"), app.firmwareVersion.map { numToVersionCode($0) } ?? "—")
+            if !app.gitCommit.isEmpty {
+                infoRow("Git", String(app.gitCommit.prefix(12)))
+            }
+            infoRow(L10n.t("Chip ID"), app.chipID)
+            infoRow(L10n.t("BLE address"), app.bleAddress)
+        }
+    }
+
+    /// Direct manipulation stays on the home screen: tap a slot, it activates.
+    private var slotsSection: some View {
+        Section(header: Text(L10n.t("Card slots"))) {
+            SlotChanger()
+                .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
+            NavigationLink { SlotManagerView() } label: {
+                Label(L10n.t("Slot manager"), systemImage: "square.grid.3x3.fill")
+            }
+        }
+    }
+
+    /// The three jobs, as native rows that jump to the matching tab.
+    private var taskSection: some View {
+        Section {
+            Button { app.selectedTab = 1 } label: {
+                Label(L10n.t("Read a card"), systemImage: "creditcard.viewfinder")
+                    .foregroundStyle(.primary)
+            }
+            Button { app.selectedTab = 3 } label: {
+                Label(L10n.t("Write a card"), systemImage: "square.and.pencil")
+                    .foregroundStyle(.primary)
+            }
+            Button { app.selectedTab = 2 } label: {
+                Label(L10n.t("Saved cards"), systemImage: "rectangle.stack.fill")
+                    .foregroundStyle(.primary)
+            }
+        } header: {
+            Text(L10n.t("Main tasks"))
+        } footer: {
+            Text(L10n.t("These jump straight to the matching tab."))
         }
     }
 
@@ -230,67 +242,25 @@ struct HomeDashboardView: View {
         .font(.subheadline)
     }
 
-    /// Quick entries on ONE white card, same idiom as the slot strip and the
-    /// electronic-fence card above: a two-column grid of inner white blocks;
-    /// Device settings spans the third row.
-    private var quickActions: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "square.grid.2x2")
-                    .foregroundStyle(.tint)
-                Text(L10n.t("Quick actions"))
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
+    /// Everything that is not a core job, one level deeper — native rows.
+    private var moreSection: some View {
+        Section(header: Text(L10n.t("More in the app"))) {
+            NavigationLink { ToolsView() } label: {
+                Label(L10n.t("Tools"), systemImage: "wrench.and.screwdriver.fill")
             }
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    NavigationLink { SlotManagerView() } label: {
-                        quickBlock(L10n.t("Slot manager"), L10n.t("Slot status & writing"), "square.grid.3x3.fill")
-                    }
-                    NavigationLink { ToolsView() } label: {
-                        quickBlock(L10n.t("Tools"), L10n.t("Key dictionaries & sniffing"), "wrench.and.screwdriver.fill")
-                    }
-                }
-                HStack(spacing: 10) {
-                    Button { showEmulatorSettings = true } label: {
-                        quickBlock(L10n.t("Emulator"), L10n.t("MF1 emulation behaviour"), "waveform.path.ecg.rectangle")
-                    }
-                    NavigationLink { FlashingView(embedded: true) } label: {
-                        quickBlock(L10n.t("Firmware update"), L10n.t("OTA and local flashing"), "arrow.down.doc.fill")
-                    }
-                }
-                NavigationLink { DeviceSettingsView() } label: {
-                    quickBlock(L10n.t("Device settings"), L10n.t("LED, buttons & polling"), "gearshape.2.fill")
-                }
+            Button { showEmulatorSettings = true } label: {
+                Label(L10n.t("Emulator"), systemImage: "waveform.path.ecg.rectangle")
+                    .foregroundStyle(.primary)
+            }
+            NavigationLink { FlashingView(embedded: true) } label: {
+                Label(L10n.t("Firmware update"), systemImage: "arrow.down.doc.fill")
+            }
+            NavigationLink { DeviceSettingsView() } label: {
+                Label(L10n.t("Device settings"), systemImage: "gearshape.2.fill")
             }
         }
-        .buttonStyle(.plain)
-        .lgCard()
     }
 
-    private func quickBlock(_ title: String, _ subtitle: String, _ icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.tint)
-                .frame(width: 30, height: 30)
-                .background(.tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.leading)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .frame(minHeight: 88, alignment: .topLeading)
-        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .contentShape(Rectangle())
-    }
     private func refresh() {
         refreshTask?.cancel()
         refreshTask = Task {

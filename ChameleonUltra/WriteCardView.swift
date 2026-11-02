@@ -29,35 +29,40 @@ struct WriteCardView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                ErrorBanner(message: $error)
-                if let message {
-                    GlassCard {
-                        Label(message, systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    }
+        List {
+            if error != nil {
+                Section {
+                    ErrorBanner(message: $error)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowSeparator(.hidden)
                 }
+            }
+            if let message {
+                Section {
+                    Label(message, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
 
-                if !app.isConnected {
-                    GlassCard {
-                        Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
+            if !app.isConnected {
+                Section {
+                    Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section {
                     Picker(L10n.t("Mode"), selection: $mode) {
                         ForEach(WriteMode.allCases) { Text(L10n.t($0.rawValue)).tag($0) }
                     }
                     .pickerStyle(.segmented)
+                }
 
-                    switch mode {
-                    case .mifareDump: mifareDumpSection
-                    case .uidWrite: uidWriteSection
-                    case .lfClone: lfCloneSection
-                    }
+                switch mode {
+                case .mifareDump: mifareDumpSection
+                case .uidWrite: uidWriteSection
+                case .lfClone: lfCloneSection
                 }
             }
-            .padding()
         }
         .navigationTitle(L10n.t("Write card"))
         .disabled(writing)
@@ -114,10 +119,7 @@ struct WriteCardView: View {
     // MARK: - Mifare dump
 
     private var mifareDumpSection: some View {
-        VStack(spacing: 16) {
-            GlassCard {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(L10n.t("Source card")).font(.headline)
+        Section {
                     if store.cards.filter({ $0.isMifareClassic }).isEmpty {
                         Text(L10n.t("No saved Mifare Classic cards. Read one first."))
                             .font(.footnote).foregroundStyle(.secondary)
@@ -129,12 +131,10 @@ struct WriteCardView: View {
                         }
                         .pickerStyle(.menu)
 
-                        VStack(spacing: 8) {
-                            magicOption(.gen1, icon: "wand.and.stars",
-                                        desc: L10n.t("Magic-card mode, no keys needed - writes UID and dump directly."))
-                            magicOption(.gen2, icon: "key.horizontal.fill",
-                                        desc: L10n.t("Classic mode - needs Key A to authenticate before writing."))
-                        }
+                        magicOption(.gen1, icon: "wand.and.stars",
+                                    desc: L10n.t("Magic-card mode, no keys needed - writes UID and dump directly."))
+                        magicOption(.gen2, icon: "key.horizontal.fill",
+                                    desc: L10n.t("Classic mode - needs Key A to authenticate before writing."))
 
                         if magicType == .gen2 {
                             HStack {
@@ -152,11 +152,12 @@ struct WriteCardView: View {
                             Label(L10n.t("Write dump to card"), systemImage: "square.and.pencil")
                                 .frame(maxWidth: .infinity)
                         }
-                        .lgTile(prominent: true)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                         .disabled(selectedCard == nil || writing)
                     }
-                }
-            }
+        } header: {
+            Text(L10n.t("Source card"))
         }
     }
 
@@ -214,11 +215,7 @@ struct WriteCardView: View {
     // MARK: - UID write
 
     private var uidWriteSection: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.t("Write UID (Gen1 magic card)")).font(.headline)
-                Text(L10n.t("4 or 7 byte hex UID. Block 0 is rebuilt from UID/SAK/ATQA."))
-                    .font(.footnote).foregroundStyle(.secondary)
+        Section {
                 TextField("04 A2 B3 C4 D5 E6", text: $newUID)
                     .font(.system(size: 15, design: .monospaced))
                     .autocorrectionDisabled()
@@ -229,9 +226,13 @@ struct WriteCardView: View {
                     Label(L10n.t("Write UID"), systemImage: "person.text.rectangle")
                         .frame(maxWidth: .infinity)
                 }
-                .lgTile(prominent: true)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
                 .disabled(writing)
-            }
+        } header: {
+            Text(L10n.t("Write UID (Gen1 magic card)"))
+        } footer: {
+            Text(L10n.t("4 or 7 byte hex UID. Block 0 is rebuilt from UID/SAK/ATQA."))
         }
     }
 
@@ -280,9 +281,7 @@ struct WriteCardView: View {
     // MARK: - LF clone
 
     private var lfCloneSection: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.t("Clone LF card to T55xx")).font(.headline)
+        Section {
                 if store.cards.filter({ $0.tagType.frequency == .lf }).isEmpty {
                     Text(L10n.t("No saved LF cards. Read one first."))
                         .font(.footnote).foregroundStyle(.secondary)
@@ -299,10 +298,12 @@ struct WriteCardView: View {
                         Label(L10n.t("Write to T55xx tag"), systemImage: "doc.on.doc.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .lgTile(prominent: true)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .disabled(selectedCard == nil || writing)
                 }
-            }
+        } header: {
+            Text(L10n.t("Clone LF card to T55xx"))
         }
     }
 

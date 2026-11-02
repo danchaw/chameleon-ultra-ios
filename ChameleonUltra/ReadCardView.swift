@@ -56,26 +56,31 @@ struct ReadCardView: View {
     private var communicator: ChameleonCommunicator? { app.communicator }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                ErrorBanner(message: $error)
+        List {
+            if error != nil {
+                Section {
+                    ErrorBanner(message: $error)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                        .listRowSeparator(.hidden)
+                }
+            }
 
-                if !app.isConnected {
-                    GlassCard {
-                        Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
+            if !app.isConnected {
+                Section {
+                    Label(L10n.t("Connect a Chameleon device first (Home tab)."), systemImage: "antenna.radiowaves.left.and.right.slash")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section {
                     Picker(L10n.t("Frequency"), selection: $frequency) {
                         Text(L10n.t("HF 13.56 MHz")).tag(TagFrequency.hf)
                         Text(L10n.t("LF 125 kHz")).tag(TagFrequency.lf)
                     }
                     .pickerStyle(.segmented)
-
-                    if frequency == .hf { hfSection } else { lfSection }
                 }
+
+                if frequency == .hf { hfSections } else { lfSections }
             }
-            .padding()
         }
         .navigationTitle(L10n.t("Read card"))
         .onDisappear {
@@ -101,50 +106,41 @@ struct ReadCardView: View {
 
     // MARK: Continuous scan
 
-    private var continuousScanCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle(L10n.t("Continuous scan"), isOn: Binding(
-                    get: { continuous },
-                    set: { _ in toggleContinuous() }))
-                Text(L10n.t("Place a HF tag on the Chameleon antenna"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if !foundCards.isEmpty {
-                    Divider()
-                    ForEach(Array(foundCards.enumerated()), id: \.offset) { _, found in
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(found.uid.hexSpaced)
-                                    .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                Text("SAK \(String(format: "%02X", found.sak)) · ATQA \(found.atqa.hexSpaced)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if savedUIDs.contains(found.uid.hex) {
-                                Label(L10n.t("Saved"), systemImage: "checkmark.circle.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.green)
-                            } else {
-                                Button {
-                                    saveUIDOnly(card: found, type: .unknown)
-                                } label: {
-                                    Text(L10n.t("Save UID only"))
-                                        .font(.caption.weight(.medium))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(themeAccent.opacity(0.15), in: Capsule())
-                                        .foregroundStyle(themeAccent)
-                                }
-                                .buttonStyle(.plain)
-                            }
+    private var continuousSection: some View {
+        Section {
+            Toggle(L10n.t("Continuous scan"), isOn: Binding(
+                get: { continuous },
+                set: { _ in toggleContinuous() }))
+            if !foundCards.isEmpty {
+                ForEach(Array(foundCards.enumerated()), id: \.offset) { _, found in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(found.uid.hexSpaced)
+                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                            Text("SAK \(String(format: "%02X", found.sak)) · ATQA \(found.atqa.hexSpaced)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 2)
+                        Spacer()
+                        if savedUIDs.contains(found.uid.hex) {
+                            Label(L10n.t("Saved"), systemImage: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        } else {
+                            Button {
+                                saveUIDOnly(card: found, type: .unknown)
+                            } label: {
+                                Text(L10n.t("Save UID only"))
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
                     }
                 }
             }
+        } header: {
+            Text(L10n.t("Continuous scan"))
         }
     }
 
@@ -193,36 +189,28 @@ struct ReadCardView: View {
         savedUIDs.insert(found.uid.hex)
     }
 
-    private var hfSection: some View {
-        VStack(spacing: 16) {
-            // the read button is always available — reading can be repeated any time
-            GlassCard {
-                VStack(spacing: 12) {
-                    Image(systemName: "creditcard.viewfinder")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.tint)
-                    Text(L10n.t("Place a HF tag on the Chameleon antenna"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button {
-                        Task { await readHF() }
-                    } label: {
-                        Label(readButtonTitle, systemImage: "play.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .lgTile(prominent: true)
-                    .disabled(phase == .scanning || phase == .checkingKeys || phase == .dumping || continuous)
-                }
+    @ViewBuilder private var hfSections: some View {
+        Section {
+            Text(L10n.t("Place a HF tag on the Chameleon antenna"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button {
+                Task { await readHF() }
+            } label: {
+                Label(readButtonTitle, systemImage: "play.fill")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(phase == .scanning || phase == .checkingKeys || phase == .dumping || continuous)
+        } header: {
+            Text(L10n.t("Scan"))
+        }
 
-            continuousScanCard
+        continuousSection
 
-            if let card, phase != .idle, phase != .scanning {
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("ISO14443A")
-                            .font(.headline)
+        if let card, phase != .idle, phase != .scanning {
+            Section {
                         row("UID", card.uid.hexSpaced)
                         row("SAK", String(format: "%02X", card.sak))
                         row("ATQA", card.atqa.hexSpaced)
@@ -237,27 +225,21 @@ struct ReadCardView: View {
                             row("Version", mfuVersion.hexSpaced)
                         }
 
-                        Divider()
-
-                        Button {
-                            saveUIDOnly(card: card,
-                                        type: isMifareClassic ? tagType : (mfuTypeDetermined == .unknown ? .unknown : mfuTypeDetermined))
-                        } label: {
-                            Label(L10n.t("Save UID only"), systemImage: "person.crop.circle.badge.checkmark")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
+                Button {
+                    saveUIDOnly(card: card,
+                                type: isMifareClassic ? tagType : (mfuTypeDetermined == .unknown ? .unknown : mfuTypeDetermined))
+                } label: {
+                    Label(L10n.t("Save UID only"), systemImage: "person.crop.circle.badge.checkmark")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.bordered)
+            } header: {
+                Text("ISO14443A")
             }
+        }
 
-            if let recoveryModel {
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        // SegmentedProgress carries its own right-aligned
-                        // percentage, so no separate caption here.
-                        Text(L10n.t("Key recovery"))
-                            .font(.headline)
+        if let recoveryModel {
+            Section {
                         if let progress = recoveryModel.keyCheckProgress {
                             SegmentedProgress(progress: progress, count: 14)
                         }
@@ -267,18 +249,13 @@ struct ReadCardView: View {
                         KeyCheckGridView(recovery: recoveryModel)
 
                         if phase == .cardFound || phase == .checkingKeys {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Picker(L10n.t("Additional key dictionary"), selection: $selectedDictionaryID) {
-                                    Text(L10n.t("None")).tag(UUID?.none)
-                                    ForEach(mifareDictionaries) { dict in
-                                        Text("\(dict.name) (\(dict.keys.count))").tag(UUID?.some(dict.id))
-                                    }
+                            Picker(L10n.t("Additional key dictionary"), selection: $selectedDictionaryID) {
+                                Text(L10n.t("None")).tag(UUID?.none)
+                                ForEach(mifareDictionaries) { dict in
+                                    Text("\(dict.name) (\(dict.keys.count))").tag(UUID?.some(dict.id))
                                 }
-                                Toggle(L10n.t("Skip default keys"), isOn: $skipDefaultDictionary)
                             }
-                            .font(.subheadline)
-                            .padding(10)
-                            .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+                            Toggle(L10n.t("Skip default keys"), isOn: $skipDefaultDictionary)
 
                             Button {
                                 checkTask = Task { await checkKeys(autoDump: true) }
@@ -286,7 +263,8 @@ struct ReadCardView: View {
                                 Label(L10n.t("Check keys & dump"), systemImage: "key.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .lgTile(prominent: true)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                             .disabled(phase == .checkingKeys)
                         }
 
@@ -315,7 +293,8 @@ struct ReadCardView: View {
                                 Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .lgTile(prominent: true)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
 
                             Menu {
                                 Button {
@@ -334,15 +313,13 @@ struct ReadCardView: View {
                             }
                             .buttonStyle(.bordered)
                         }
-                    }
-                }
+            } header: {
+                Text(L10n.t("Key recovery"))
             }
+        }
 
-            if !mfuPages.isEmpty && !isMifareClassic {
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("\(L10n.t("Dump")) (\(mfuPages.count) \(L10n.t("pages")))")
-                            .font(.headline)
+        if !mfuPages.isEmpty && !isMifareClassic {
+            Section {
                         HexDumpView(blocks: mfuPages, blockSize: 4)
                         if phase == .done {
                             Button {
@@ -352,10 +329,11 @@ struct ReadCardView: View {
                                 Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
                                     .frame(maxWidth: .infinity)
                             }
-                            .lgTile(prominent: true)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
                         }
-                    }
-                }
+            } header: {
+                Text("\(L10n.t("Dump")) (\(mfuPages.count) \(L10n.t("pages")))")
             }
         }
     }
@@ -462,48 +440,41 @@ struct ReadCardView: View {
 
     // MARK: LF
 
-    private var lfSection: some View {
-        VStack(spacing: 16) {
-            if phase == .idle || phase == .scanning {
-                GlassCard {
-                    VStack(spacing: 12) {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.tint)
-                        Text(L10n.t("Place a LF tag on the Chameleon antenna"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button {
-                            Task { await readLF() }
-                        } label: {
-                            Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .lgTile(prominent: true)
-                        .disabled(phase == .scanning)
-                    }
-                }
+    @ViewBuilder private var lfSections: some View {
+        Section {
+            Text(L10n.t("Place a LF tag on the Chameleon antenna"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Button {
+                Task { await readLF() }
+            } label: {
+                Label(phase == .scanning ? L10n.t("Reading…") : L10n.t("Read tag"), systemImage: "play.fill")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(phase == .scanning)
+        } header: {
+            Text(L10n.t("Scan"))
+        }
 
-            if let lfCard {
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(lfCard.type.displayName).font(.headline)
-                        row("UID", lfCard.uid)
-                        if !lfDetail.isEmpty {
-                            row("Info", lfDetail)
-                        }
-                        Button {
-                            saveName = "\(lfCard.uid) \(lfCard.type.displayName)"
-                            showSaveSheet = true
-                        } label: {
-                            Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .lgTile(prominent: true)
-                    }
+        if let lfCard {
+            Section {
+                row("UID", lfCard.uid)
+                if !lfDetail.isEmpty {
+                    row("Info", lfDetail)
                 }
+                Button {
+                    saveName = "\(lfCard.uid) \(lfCard.type.displayName)"
+                    showSaveSheet = true
+                } label: {
+                    Label(L10n.t("Save card"), systemImage: "square.and.arrow.down.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            } header: {
+                Text(lfCard.type.displayName)
             }
         }
     }

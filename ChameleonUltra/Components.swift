@@ -86,7 +86,7 @@ struct SegmentedProgress: View {
 
             Text("\(Int((Swift.min(max(progress, 0), 1) * 100).rounded()))%")
                 .font(.subheadline.bold().monospacedDigit())
-                .foregroundStyle(accent)
+                .foregroundStyle(.primary)
         }
         .animation(pulse ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : .default,
                    value: pulse)

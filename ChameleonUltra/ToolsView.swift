@@ -12,26 +12,27 @@ struct ToolsView: View {
                 NavigationLink {
                     SniffingView(isLF: true)
                 } label: {
-                    Label(L10n.t("LF sniffing (125 kHz)"), systemImage: "waveform.path")
-                        .foregroundStyle(.tint)
+                    Label { Text(L10n.t("LF sniffing (125 kHz)")).foregroundStyle(.primary) }
+                        icon: { Image(systemName: "waveform.path") }
                 }
                 NavigationLink {
                     SniffingView(isLF: false)
                 } label: {
-                    Label(L10n.t("HF sniffing (13.56 MHz)"), systemImage: "dot.radiowaves.left.and.right")
-                        .foregroundStyle(.green)
+                    Label { Text(L10n.t("HF sniffing (13.56 MHz)")).foregroundStyle(.primary) }
+                        icon: { Image(systemName: "dot.radiowaves.left.and.right").foregroundStyle(.green) }
                 }
             }
             Section(L10n.t("Tag tools")) {
                 NavigationLink {
                     T55XXPasswordCleanerView()
                 } label: {
-                    Label(L10n.t("T55xx password cleaner"), systemImage: "password")
+                    Label { Text(L10n.t("T55xx password cleaner")).foregroundStyle(.primary) }
+                        icon: { Image(systemName: "password") }
                 }
                 NavigationLink {
                     DictionaryDownloadView()
                 } label: {
-                    Text(L10n.t("Dictionary download"))
+                    Text(L10n.t("Dictionary download")).foregroundStyle(.primary)
                 }
             }
             Section {
@@ -253,7 +254,7 @@ struct DictionaryDownloadView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(themeAccent.opacity(0.15), in: Capsule())
-                        .foregroundStyle(themeAccent)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
             }

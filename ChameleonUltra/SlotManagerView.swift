@@ -30,7 +30,7 @@ struct SlotManagerView: View {
                                 : "\(L10n.t("Slot")) \(slot)")
                         if !app.slotAliases[slot].isEmpty {
                             Text(app.slotAliases[slot])
-                                .foregroundStyle(themeAccent)
+                                .foregroundStyle(.primary)
                         }
                         Spacer(minLength: 0)
                         Button {
@@ -184,7 +184,7 @@ struct SlotManagerView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
                         .background(themeAccent.opacity(0.15), in: Capsule())
-                        .foregroundStyle(themeAccent)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
 

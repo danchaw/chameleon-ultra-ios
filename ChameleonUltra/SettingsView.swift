@@ -143,6 +143,7 @@ struct SettingsView: View {
                     LogsView()
                 } label: {
                     AccentLabel(L10n.t("Protocol log"), "doc.text.magnifyingglass")
+                        .foregroundStyle(.primary)
                 }
                 // Button + open URL, not Link: Link would tint the text with
                 // the accent colour; only the icon should follow the theme.

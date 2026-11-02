@@ -73,8 +73,10 @@ struct SavedCardsView: View {
             ToolbarItem(placement: .topBarLeading) {
                 if selectMode {
                     Button(L10n.t("Cancel")) { exitSelectMode() }
+                        .foregroundStyle(.primary)
                 } else {
                     Button(L10n.t("Select")) { selectMode = true }
+                        .foregroundStyle(.primary)
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
@@ -83,6 +85,7 @@ struct SavedCardsView: View {
                             ? L10n.t("Deselect all") : L10n.t("Select all")) {
                         toggleSelectAll()
                     }
+                    .foregroundStyle(.primary)
                     .disabled(filtered.isEmpty)
                 }
             }
@@ -93,7 +96,7 @@ struct SavedCardsView: View {
                     Button("\(L10n.t("Delete")) (\(selection.count))", role: .destructive) {
                         confirmBatchDelete = true
                     }
-                    .tint(themeAccent)
+                    .foregroundStyle(.primary)
                     .disabled(selection.isEmpty)
                 } else {
                     Button {
@@ -186,7 +189,7 @@ struct SavedCardsView: View {
                 .foregroundStyle(card.tagType.frequency == .lf ? .blue : .green)
                 .frame(width: 30)
             VStack(alignment: .leading, spacing: 2) {
-                Text(card.name).font(.headline)
+                Text(card.name).font(.headline).foregroundStyle(.primary)
                 Text("\(card.displayType) · \(card.uidData.hexSpaced.isEmpty ? card.uid.uppercased() : card.uidData.hexSpaced)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -245,7 +248,7 @@ struct CardDetailView: View {
                                     : candidate.data)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(candidate.name).font(.headline)
+                                Text(candidate.name).font(.headline).foregroundStyle(.primary)
                                 Text("\(candidate.displayType) · \(candidate.data.count) \(L10n.t("Blocks"))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -365,6 +368,7 @@ struct CardDetailView: View {
                     }
                 } label: {
                     AccentLabel(L10n.t("Dump editor"), "square.and.pencil")
+                        .foregroundStyle(.primary)
                 }
 
                 Button {
@@ -613,7 +617,7 @@ struct DictionaryManagerView: View {
                                 Image(systemName: selection.contains(dict.id) ? "checkmark.circle.fill" : "circle")
                                     .foregroundStyle(selection.contains(dict.id) ? Color.accentColor : Color(.systemGray3))
                                 VStack(alignment: .leading) {
-                                    Text(dict.name).font(.headline)
+                                    Text(dict.name).font(.headline).foregroundStyle(.primary)
                                     Text("\(dict.keys.count) \(L10n.t("keys"))")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
@@ -625,7 +629,7 @@ struct DictionaryManagerView: View {
                         DictionaryDetailView(dictionary: dict)
                     } label: {
                         VStack(alignment: .leading) {
-                            Text(dict.name).font(.headline)
+                            Text(dict.name).font(.headline).foregroundStyle(.primary)
                             Text("\(dict.keys.count) \(L10n.t("keys"))")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
@@ -642,8 +646,10 @@ struct DictionaryManagerView: View {
             ToolbarItem(placement: .topBarLeading) {
                 if selectMode {
                     Button(L10n.t("Cancel")) { exitSelectMode() }
+                        .foregroundStyle(.primary)
                 } else {
                     Button(L10n.t("Select")) { selectMode = true }
+                        .foregroundStyle(.primary)
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
@@ -660,7 +666,7 @@ struct DictionaryManagerView: View {
                     Button("\(L10n.t("Delete")) (\(selection.count))", role: .destructive) {
                         confirmBatchDelete = true
                     }
-                    .tint(themeAccent)
+                    .foregroundStyle(.primary)
                     .disabled(selection.isEmpty)
                 } else {
                     Button {

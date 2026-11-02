@@ -104,6 +104,7 @@ struct HomeDashboardView: View {
                 } label: {
                     HStack {
                         Text(L10n.t("Manage regions"))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Text(String(format: L10n.t("%d"), GeoRegionStore.load().count))
                             .foregroundStyle(.secondary)
@@ -204,7 +205,8 @@ struct HomeDashboardView: View {
             SlotChanger()
                 .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8))
             NavigationLink { SlotManagerView() } label: {
-                Label(L10n.t("Slot manager"), systemImage: "square.grid.3x3.fill")
+                Label { Text(L10n.t("Slot manager")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "square.grid.3x3.fill") }
             }
         }
     }
@@ -213,16 +215,16 @@ struct HomeDashboardView: View {
     private var taskSection: some View {
         Section {
             Button { app.selectedTab = 1 } label: {
-                Label(L10n.t("Read a card"), systemImage: "creditcard.viewfinder")
-                    .foregroundStyle(.primary)
+                Label { Text(L10n.t("Read a card")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "creditcard.viewfinder") }
             }
             Button { app.selectedTab = 3 } label: {
-                Label(L10n.t("Write a card"), systemImage: "square.and.pencil")
-                    .foregroundStyle(.primary)
+                Label { Text(L10n.t("Write a card")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "square.and.pencil") }
             }
             Button { app.selectedTab = 2 } label: {
-                Label(L10n.t("Saved cards"), systemImage: "rectangle.stack.fill")
-                    .foregroundStyle(.primary)
+                Label { Text(L10n.t("Saved cards")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "rectangle.stack.fill") }
             }
         } header: {
             Text(L10n.t("Main tasks"))
@@ -246,17 +248,20 @@ struct HomeDashboardView: View {
     private var moreSection: some View {
         Section(header: Text(L10n.t("More in the app"))) {
             NavigationLink { ToolsView() } label: {
-                Label(L10n.t("Tools"), systemImage: "wrench.and.screwdriver.fill")
+                Label { Text(L10n.t("Tools")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "wrench.and.screwdriver.fill") }
             }
             Button { showEmulatorSettings = true } label: {
-                Label(L10n.t("Emulator"), systemImage: "waveform.path.ecg.rectangle")
-                    .foregroundStyle(.primary)
+                Label { Text(L10n.t("Emulator")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "waveform.path.ecg.rectangle") }
             }
             NavigationLink { FlashingView(embedded: true) } label: {
-                Label(L10n.t("Firmware update"), systemImage: "arrow.down.doc.fill")
+                Label { Text(L10n.t("Firmware update")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "arrow.down.doc.fill") }
             }
             NavigationLink { DeviceSettingsView() } label: {
-                Label(L10n.t("Device settings"), systemImage: "gearshape.2.fill")
+                Label { Text(L10n.t("Device settings")).foregroundStyle(.primary) }
+                    icon: { Image(systemName: "gearshape.2.fill") }
             }
         }
     }

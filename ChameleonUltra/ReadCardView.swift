@@ -268,18 +268,6 @@ struct ReadCardView: View {
                             .disabled(phase == .checkingKeys)
                         }
 
-                        if phase == .checkingKeys || phase == .dumping {
-                            Button {
-                                checkTask?.cancel()
-                                checkTask = nil
-                            } label: {
-                                Label(L10n.t("Stop"), systemImage: "stop.circle.fill")
-                                    .font(.subheadline.weight(.medium))
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(themeAccent)
-                        }
 
                         if phase == .dumping {
                             HStack { SegmentedProgress(progress: recoveryModel.dumpProgress, count: 14); Text(L10n.t("Dumping…")) }

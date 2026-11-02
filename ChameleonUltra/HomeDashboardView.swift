@@ -33,21 +33,21 @@ struct HomeDashboardView: View {
                     principalChipLabel
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                // Refresh + exit share one system capsule; icons tinted.
-                HStack(spacing: 6) {
-                    Button {
-                        refresh()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundStyle(accent)
-                    }
-                    Button {
-                        app.disconnect()
-                    } label: {
-                        Image(systemName: "xmark.circle")
-                            .foregroundStyle(accent)
-                    }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                // One system capsule, two segments — let the bar own the
+                // spacing instead of a hand-tuned HStack, so the rhythm
+                // matches every other toolbar in the app.
+                Button {
+                    refresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(accent)
+                }
+                Button {
+                    app.disconnect()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                        .foregroundStyle(accent)
                 }
             }
         }

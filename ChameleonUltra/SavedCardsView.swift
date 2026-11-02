@@ -86,7 +86,9 @@ struct SavedCardsView: View {
                     .disabled(filtered.isEmpty)
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                // One capsule, system-even segments — two lone trailing
+                // items used to sit inconsistently close.
                 if selectMode {
                     Button("\(L10n.t("Delete")) (\(selection.count))", role: .destructive) {
                         confirmBatchDelete = true
@@ -99,10 +101,6 @@ struct SavedCardsView: View {
                     } label: {
                         Image(systemName: "square.and.arrow.down.on.square")
                     }
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                if !selectMode {
                     NavigationLink {
                         DictionaryManagerView()
                     } label: {

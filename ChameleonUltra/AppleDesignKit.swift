@@ -16,12 +16,12 @@ import SwiftUI
 /// The three springs the app is allowed to use. Named by intent, not shape.
 enum AppleMotion {
     /// Tap-caused state change: damping 1.0, response 0.35 (WWDC default).
-    static let ui: Animation = .spring(Spring(response: 0.35, dampingFraction: 1.0))
+    static let ui: Animation = .spring(Spring(response: 0.35, dampingRatio: 1.0))
     /// Press in/out micro feedback: snappier, still no overshoot.
-    static let micro: Animation = .spring(Spring(response: 0.25, dampingFraction: 1.0))
+    static let micro: Animation = .spring(Spring(response: 0.25, dampingRatio: 1.0))
     /// Flick / drag release ONLY — inherits the gesture's momentum, so a
     /// slight bounce is earned here and nowhere else.
-    static let momentum: Animation = .spring(Spring(response: 0.4, dampingFraction: 0.8))
+    static let momentum: Animation = .spring(Spring(response: 0.4, dampingRatio: 0.8))
 }
 
 /// Press-down feedback: shade + subtle scale, spring-driven and interruptible

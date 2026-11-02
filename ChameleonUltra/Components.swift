@@ -376,6 +376,7 @@ struct ErrorBanner: View {
         if let message {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
                 Text(message).lineLimit(3)
                 Spacer()
                 Button {
@@ -386,7 +387,7 @@ struct ErrorBanner: View {
             }
             .padding(12)
             .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
-            .foregroundStyle(.red)
+            .foregroundStyle(.primary)
         }
     }
 }

@@ -70,7 +70,7 @@ struct DumpEditorView: View {
                 .listRowBackground(Color.clear)
 
                 if let error {
-                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
+                    Section { Text(error).foregroundStyle(.primary).font(.footnote) }
                 }
 
                 switch mode {
@@ -156,7 +156,7 @@ struct DumpEditorView: View {
                     .font(.system(size: 8, weight: .bold))
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .background(isDiff ? Color.red.opacity(0.18) : Color.green.opacity(0.18), in: Capsule())
-                    .foregroundStyle(isDiff ? Color.red : Color.green)
+                    .foregroundStyle(.primary)
                 Spacer(minLength: 0)
             }
             Text(diffPreview(mine, other: theirs, showDiff: isDiff))
@@ -183,7 +183,7 @@ struct DumpEditorView: View {
             }
             var piece = AttributedString(String(format: "%02X", mineP[i]))
             if showDiff {
-                piece.foregroundColor = mineP[i] != otherP[i] ? Color.red : Color.secondary
+                piece.foregroundColor = mineP[i] != otherP[i] ? Color.primary : Color.secondary
             }
             out.append(piece)
         }
@@ -315,17 +315,17 @@ struct DumpEditorView: View {
             Text(L10n.t("Manufacturer")).font(.system(size: 8, weight: .bold))
                 .padding(.horizontal, 5).padding(.vertical, 1)
                 .background(Color.blue.opacity(0.2), in: Capsule())
-                .foregroundStyle(.blue)
+                .foregroundStyle(.primary)
         case .value:
             Text(L10n.t("Value block")).font(.system(size: 8, weight: .bold))
                 .padding(.horizontal, 5).padding(.vertical, 1)
                 .background(Color.green.opacity(0.2), in: Capsule())
-                .foregroundStyle(.green)
+                .foregroundStyle(.primary)
         case .trailer:
             Text(L10n.t("Trailer")).font(.system(size: 8, weight: .bold))
                 .padding(.horizontal, 5).padding(.vertical, 1)
                 .background(Color.purple.opacity(0.2), in: Capsule())
-                .foregroundStyle(.purple)
+                .foregroundStyle(.primary)
         case .data:
             EmptyView()
         }
@@ -366,20 +366,9 @@ struct DumpEditorView: View {
     }
 
     private func byteColor(byte: Int, kind: BlockKind) -> Color {
-        switch kind {
-        case .manufacturer:
-            return .blue
-        case .trailer:
-            if byte < 6 { return .red }                     // Key A
-            if byte < 9 { return .purple }                  // access bits C1-C3
-            if byte == 9 { return .gray }                   // GPB
-            return .blue                                    // Key B
-        case .value:
-            if byte < 12 { return .green }                  // value / inverse / duplicate
-            return .teal                                    // address + guards
-        case .data:
-            return .primary
-        }
+        // App-wide rule: text is black/white only (adaptive). Field separation
+        // is carried by the row backgrounds and the legend swatches instead.
+        .primary
     }
 
     // MARK: - ASCII (grouped, editable)
@@ -418,7 +407,7 @@ struct DumpEditorView: View {
                         Spacer()
                         Text(String(format: "%02X %02X %02X", blocks[index][6], blocks[index][7], blocks[index][8]))
                             .font(.caption.monospaced())
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(.primary)
                     }
                     Text(aclName(blocks[index])).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -458,10 +447,18 @@ struct DumpEditorView: View {
                             && b[4...7].elementsEqual(b[0...3].map { ~$0 })
                         let addrValid = b[12] == b[14] && b[13] == ~b[12] && b[15] == ~b[12]
                         HStack(spacing: 12) {
-                            Label(L10n.t("Value"), systemImage: valueValid ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(valueValid ? Color.green : Color.red)
-                            Label(L10n.t("Address"), systemImage: addrValid ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(addrValid ? Color.green : Color.red)
+                            Label {
+                                Text(L10n.t("Value")).foregroundStyle(.primary)
+                            } icon: {
+                                Image(systemName: valueValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(valueValid ? Color.green : Color.red)
+                            }
+                            Label {
+                                Text(L10n.t("Address")).foregroundStyle(.primary)
+                            } icon: {
+                                Image(systemName: addrValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(addrValid ? Color.green : Color.red)
+                            }
                         }
                         .font(.caption2)
                     }

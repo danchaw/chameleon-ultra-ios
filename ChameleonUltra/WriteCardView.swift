@@ -39,8 +39,12 @@ struct WriteCardView: View {
             }
             if let message {
                 Section {
-                    Label(message, systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                    Label {
+                        Text(message).foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
                 }
             }
 

@@ -15,7 +15,6 @@ struct HomeDashboardView: View {
             List {
                 heroSection
                 slotsSection
-                taskSection
                 fenceSection
                 moreSection
             }
@@ -144,7 +143,7 @@ struct HomeDashboardView: View {
             if let battery = app.battery {
                 Text("\(battery.percent)%")
                     .font(.footnote.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.primary)
                     .lgNumber()
                     .appleSpring(value: battery.percent)
             }
@@ -180,10 +179,11 @@ struct HomeDashboardView: View {
                         HStack(spacing: 5) {
                             Image(systemName: "battery.75")
                                 .font(.caption)
+                                .foregroundStyle(.green)
                             Text("\(battery.percent)% · \(String(format: "%.2f", Double(battery.voltage) / 1000)) V")
                                 .font(.subheadline.weight(.medium).monospacedDigit())
                         }
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.primary)
                         .appleSpring(value: battery.percent)
                     }
                 }
@@ -209,28 +209,6 @@ struct HomeDashboardView: View {
                 Label { Text(L10n.t("Slot manager")).foregroundStyle(.primary) }
                     icon: { Image(systemName: "square.grid.3x3.fill") }
             }
-        }
-    }
-
-    /// The three jobs, as native rows that jump to the matching tab.
-    private var taskSection: some View {
-        Section {
-            Button { app.selectedTab = 1 } label: {
-                Label { Text(L10n.t("Read a card")).foregroundStyle(.primary) }
-                    icon: { Image(systemName: "creditcard.viewfinder") }
-            }
-            Button { app.selectedTab = 3 } label: {
-                Label { Text(L10n.t("Write a card")).foregroundStyle(.primary) }
-                    icon: { Image(systemName: "square.and.pencil") }
-            }
-            Button { app.selectedTab = 2 } label: {
-                Label { Text(L10n.t("Saved cards")).foregroundStyle(.primary) }
-                    icon: { Image(systemName: "rectangle.stack.fill") }
-            }
-        } header: {
-            Text(L10n.t("Main tasks"))
-        } footer: {
-            Text(L10n.t("These jump straight to the matching tab."))
         }
     }
 
@@ -316,14 +294,18 @@ struct EmulatorSettingsSheet: View {
                     }
                 }
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(.primary) }
                 }
             }
             .navigationTitle(L10n.t("Emulator settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text(L10n.t("Done")).foregroundStyle(.primary)
+                    }
                 }
             }
             .task { await load() }

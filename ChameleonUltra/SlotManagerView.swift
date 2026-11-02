@@ -16,7 +16,7 @@ struct SlotManagerView: View {
     var body: some View {
         List {
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(.primary) }
             }
             ForEach(0..<app.slotCount, id: \.self) { slot in
                 Section {

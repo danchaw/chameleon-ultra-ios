@@ -63,8 +63,12 @@ struct FlashingView: View {
 
                 if let status {
                     GlassCard {
-                        Label(status, systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                        Label {
+                            Text(status).foregroundStyle(.primary)
+                        } icon: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        }
                     }
                 }
 
@@ -198,7 +202,7 @@ struct FlashingView: View {
                                     .font(.caption2.bold())
                                     .padding(.horizontal, 6).padding(.vertical, 2)
                                     .background(.orange.opacity(0.2), in: Capsule())
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(.primary)
                             }
                         }
                     }
@@ -484,9 +488,13 @@ struct FlashingView: View {
 
                     Divider()
 
-                    Label(L10n.t("Force flash (unsafe)"), systemImage: "exclamationmark.triangle.fill")
+                    Label {
+                        Text(L10n.t("Force flash (unsafe)")).foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.red)
                     Button(role: .destructive) {
                         forceArmed = true
                         showFlashConfirm = true
@@ -517,7 +525,7 @@ struct FlashingView: View {
                 .font(.footnote)
             Text(text)
                 .font(.footnote)
-                .foregroundStyle(ok ? Color.primary : Color.red)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

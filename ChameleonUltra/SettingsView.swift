@@ -264,7 +264,7 @@ struct DeviceSettingsView: View {
                 }
             }
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(.primary) }
             }
         }
         .navigationTitle(L10n.t("Device settings"))
@@ -447,7 +447,7 @@ struct LogsView: View {
                 if let statusMessage {
                     Text("✓ " + statusMessage)
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.primary)
                         .padding(.bottom, 6)
                 }
                 ForEach(Array(app.logLines.enumerated().reversed()), id: \.offset) { _, line in
@@ -545,7 +545,7 @@ struct LogArchivesView: View {
                     } label: {
                         Text(L10n.t("Delete all archives?"))
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(.primary)
                     }
                     .buttonStyle(.plain)
                 }

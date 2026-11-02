@@ -97,7 +97,7 @@ struct ConnectView: View {
                                             .font(.caption2.bold())
                                             .padding(.horizontal, 6).padding(.vertical, 2)
                                             .background(.orange.opacity(0.25), in: Capsule())
-                                            .foregroundStyle(.orange)
+                                            .foregroundStyle(.primary)
                                     }
                                 }
                                 Text(device.deviceType == .ultra ? "Chameleon Ultra" : "Chameleon Lite")

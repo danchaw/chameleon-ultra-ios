@@ -159,10 +159,17 @@ struct T55XXPasswordCleanerView: View {
                 .disabled(busy)
             }
             if let message {
-                Section { Label(message, systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                Section {
+                    Label {
+                        Text(message).foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
             }
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { Text(error).foregroundStyle(.primary) }
             }
         }
         .navigationTitle(L10n.t("T55xx cleaner"))
@@ -244,7 +251,7 @@ struct DictionaryDownloadView: View {
             } else if isDownloaded {
                 Text(L10n.t("Downloaded"))
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.primary)
             } else {
                 Button {
                     download(index)

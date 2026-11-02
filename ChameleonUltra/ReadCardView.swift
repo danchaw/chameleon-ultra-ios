@@ -123,9 +123,13 @@ struct ReadCardView: View {
                         }
                         Spacer()
                         if savedUIDs.contains(found.uid.hex) {
-                            Label(L10n.t("Saved"), systemImage: "checkmark.circle.fill")
+                            Label {
+                                Text(L10n.t("Saved")).foregroundStyle(.primary)
+                            } icon: {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
                                 .font(.caption)
-                                .foregroundStyle(.green)
                         } else {
                             Button {
                                 saveUIDOnly(card: found, type: .unknown)

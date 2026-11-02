@@ -16,12 +16,12 @@ import SwiftUI
 /// The three springs the app is allowed to use. Named by intent, not shape.
 enum AppleMotion {
     /// Tap-caused state change: damping 1.0, response 0.35 (WWDC default).
-    static let ui = Spring(response: 0.35, dampingFraction: 1.0, blendDuration: 0)
+    static let ui: Animation = .spring(Spring(response: 0.35, dampingFraction: 1.0))
     /// Press in/out micro feedback: snappier, still no overshoot.
-    static let micro = Spring(response: 0.25, dampingFraction: 1.0, blendDuration: 0)
+    static let micro: Animation = .spring(Spring(response: 0.25, dampingFraction: 1.0))
     /// Flick / drag release ONLY — inherits the gesture's momentum, so a
     /// slight bounce is earned here and nowhere else.
-    static let momentum = Spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)
+    static let momentum: Animation = .spring(Spring(response: 0.4, dampingFraction: 0.8))
 }
 
 /// Press-down feedback: shade + subtle scale, spring-driven and interruptible
@@ -45,7 +45,7 @@ struct PressableStyle: ButtonStyle {
 }
 
 private struct AppleSpringModifier<V: Equatable>: ViewModifier {
-    let animation: Spring
+    let animation: Animation
     let value: V
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -58,7 +58,7 @@ private struct AppleSpringModifier<V: Equatable>: ViewModifier {
 
 extension View {
     /// `.animation(...)` with Reduce Motion honoured, spring default.
-    func appleSpring<V: Equatable>(_ animation: Spring = AppleMotion.ui,
+    func appleSpring<V: Equatable>(_ animation: Animation = AppleMotion.ui,
                                    value: V) -> some View {
         modifier(AppleSpringModifier(animation: animation, value: value))
     }

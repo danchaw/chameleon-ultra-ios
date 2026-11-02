@@ -63,6 +63,7 @@ struct HomeDashboardView: View {
             Button(L10n.t("Save")) { app.setDeviceNickname(renameText) }
             Button(L10n.t("Cancel"), role: .cancel) { }
         }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .refreshable {
             Haptics.light()
             refresh()

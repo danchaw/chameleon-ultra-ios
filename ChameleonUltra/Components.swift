@@ -114,21 +114,13 @@ struct GlassCard<Content: View>: View {
     }
 }
 
-/// Legacy wrapper around the v1.36 card surface — pages migrate to
-/// `.lgCard()`, this keeps old call sites compiling with the new look.
+/// Card surface — v1.38 redesign: native grouped surface (solid, adaptive).
+/// No glass on content surfaces (HIG: translucent = interactive chrome).
 struct GlassBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(Glass.clear,
-                                in: .rect(cornerRadius: 22, style: .continuous))
-        } else {
-            content
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
-                )
-        }
+        content
+            .background(Color(.secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

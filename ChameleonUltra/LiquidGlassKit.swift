@@ -1,128 +1,97 @@
 import SwiftUI
 
-// MARK: - Liquid Glass design kit (v1.36)
+// MARK: - Design system (v1.38.0 · redesign/apple-native)
 //
-// One semantic API, two implementations: native `glassEffect` on iOS 26+,
-// a calibrated material fallback on iOS 17-25 (blur radius / edge-light /
-// stroke values follow the SwiftLiquid parameter reference so both paths
-// read as the same design language).
-//
-// Surfaces (largest → smallest):
-//   .lgCard      content group      — clear glass on 26 (content under it stays primary)
-//   .lgTile      tappable grid cell — regular glass, tinted + interactive when promoted
-//   .lgChip      inline pill/badge  — regular glass capsule
-// Morphing:
-//   LGMorph      one GlassEffectContainer per screen; selection shapes carry
-//                .glassEffectID(...) so the highlight morphs between positions
-//                instead of fading (Apple "Applying Liquid Glass" example 2).
+// Full teardown of the v1.36 hand-drawn Liquid Glass layer. Per
+// apple-design / HIG:
+//   • glass and material belong to INTERACTIVE chrome (buttons, toolbars),
+//     never to content surfaces — cards are native grouped surfaces;
+//   • where a system style exists it wins over any hand-built
+//     approximation — on iOS 26 that is .glass/.glassProminent/glassEffect;
+//     on iOS 17–25 it is .bordered/.borderedProminent and plain UIKit
+//     system colors (the Settings/Mail look), no faux frosted glass.
+// The API names stay (call sites untouched); every implementation is new.
 
-private let lgCardRadius: CGFloat = 22
-private let lgTileRadius: CGFloat = 16
-private let lgCornerRadiusContinuous = RoundedRectangle(cornerRadius: lgCardRadius, style: .continuous)
+let lgCardRadius: CGFloat = 16
+let lgTileRadius: CGFloat = 16
 
-// MARK: - Card surface
+// MARK: - Content surface
 
 struct LGCardModifier: ViewModifier {
-    @Environment(\.themeAccent) private var accent
-    var interactive: Bool = false
+    var interactive: Bool = false   // kept for call-site compatibility
 
     func body(content: Content) -> some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground),
+                        in: RoundedRectangle(cornerRadius: lgCardRadius, style: .continuous))
+    }
+}
+
+// MARK: - Tile / button
+
+/// iOS 26: the OS glass button styles (free absorb-on-press physics).
+/// iOS 17–25: the OS bordered styles, stretched to fill — everything the
+/// system draws, nothing hand-frosted.
+private struct FillLabelStyle<S: ButtonStyle>: ButtonStyle {
+    let base: S
+    func makeBody(configuration: Configuration) -> some View {
+        base.makeBody(configuration: configuration)
+            .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func lgTile(prominent: Bool = false) -> some View {
         if #available(iOS 26.0, *) {
-            // Large content surfaces use the CLEAR variant: lighter than the
-            // controls riding on top of them (HIG: don't glass everything).
-            if interactive {
-                content
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassEffect(Glass.clear.interactive(), in: .rect(cornerRadius: lgCardRadius, style: .continuous))
+            if prominent {
+                buttonStyle(.glassProminent)
             } else {
-                content
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassEffect(Glass.clear, in: .rect(cornerRadius: lgCardRadius, style: .continuous))
+                buttonStyle(.glass)
             }
         } else {
-            content
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.regularMaterial, in: lgCornerRadiusContinuous)
-                .overlay(
-                    lgCornerRadiusContinuous
-                        .strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
-                )
-        }
-    }
-}
-
-// MARK: - Tile surface (tappable grid cell / primary button)
-
-struct LGTileStyle: ButtonStyle {
-    var prominent: Bool = false
-    @Environment(\.themeAccent) private var accent
-
-    func makeBody(configuration: Configuration) -> some View {
-        TileBody(configuration: configuration, prominent: prominent, accent: accent)
-    }
-
-    private struct TileBody: View {
-        let configuration: Configuration
-        let prominent: Bool
-        let accent: Color
-
-        var body: some View {
-            configuration.label
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .padding(.horizontal, 10)
-                .modifier(TileGlass(prominent: prominent, pressed: configuration.isPressed, accent: accent))
-                .scaleEffect(configuration.isPressed ? 0.97 : 1)
-                .animation(AppleMotion.micro, value: configuration.isPressed)
-        }
-    }
-
-    private struct TileGlass: ViewModifier {
-        let prominent: Bool
-        let pressed: Bool
-        let accent: Color
-
-        func body(content: Content) -> some View {
-            if #available(iOS 26.0, *) {
-                if prominent {
-                    content
-                        .glassEffect(Glass.regular.interactive().tint(accent.opacity(0.6)), in: .rect(cornerRadius: lgTileRadius, style: .continuous))
-                        .opacity(pressed ? 0.85 : 1)
-                } else {
-                    content
-                        .glassEffect(Glass.regular.interactive(), in: .rect(cornerRadius: lgTileRadius, style: .continuous))
-                        .opacity(pressed ? 0.85 : 1)
-                }
+            if prominent {
+                buttonStyle(FillLabelStyle(base: BorderedProminentButtonStyle().controlSize(.large)))
             } else {
-                content
-                    // Frosted glass on iOS 17–25 too (not a flat grey card):
-                    // accent wash under a material blur for prominent tiles.
-                    .background(
-                        prominent ? AnyShapeStyle(accent.opacity(pressed ? 0.30 : 0.22))
-                                  : AnyShapeStyle(Color.clear),
-                        in: RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
-                    )
-                    .background(
-                        .regularMaterial,
-                        in: RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: lgTileRadius, style: .continuous)
-                            .strokeBorder(.white.opacity(pressed ? 0.22 : 0.14), lineWidth: 0.5)
-                    )
+                buttonStyle(FillLabelStyle(base: BorderedButtonStyle().controlSize(.large)))
             }
         }
     }
+
+    /// Full-width tappable row (lists rendered outside a List).
+    @ViewBuilder
+    func lgRow() -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(LGLargeGlassRowStyle())
+        } else {
+            buttonStyle(PressableStyle(cornerRadius: 12, scales: false))
+        }
+    }
+
+    /// Inline pill/badge. Interactive chrome → glass on 26; on older
+    /// systems a light tertiary system fill (a chip, not a frosted panel).
+    func lgChip(_ tint: Color? = nil) -> some View {
+        modifier(LGChipModifier(tint: tint))
+    }
+
+    /// Hierarchical symbol rendering (iOS 15+).
+    func lgIcon() -> some View {
+        symbolRenderingMode(.hierarchical)
+    }
+
+    /// Rolling digits for counters/battery/percentages.
+    func lgNumber() -> some View {
+        contentTransition(.numericText())
+    }
+
+    func lgCard(interactive: Bool = false) -> some View {
+        modifier(LGCardModifier(interactive: interactive))
+    }
 }
 
-// MARK: - Chip surface (inline pill / badge)
-
 struct LGChipModifier: ViewModifier {
-    /// Optional theme tint: the glass picks up a coloured sheen (26) or a
-    /// soft accent wash + stroke (fallback).
     var tint: Color? = nil
 
     func body(content: Content) -> some View {
@@ -134,20 +103,14 @@ struct LGChipModifier: ViewModifier {
                 content.glassEffect(Glass.regular, in: .capsule)
             }
         } else {
-            content
-                .background(.regularMaterial, in: Capsule())
-                .background(tint.map { c in Capsule().fill(c.opacity(0.14)) })
-                .overlay(Capsule().strokeBorder((tint ?? .white).opacity(tint == nil ? 0.14 : 0.35),
-                                                lineWidth: 0.5))
+            content.background(Color(.tertiarySystemBackground), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5))
         }
     }
 }
 
-// MARK: - Morph container + namespace
+// MARK: - Morph container + namespace (iOS 26 selection morph; pass-through below)
 
-/// Share a GlassEffectContainer across a screen so `glassEffectID` shapes
-/// morph between positions (slot selection, tab-like pills). On iOS < 26 it
-/// is a transparent pass-through.
 struct LGMorphContainer<Content: View>: View {
     @ViewBuilder var content: Content
 
@@ -160,7 +123,6 @@ struct LGMorphContainer<Content: View>: View {
     }
 }
 
-/// Applies a morphing identity to a background shape inside an LGMorphContainer.
 struct LGMorphID: ViewModifier {
     let id: String
     @Environment(\.lgNamespace) private var ns
@@ -185,56 +147,7 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - Icon / number polish
-
-extension View {
-    func lgCard(interactive: Bool = false) -> some View {
-        modifier(LGCardModifier(interactive: interactive))
-    }
-
-    func lgChip(_ tint: Color? = nil) -> some View { modifier(LGChipModifier(tint: tint)) }
-
-    /// Tiles/buttons: native context-aware glass button styles on iOS 26
-    /// (`.glass` / `.glassProminent` — the pressed-absorb behaviour is free),
-    /// hand-built equivalent below.
-    @ViewBuilder
-    func lgTile(prominent: Bool = false) -> some View {
-        if #available(iOS 26.0, *) {
-            if prominent {
-                buttonStyle(.glassProminent)
-            } else {
-                buttonStyle(.glass)
-            }
-        } else {
-            buttonStyle(LGTileStyle(prominent: prominent))
-        }
-    }
-
-    /// Full-width device/list ROWS: always a rounded rectangle — the plain
-    /// `.glass` button style is context-aware and can render wide rows as
-    /// giant capsules, which is exactly what we don't want here.
-    @ViewBuilder
-    func lgRow() -> some View {
-        if #available(iOS 26.0, *) {
-            buttonStyle(LGLargeGlassRowStyle())
-        } else {
-            buttonStyle(LGTileStyle(prominent: false))
-        }
-    }
-
-    /// Hierarchical symbol rendering (iOS 15+): the tint renders in graded
-    /// opacities, which matches the glass controls.
-    func lgIcon() -> some View {
-        symbolRenderingMode(.hierarchical)
-    }
-
-    /// Rolling digits for counters/battery/percentages.
-    func lgNumber() -> some View {
-        contentTransition(.numericText())
-    }
-}
-
-/// Wraps a screen so children can use `.lGMorphShape(id:)`.
+/// Wraps a screen so children can use `.lgMorphShape(id:)`.
 struct LGMorphScope<Content: View>: View {
     @Namespace private var ns
     @ViewBuilder var content: Content

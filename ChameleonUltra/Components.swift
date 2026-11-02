@@ -437,7 +437,7 @@ struct SlotChanger: View {
                             .background(
                                 app.activeSlot == slot
                                     ? AnyShapeStyle(themeAccent.opacity(0.10))
-                                    : AnyShapeStyle(Color(.systemBackground).opacity(0.35)),
+                                    : AnyShapeStyle(Color(.systemFill)),
                                 in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                             )
                         }

@@ -52,10 +52,14 @@ extension View {
                 buttonStyle(.glass)
             }
         } else {
+            // controlSize is an ENVIRONMENT value — set it outside the style
+            // (BorderedButtonStyle itself has no .controlSize chain).
             if prominent {
-                buttonStyle(FillLabelStyle(base: BorderedProminentButtonStyle().controlSize(.large)))
+                controlSize(.large)
+                    .buttonStyle(FillLabelStyle(base: BorderedProminentButtonStyle()))
             } else {
-                buttonStyle(FillLabelStyle(base: BorderedButtonStyle().controlSize(.large)))
+                controlSize(.large)
+                    .buttonStyle(FillLabelStyle(base: BorderedButtonStyle()))
             }
         }
     }

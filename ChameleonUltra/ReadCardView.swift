@@ -166,6 +166,9 @@ struct ReadCardView: View {
                         if let found = try await communicator?.scan14443aTag(),
                            !foundCards.contains(where: { $0.uid == found.uid }) {
                             foundCards.append(found)
+                            // Completion feedback fires the same frame the
+                            // row appears (apple-design: causality + harmony).
+                            Haptics.success()
                         }
                         try await Task.sleep(nanoseconds: 800_000_000)
                     }
@@ -399,10 +402,12 @@ struct ReadCardView: View {
             }
             guard let found = try await communicator.scan14443aTag() else {
                 error = L10n.t("No tag found")
+                Haptics.error()
                 phase = .idle
                 return
             }
             card = found
+            Haptics.success()
 
             let mifare = try await communicator.detectMf1Support()
             isMifareClassic = mifare
@@ -527,6 +532,7 @@ struct ReadCardView: View {
                 lfCard = (io.type, io.uid.hexSpaced)
             } else {
                 error = L10n.t("No LF tag found")
+                Haptics.error()
             }
         } catch {
             self.error = error.localizedDescription

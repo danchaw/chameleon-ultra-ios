@@ -193,7 +193,7 @@ struct GeoRegionEditorView: View {
         .onChange(of: search.query) { _, newValue in
             // Typing again while sizing the fence means "find another place".
             guard !newValue.isEmpty, stage == .radius else { return }
-            withAnimation(.snappy) { stage = .locate }
+            withAnimation(AppleMotion.ui) { stage = .locate }
         }
     }
 
@@ -472,7 +472,7 @@ struct GeoRegionEditorView: View {
             place(at: (mapRegion ?? camera).center, title: nil)
         }
         guard let centre else { return }
-        withAnimation(.snappy) { stage = .radius }
+        withAnimation(AppleMotion.ui) { stage = .radius }
         searchFocused = false
         recentreOn(centre, meters: max(600, radius * 3.2))
     }

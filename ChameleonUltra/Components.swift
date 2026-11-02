@@ -138,6 +138,9 @@ enum Haptics {
     static func light() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
+    static func selection() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
     static func success() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
@@ -151,6 +154,7 @@ enum Haptics {
 struct ToastModifier: ViewModifier {
     @EnvironmentObject var app: AppModel
     @Environment(\.themeAccent) private var themeAccent
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = false
 
     func body(content: Content) -> some View {
@@ -174,11 +178,13 @@ struct ToastModifier: ViewModifier {
         }
         .onChange(of: app.lastToast?.id) { _, newID in
             guard newID != nil else { return }
-            withAnimation(.snappy) { visible = true }
+            // Spring in, spring out; Reduce Motion swaps the travel for an
+            // instant appearance (information still arrives, no animation).
+            withAnimation(reduceMotion ? nil : AppleMotion.ui) { visible = true }
             Haptics.light()
             Task {
                 try? await Task.sleep(nanoseconds: 3_200_000_000)
-                withAnimation(.snappy) { visible = false }
+                withAnimation(reduceMotion ? nil : AppleMotion.ui) { visible = false }
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 if app.lastToast?.id == newID { app.lastToast = nil }
             }

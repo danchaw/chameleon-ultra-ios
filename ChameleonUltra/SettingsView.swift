@@ -87,6 +87,7 @@ struct SettingsView: View {
                     Spacer()
                     ForEach(themeColors, id: \.hex) { color in
                         Button {
+                            if themeColor != color.hex { Haptics.selection() }
                             themeColor = color.hex
                         } label: {
                             Circle()

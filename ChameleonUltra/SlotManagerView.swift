@@ -147,6 +147,7 @@ struct SlotManagerView: View {
                             do {
                                 try await app.communicator?.enableSlot(slot, frequency: frequency, status: newValue)
                                 try await app.refreshSlots()
+                                Haptics.selection()
                             } catch { self.error = error.localizedDescription }
                         }
                     }))

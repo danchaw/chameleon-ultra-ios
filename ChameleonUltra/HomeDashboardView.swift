@@ -166,7 +166,7 @@ struct HomeDashboardView: View {
                     .font(.footnote.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.green)
                     .lgNumber()
-                    .animation(.snappy, value: battery.percent)
+                    .appleSpring(value: battery.percent)
             }
         }
     }

@@ -32,13 +32,14 @@ struct SavedCardsView: View {
                                 cardRow(card)
                             }
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableStyle(cornerRadius: 12, scales: false))
                     } else {
                     NavigationLink {
                         CardDetailView(card: card)
                     } label: {
                         cardRow(card)
                     }
+                    .buttonStyle(PressableStyle(cornerRadius: 12, scales: false))
                     .contextMenu {
                         Button {
                             var copy = card

@@ -76,7 +76,7 @@ struct LGTileStyle: ButtonStyle {
                 .padding(.horizontal, 10)
                 .modifier(TileGlass(prominent: prominent, pressed: configuration.isPressed, accent: accent))
                 .scaleEffect(configuration.isPressed ? 0.97 : 1)
-                .animation(.snappy(duration: 0.22), value: configuration.isPressed)
+                .animation(AppleMotion.micro, value: configuration.isPressed)
         }
     }
 
